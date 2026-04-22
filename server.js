@@ -5,8 +5,9 @@ const fs      = require('fs');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
-const UPLOADS   = path.join(__dirname, 'uploads');
+const DATA_DIR  = process.env.DATA_DIR || __dirname;
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const UPLOADS   = path.join(DATA_DIR, 'uploads');
 
 if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
 
