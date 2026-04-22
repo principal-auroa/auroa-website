@@ -818,7 +818,7 @@ body.is-admin .pc-caption:focus{outline-color:rgba(26,43,74,0.7);}
 }
 
 /* ---- HIDDEN INPUT ---- */
-.file-in{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;}
+.file-in{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;}
 
 /* ---- SPORTS TERMS ---- */
 .sport-term{margin-bottom:32px;}
@@ -1298,9 +1298,9 @@ body.is-admin .cl-img-admin-bar{display:flex;}
       <div class="img-box" id="hdr-box">
         <div class="placeholder" id="hdr-placeholder">No header image — upload one as admin</div>
         <img id="hdr-img" style="display:none;" alt="Header" />
-        <div class="upload-overlay" id="hdr-overlay" onclick="document.getElementById('hdr-file').click()">
+        <label class="upload-overlay" id="hdr-overlay" for="hdr-file">
           <span>Click to replace image</span>
-        </div>
+        </label>
         <input class="file-in" id="hdr-file" type="file" accept="image/*" onchange="uploadImg('header',this)" />
         <button class="img-link-btn" id="lb-hdr-box" onclick="event.stopPropagation();openImgLinkEditor('hdr-box',this)">🔗</button>
       </div>
