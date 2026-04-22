@@ -337,6 +337,14 @@ body.is-admin .img-box .placeholder{display:block;}
 }
 .upload-overlay.show{display:flex;}
 body.is-admin #hdr-overlay{display:flex;}
+#hdr-upload-btn{
+  display:none;
+  background:#1a2b4a;color:#fff;
+  padding:8px 20px;border-radius:6px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
+  margin-bottom:14px;
+}
+body.is-admin #hdr-upload-btn{display:inline-block;}
 #hdr-overlay{
   inset:unset !important;top:6px;right:6px;
   width:auto;height:auto;padding:4px 10px;border-radius:6px;
@@ -1305,6 +1313,7 @@ body.is-admin .cl-img-admin-bar{display:flex;}
         <input class="file-in" id="hdr-file" type="file" accept="image/*" onchange="uploadImg('header',this)" />
         <button class="img-link-btn" id="lb-hdr-box" onclick="event.stopPropagation();openImgLinkEditor('hdr-box',this)">🔗</button>
       </div>
+      <label id="hdr-upload-btn" for="hdr-file">&#8679; Upload Header Image</label>
 
       <div id="home-lower">
       <!-- Carousel -->
