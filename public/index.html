@@ -853,12 +853,13 @@ body.is-admin .pc-caption:focus{outline-color:rgba(26,43,74,0.7);}
 .sport-reorder-wrap .sport-btn{flex:1;}
 
 /* ---- SPORT DETAIL TABLE ---- */
-.sd-table{width:100%;border-collapse:collapse;margin-bottom:14px;}
+.sd-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed;}
 .sd-table td,.sd-table th{
   border:1px solid #d0d0d0;padding:10px 14px;
-  font-size:14px;min-width:80px;vertical-align:top;
+  font-size:14px;vertical-align:top;
+  word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;
 }
-.sd-table td:first-child{color:#555;font-weight:600;background:#f8f8f8;width:150px;}
+.sd-table td:first-child{color:#555;font-weight:600;background:#f8f8f8;width:150px;white-space:normal;}
 .sd-table td[contenteditable="true"]{outline:none;}
 .sd-table td[contenteditable="true"]:focus{background:#fffdf0;}
 .sd-img-block{margin-bottom:14px;position:relative;display:inline-block;}
@@ -3441,7 +3442,10 @@ function sdExtractTable() {
   var rows = [];
   el('sd-table-wrap').querySelectorAll('tr').forEach(function(tr) {
     var row = [];
-    tr.querySelectorAll('td').forEach(function(td) { row.push(td.innerText || td.textContent || ''); });
+    tr.querySelectorAll('td').forEach(function(td, ci) {
+      // First column is a plain label; editable columns store innerHTML to preserve line breaks
+      row.push(ci === 0 ? (td.textContent || '') : (td.innerHTML || ''));
+    });
     rows.push(row);
   });
   return rows;
