@@ -1879,6 +1879,18 @@ function fetchState() {
       ['edu2','ne1','ne2','busA','busB','year78','events-0','events-1','classroom','welcome','homeinfo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
+      // Auto-save NE text boxes on edit (debounced)
+      var neAutoSaveTimers = {};
+      ['ne1','ne2'].forEach(function(k) {
+        var box = el('ec-' + k);
+        if (!box) return;
+        box.addEventListener('input', function() {
+          clearTimeout(neAutoSaveTimers[k]);
+          neAutoSaveTimers[k] = setTimeout(function() {
+            apiSave('pageContent.' + k, box.innerHTML, function() { flashSave('Saved!'); });
+          }, 1200);
+        });
+      });
       importantLinks.forEach(function(lnk) {
         if (pc[lnk.id]) lnk.content = pc[lnk.id];
       });
