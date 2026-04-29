@@ -2241,6 +2241,11 @@ function enterAdmin() {
   renderPrideBtnLabels();
   renderY78Boxes();
   renderSidebarPages();
+  // Re-render sport table if already viewing a sport detail page
+  if (currentSportId && document.querySelector('#pg-sport.active')) {
+    var _s = sportsData[currentSportId];
+    if (_s) { renderSdTable(_s.tableData); el('sd-table-admin').style.display = 'flex'; el('sd-img-admin').style.display = 'block'; }
+  }
 }
 function exitAdmin() {
   document.body.classList.remove('is-admin');
@@ -3429,24 +3434,23 @@ function renderSdTable(tableData) {
   tableData.forEach(function(row, ri) {
     tbl += '<tr>';
     row.forEach(function(cell, ci) {
-      var isFirst = ci === 0;
-      tbl += '<td' +
-        (isAdmin && !isFirst ? ' contenteditable="true"' : '') +
-        ' data-r="' + ri + '" data-c="' + ci + '">' +
-        (cell || '') + '</td>';
+      tbl += '<td data-r="' + ri + '" data-c="' + ci + '">' + (cell || '') + '</td>';
     });
     tbl += '</tr>';
   });
   tbl += '</table>';
   wrap.innerHTML = tbl;
-  if (isAdmin) {
-    wrap.querySelectorAll('td[contenteditable="true"]').forEach(function(td) {
+  // Set contentEditable via JS property (more reliable than HTML attribute when cell content contains HTML)
+  wrap.querySelectorAll('td').forEach(function(td) {
+    var ci = parseInt(td.getAttribute('data-c'), 10);
+    if (isAdmin && ci > 0) {
+      td.contentEditable = 'true';
       td.addEventListener('input', function() {
         clearTimeout(sdAutoSaveTimer);
         sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000);
       });
-    });
-  }
+    }
+  });
 }
 
 function sdExtractTable() {
