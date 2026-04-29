@@ -1209,14 +1209,14 @@ td.cell-sel,th.cell-sel{outline:2px solid #3498db;outline-offset:-2px;}
 }
 .y78-box-inner{
   width:100%;height:100%;
-  border:1px solid #e0e0e0;border-radius:6px;
+  border:none;border-radius:6px;
   padding:12px 14px;background:#fff;
   font-family:'Quicksand',sans-serif;font-size:15px;color:#222;
-  overflow:auto;line-height:1.65;
+  overflow:auto;line-height:1.7;
   box-sizing:border-box;
 }
-body.is-admin .y78-box-inner{outline:1px dashed rgba(26,43,74,0.3);cursor:text;}
-body.is-admin .y78-box-inner:focus{outline:1px solid #1a2b4a;}
+body.is-admin .y78-box-inner{outline:1px dashed rgba(26,43,74,0.25);cursor:text;}
+body.is-admin .y78-box-inner:focus{outline:2px dashed #c0642b;}
 .y78-handle-r,.y78-handle-b,.y78-handle-br{display:none;position:absolute;z-index:10;}
 .y78-handle-r{right:-6px;top:12px;bottom:12px;width:12px;cursor:ew-resize;}
 .y78-handle-b{bottom:-6px;left:12px;right:12px;height:12px;cursor:ns-resize;}
@@ -1246,8 +1246,10 @@ body.is-admin .y78-delete-btn{display:block;}
 body.is-admin #y78-add-btn{display:inline-block;}
 
 /* Y78 section editable text boxes */
-.y78-section-box{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:14px 16px;margin:20px 0 8px;line-height:1.65;font-size:15px;color:#222;min-height:48px;}
-body.is-admin .y78-section-box{outline:1px dashed rgba(26,43,74,0.3);}
+#ec-year78{font-size:15px;line-height:1.7;color:#222;padding:4px 0;}
+.y78-section-box{background:#fff;border:none;border-radius:8px;padding:14px 16px;margin:20px 0 8px;line-height:1.7;font-size:15px;color:#222;min-height:48px;}
+body.is-admin .y78-section-box{outline:1px dashed rgba(26,43,74,0.25);}
+body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 
 /* Y78 YouTube link boxes */
 .y78-yt-wrap{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}
