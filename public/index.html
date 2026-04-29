@@ -865,11 +865,16 @@ body.is-admin .pc-caption:focus{outline-color:rgba(26,43,74,0.7);}
 .sd-img-block{margin-bottom:14px;position:relative;display:inline-block;}
 .sd-img-block img{max-width:100%;border-radius:8px;display:block;}
 .sd-img-del{
-  position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;
+  position:absolute;top:6px;right:6px;background:rgba(160,30,30,0.75);color:#fff;
   border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:12px;
   display:none;
 }
-.sd-img-block:hover .sd-img-del{display:block;}
+.sd-img-replace{
+  position:absolute;top:6px;right:72px;background:rgba(26,43,74,0.75);color:#fff;
+  border-radius:5px;padding:3px 8px;cursor:pointer;font-size:12px;
+  display:none;user-select:none;
+}
+.sd-img-block:hover .sd-img-del,.sd-img-block:hover .sd-img-replace{display:block;}
 
 /* ---- EVENT BUTTONS (on sports listing page) ---- */
 .event-btn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:10px;}
@@ -922,11 +927,17 @@ body.is-admin .pc-caption:focus{outline-color:rgba(26,43,74,0.7);}
 body.is-admin .ev-img-cell .ev-img-ov{display:flex;}
 .ev-img-cell img.loaded ~ .ev-img-ov{background:rgba(0,0,0,0.28);font-size:18px;}
 .ev-img-del{
-  position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;
+  position:absolute;top:6px;right:6px;background:rgba(160,30,30,0.75);color:#fff;
   border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:12px;
   display:none;z-index:5;
 }
-body.is-admin .ev-img-cell:hover .ev-img-del{display:block;}
+.ev-img-replace{
+  position:absolute;top:6px;right:72px;background:rgba(26,43,74,0.75);color:#fff;
+  border-radius:5px;padding:3px 8px;cursor:pointer;font-size:12px;
+  display:none;z-index:5;user-select:none;
+}
+body.is-admin .ev-img-cell:hover .ev-img-del,
+body.is-admin .ev-img-cell:hover .ev-img-replace{display:block;}
 .ev-add-img-cell{
   border:2px dashed #c0642b;background:rgba(192,100,43,0.04);color:#c0642b;
   display:none;align-items:center;justify-content:center;
@@ -3506,16 +3517,30 @@ function sdNotesResize(ta) {
 function renderSdImages(images) {
   var wrap = el('sd-images');
   wrap.innerHTML = '';
-  images.forEach(function(filename) {
+  images.forEach(function(filename, idx) {
     var block = document.createElement('div');
     block.className = 'sd-img-block';
     var img = document.createElement('img');
     img.src = '/uploads/' + filename;
+
+    // Replace label (admin hover)
+    var repLabel = document.createElement('label');
+    repLabel.className = 'sd-img-replace';
+    repLabel.textContent = 'Replace';
+    var repInput = document.createElement('input');
+    repInput.type = 'file'; repInput.accept = 'image/*'; repInput.className = 'file-in';
+    (function(fn, i) {
+      repInput.onchange = function() { sdReplaceImage(fn, i, repInput); };
+    })(filename, idx);
+    repLabel.appendChild(repInput);
+
     var del = document.createElement('button');
     del.className = 'sd-img-del';
     del.textContent = 'Remove';
-    del.onclick = function() { sdDeleteImage(filename); };
+    (function(fn) { del.onclick = function() { sdDeleteImage(fn); }; })(filename);
+
     block.appendChild(img);
+    block.appendChild(repLabel);
     block.appendChild(del);
     wrap.appendChild(block);
   });
@@ -3545,6 +3570,27 @@ function sdDeleteImage(filename) {
       if (sport) sport.images = sport.images.filter(function(f) { return f !== filename; });
       renderSdImages(sport ? sport.images : []);
     });
+}
+
+function sdReplaceImage(oldFilename, idx, input) {
+  if (!input.files[0] || !currentSportId) return;
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/sport/' + currentSportId, { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var sport = sportsData[currentSportId];
+      if (!sport || !data.filename) return;
+      sport.images.splice(idx, 1, data.filename);
+      saveSportsToServer(function() {
+        fetch('/api/sport-image/' + encodeURIComponent(oldFilename), { method: 'DELETE' });
+        renderSdImages(sport.images);
+        flashSave('Image replaced!');
+      });
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
 }
 
 // ===================== EVENTS =====================
@@ -3732,7 +3778,7 @@ function renderEvImages(images) {
   var grid = document.createElement('div');
   grid.className = 'ev-img-grid';
 
-  images.forEach(function(filename) {
+  images.forEach(function(filename, idx) {
     var cell = document.createElement('div');
     cell.className = 'ev-img-cell';
     var img = document.createElement('img');
@@ -3740,12 +3786,24 @@ function renderEvImages(images) {
     img.onload = function() { img.classList.add('loaded'); };
     img.onclick = function(e) { if (!isAdmin) openLightbox('/uploads/' + filename); };
 
+    // Replace label (admin hover)
+    var repLabel = document.createElement('label');
+    repLabel.className = 'ev-img-replace';
+    repLabel.textContent = 'Replace';
+    var repInput = document.createElement('input');
+    repInput.type = 'file'; repInput.accept = 'image/*'; repInput.className = 'file-in';
+    (function(fn, i) {
+      repInput.onchange = function(e) { e.stopPropagation(); evReplaceImage(fn, i, repInput); };
+    })(filename, idx);
+    repLabel.appendChild(repInput);
+
     var del = document.createElement('button');
     del.className = 'ev-img-del';
     del.textContent = 'Remove';
-    del.onclick = function(e) { e.stopPropagation(); evDeleteImage(filename); };
+    (function(fn) { del.onclick = function(e) { e.stopPropagation(); evDeleteImage(fn); }; })(filename);
 
     cell.appendChild(img);
+    cell.appendChild(repLabel);
     cell.appendChild(del);
     grid.appendChild(cell);
   });
@@ -3789,6 +3847,27 @@ function evDeleteImage(filename) {
       if (ev) ev.images = ev.images.filter(function(f) { return f !== filename; });
       renderEvImages(ev ? ev.images : []);
     });
+}
+
+function evReplaceImage(oldFilename, idx, input) {
+  if (!input.files[0] || !currentEventId) return;
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/event/' + currentEventId, { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var ev = eventsData[currentEventId];
+      if (!ev || !data.filename) return;
+      ev.images.splice(idx, 1, data.filename);
+      saveEventsToServer(function() {
+        fetch('/api/event-image/' + encodeURIComponent(oldFilename), { method: 'DELETE' });
+        renderEvImages(ev.images);
+        flashSave('Image replaced!');
+      });
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
 }
 
 // hook Save Page button to also save event detail when on that page
