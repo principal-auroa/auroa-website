@@ -1245,6 +1245,17 @@ body.is-admin .y78-delete-btn{display:block;}
 #y78-add-btn:hover{background:#243d6a;}
 body.is-admin #y78-add-btn{display:inline-block;}
 
+/* Y78 YouTube link boxes */
+#y78-yt-wrap{margin-top:20px;display:flex;flex-wrap:wrap;gap:16px;}
+.y78-yt-box{flex:1 1 300px;min-width:280px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;}
+.y78-yt-admin-bar{display:none;padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;gap:8px;align-items:center;}
+body.is-admin .y78-yt-admin-bar{display:flex;}
+.y78-yt-admin-bar input{flex:1;border:1px solid #ccc;border-radius:5px;padding:6px 10px;font-family:'Quicksand',sans-serif;font-size:13px;}
+.y78-yt-admin-bar button{background:#c0392b;color:#fff;border:none;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:'Quicksand',sans-serif;white-space:nowrap;}
+.y78-yt-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;display:none;}
+.y78-yt-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+.y78-yt-placeholder{display:flex;align-items:center;justify-content:center;padding:32px;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;}
+
 /* ---- CLASSROOM PAGE IMAGES ---- */
 .cl-full-img-slot{
   position:relative;width:100%;margin-bottom:16px;
@@ -1573,6 +1584,24 @@ body.is-admin .cl-img-admin-bar{display:flex;}
       </div>
       <div id="y78-boxes-wrap"></div>
       <button id="y78-add-btn" onclick="addY78Box()">+ Add Text Box</button>
+      <div id="y78-yt-wrap">
+        <div class="y78-yt-box" id="y78-yt-box-0">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-0" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(0)">
+            <button onclick="clearY78Youtube(0)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-0"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-0">YouTube video 1</div>
+        </div>
+        <div class="y78-yt-box" id="y78-yt-box-1">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-1" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(1)">
+            <button onclick="clearY78Youtube(1)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-1"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-1">YouTube video 2</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1730,6 +1759,8 @@ var hitDragState = null;
 var homeinfoImages = {};
 var y78Boxes = [];
 var y78SaveTimers = {};
+var y78YoutubeLinks = ['', ''];
+var y78YtSaveTimers = [null, null];
 var classroomImages = {};
 var hitC2Repos = null;
 var imgLinks = {}, activeLinkBoxId = null;
@@ -1925,6 +1956,8 @@ function fetchState() {
 
       y78Boxes = data.y78Boxes || [];
       renderY78Boxes();
+      y78YoutubeLinks = data.y78YoutubeLinks || ['', ''];
+      renderY78Youtube();
 
       classroomImages = data.classroomImages || {};
       renderClassroomImages();
@@ -4092,6 +4125,53 @@ function addY78Box() {
   y78Boxes.push({ id: id, content: '<p>New text box</p>', w: 0, h: 140 });
   renderY78Boxes();
   apiSave('y78Boxes', y78Boxes, function() { flashSave('Box added!'); });
+}
+
+// ===================== Y78 YOUTUBE LINKS =====================
+function getYoutubeEmbedUrl(url) {
+  if (!url) return null;
+  var m = url.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? 'https://www.youtube.com/embed/' + m[1] : null;
+}
+
+function renderY78Youtube() {
+  [0, 1].forEach(function(i) {
+    var inp = el('y78-yt-input-' + i);
+    var embedDiv = el('y78-yt-embed-' + i);
+    var ph = el('y78-yt-ph-' + i);
+    if (!embedDiv) return;
+    var url = y78YoutubeLinks[i] || '';
+    if (inp) inp.value = url;
+    var embedUrl = getYoutubeEmbedUrl(url);
+    if (embedUrl) {
+      embedDiv.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+      embedDiv.style.display = 'block';
+      if (ph) ph.style.display = 'none';
+    } else {
+      embedDiv.innerHTML = '';
+      embedDiv.style.display = 'none';
+      if (ph) ph.style.display = '';
+    }
+  });
+}
+
+function saveY78Youtube(i) {
+  var inp = el('y78-yt-input-' + i);
+  if (!inp) return;
+  y78YoutubeLinks[i] = inp.value.trim();
+  renderY78Youtube();
+  clearTimeout(y78YtSaveTimers[i]);
+  y78YtSaveTimers[i] = setTimeout(function() {
+    apiSave('y78YoutubeLinks', y78YoutubeLinks, function() { flashSave('Saved!'); });
+  }, 800);
+}
+
+function clearY78Youtube(i) {
+  y78YoutubeLinks[i] = '';
+  var inp = el('y78-yt-input-' + i);
+  if (inp) inp.value = '';
+  renderY78Youtube();
+  apiSave('y78YoutubeLinks', y78YoutubeLinks, function() { flashSave('Cleared!'); });
 }
 
 // ===================== CLASSROOM IMAGES =====================
