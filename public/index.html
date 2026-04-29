@@ -1282,6 +1282,42 @@ body.is-admin .cl-img-admin-bar{display:flex;}
 .cl-img-admin-bar label input{display:none;}
 .cl-img-admin-bar button{background:#c0392b;color:#fff;}
 
+/* Newsletter page */
+.nl-admin-bar{display:none;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;}
+body.is-admin .nl-admin-bar{display:flex;}
+.nl-admin-btn{background:#1a2b4a;color:#fff;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
+.nl-admin-btn:hover{background:#243d6a;}
+.nl-year-btn{background:#c0642b;}
+.nl-year-btn:hover{background:#a0522d;}
+.nl-year-section{margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid #e8e8e8;}
+.nl-year-header{display:flex;align-items:center;gap:10px;padding:14px 18px;background:#1a2b4a;color:#fff;cursor:pointer;user-select:none;font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;}
+.nl-year-header:hover{background:#243d6a;}
+.nl-year-chevron{margin-left:auto;font-size:13px;opacity:0.8;}
+.nl-current-badge{background:#c0642b;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:0.5px;}
+.nl-year-body{background:#fff;padding:0;}
+.nl-term-group{padding:12px 18px 8px;}
+.nl-term-heading{font-family:'Quicksand',sans-serif;font-weight:700;font-size:13px;color:#c0642b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:4px;}
+.nl-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f8f8f8;}
+.nl-item:last-child{border-bottom:none;}
+.nl-link{flex:1;font-family:'Quicksand',sans-serif;font-size:15px;color:#1a2b4a;text-decoration:none;font-weight:600;}
+.nl-link:hover{color:#c0642b;text-decoration:underline;}
+.nl-del-btn{background:none;border:none;cursor:pointer;font-size:16px;opacity:0.5;padding:2px 4px;}
+.nl-del-btn:hover{opacity:1;}
+.nl-empty{font-family:'Quicksand',sans-serif;font-size:14px;color:#aaa;padding:12px 0 8px;font-style:italic;}
+
+/* Newsletter upload modal */
+#nl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:none;align-items:center;justify-content:center;}
+#nl-modal-overlay.open{display:flex;}
+#nl-modal-box{background:#fff;border-radius:10px;padding:28px 30px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
+#nl-modal-box h3{font-family:'Quicksand',sans-serif;font-size:18px;font-weight:700;color:#1a2b4a;margin-bottom:18px;}
+.nl-modal-field{margin-bottom:14px;}
+.nl-modal-field label{display:block;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;color:#444;margin-bottom:5px;}
+.nl-modal-field select,.nl-modal-field input[type=file]{width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-family:'Quicksand',sans-serif;font-size:14px;}
+.nl-modal-btns{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;}
+.nl-modal-btns button{font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;}
+#nl-modal-confirm{background:#1a2b4a;color:#fff;}
+#nl-modal-cancel{background:#eee;color:#333;}
+
 /* Y78 PDF section */
 #y78-pdf-section{margin-top:20px;margin-bottom:24px;}
 .y78-pdf-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
@@ -1786,6 +1822,57 @@ body:not(.is-admin) #y78-pdf-ph{display:none;}
     </div>
   </div>
 
+  <!-- ======== NEWSLETTER PAGE ======== -->
+  <div id="pg-newsletter" class="page">
+    <div class="pg-header" id="ph-newsletter"></div>
+    <div class="pg-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">School Newsletter</h1>
+      </div>
+      <div class="nl-admin-bar">
+        <button class="nl-admin-btn" onclick="showNlModal()">⇧ Upload Newsletter</button>
+        <button class="nl-admin-btn nl-year-btn" onclick="changeNlYear()">✏️ Change Year</button>
+      </div>
+      <div id="nl-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NEWSLETTER UPLOAD MODAL -->
+<div id="nl-modal-overlay">
+  <div id="nl-modal-box">
+    <h3>Upload Newsletter PDF</h3>
+    <div class="nl-modal-field">
+      <label>Term</label>
+      <select id="nl-term-sel">
+        <option value="1">Term 1</option>
+        <option value="2">Term 2</option>
+        <option value="3">Term 3</option>
+        <option value="4">Term 4</option>
+      </select>
+    </div>
+    <div class="nl-modal-field">
+      <label>Week</label>
+      <select id="nl-week-sel">
+        <option value="1">Week 1</option><option value="2">Week 2</option>
+        <option value="3">Week 3</option><option value="4">Week 4</option>
+        <option value="5">Week 5</option><option value="6">Week 6</option>
+        <option value="7">Week 7</option><option value="8">Week 8</option>
+        <option value="9">Week 9</option><option value="10">Week 10</option>
+        <option value="11">Week 11</option>
+      </select>
+    </div>
+    <div class="nl-modal-field">
+      <label>PDF File</label>
+      <input type="file" id="nl-pdf-input" accept=".pdf,application/pdf">
+    </div>
+    <div class="nl-modal-btns">
+      <button id="nl-modal-cancel" onclick="closeNlModal()">Cancel</button>
+      <button id="nl-modal-confirm" onclick="doNlUpload()">Upload</button>
+    </div>
+  </div>
 </div>
 
 <!-- FORMAT TOOLBAR -->
@@ -1838,6 +1925,9 @@ var y78YoutubeLinks = ['','','','','',''];
 var y78YtSaveTimers = [null,null,null,null,null,null];
 var y78PdfFile = null;
 var classroomImages = {};
+var newsletters = [];
+var newsletterYear = 2026;
+var nlExpandedYears = {};
 var hitC2Repos = null;
 var imgLinks = {}, activeLinkBoxId = null;
 var boxLocks = {};
@@ -2036,6 +2126,12 @@ function fetchState() {
       renderY78Youtube();
       y78PdfFile = data.y78PdfFile || null;
       renderY78Pdf();
+
+      newsletters = data.newsletters || [];
+      newsletterYear = data.newsletterYear || 2026;
+      nlExpandedYears = {};
+      nlExpandedYears[newsletterYear] = true;
+      renderNewsletters();
 
       classroomImages = data.classroomImages || {};
       renderClassroomImages();
@@ -2705,7 +2801,8 @@ var PAGE_LABELS = {
   'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses',
   'pg-year78': 'Year 7/8', 'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
-  'pg-linkdetail': 'Link Page'
+  'pg-linkdetail': 'Link Page',
+  'pg-newsletter': 'School Newsletter'
 };
 
 function updateSidebarAudio(pageId) {
@@ -2767,6 +2864,8 @@ function removePageAudio() {
 function openLinkDetail(linkId) {
   var lnk = importantLinks.find(function(l) { return l.id === linkId; });
   if (!lnk) return;
+  // Newsletter gets its own dedicated page
+  if (linkId === 'ilink_1') { showPage('pg-newsletter'); return; }
   currentLinkId = linkId;
   el('ld-title').textContent = lnk.title;
   el('ec-linkdetail').innerHTML = lnk.content || '<p>Content for ' + lnk.title + '</p>';
@@ -4295,6 +4394,173 @@ function removeY78Pdf() {
   fetch('/api/ne-image/' + y78PdfFile, { method: 'DELETE' });
   y78PdfFile = null;
   apiSave('y78PdfFile', null, function() { renderY78Pdf(); flashSave('PDF removed!'); });
+}
+
+// ===================== NEWSLETTERS =====================
+function renderNewsletters() {
+  var wrap = el('nl-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  // Group newsletters by year
+  var byYear = {};
+  newsletters.forEach(function(nl) {
+    if (!byYear[nl.year]) byYear[nl.year] = [];
+    byYear[nl.year].push(nl);
+  });
+
+  // Build sorted year list (descending); always include current year
+  var years = Object.keys(byYear).map(Number).sort(function(a,b){return b-a;});
+  if (years.indexOf(newsletterYear) === -1) years.unshift(newsletterYear);
+  else if (years[0] !== newsletterYear) {
+    years = years.filter(function(y){return y!==newsletterYear;});
+    years.unshift(newsletterYear);
+  }
+
+  years.forEach(function(year) {
+    var isCurrentYear = (year === newsletterYear);
+    var isExpanded = nlExpandedYears[year] !== undefined ? nlExpandedYears[year] : isCurrentYear;
+
+    var section = document.createElement('div');
+    section.className = 'nl-year-section';
+
+    // Year header
+    var header = document.createElement('div');
+    header.className = 'nl-year-header';
+    var titleSpan = document.createElement('span');
+    titleSpan.textContent = year;
+    var chevron = document.createElement('span');
+    chevron.className = 'nl-year-chevron';
+    chevron.textContent = isExpanded ? '▲' : '▼';
+    header.appendChild(titleSpan);
+    if (isCurrentYear) {
+      var badge = document.createElement('span');
+      badge.className = 'nl-current-badge';
+      badge.textContent = 'Current';
+      header.appendChild(badge);
+    }
+    header.appendChild(chevron);
+    header.onclick = function() {
+      nlExpandedYears[year] = !isExpanded;
+      renderNewsletters();
+    };
+
+    // Year body
+    var body = document.createElement('div');
+    body.className = 'nl-year-body';
+    body.style.display = isExpanded ? '' : 'none';
+
+    var items = byYear[year] || [];
+    if (items.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'nl-empty';
+      empty.textContent = 'No newsletters uploaded yet.';
+      body.appendChild(empty);
+    } else {
+      // Group by term
+      var byTerm = {};
+      items.forEach(function(nl) {
+        if (!byTerm[nl.term]) byTerm[nl.term] = [];
+        byTerm[nl.term].push(nl);
+      });
+      Object.keys(byTerm).map(Number).sort(function(a,b){return a-b;}).forEach(function(term) {
+        var tg = document.createElement('div');
+        tg.className = 'nl-term-group';
+        var th = document.createElement('div');
+        th.className = 'nl-term-heading';
+        th.textContent = 'Term ' + term;
+        tg.appendChild(th);
+
+        byTerm[term].slice().sort(function(a,b){return a.week-b.week;}).forEach(function(nl) {
+          var item = document.createElement('div');
+          item.className = 'nl-item';
+          var link = document.createElement('a');
+          link.href = '/uploads/' + nl.filename;
+          link.target = '_blank';
+          link.className = 'nl-link';
+          link.textContent = '📄  Week ' + nl.week;
+          item.appendChild(link);
+          if (isAdmin) {
+            var del = document.createElement('button');
+            del.className = 'nl-del-btn';
+            del.title = 'Delete';
+            del.textContent = '🗑️';
+            del.onclick = function(e) {
+              e.preventDefault();
+              if (confirm('Delete Term ' + nl.term + ' Week ' + nl.week + ' newsletter?')) {
+                deleteNewsletter(nl.id);
+              }
+            };
+            item.appendChild(del);
+          }
+          tg.appendChild(item);
+        });
+        body.appendChild(tg);
+      });
+    }
+
+    section.appendChild(header);
+    section.appendChild(body);
+    wrap.appendChild(section);
+  });
+}
+
+function showNlModal() {
+  el('nl-modal-overlay').classList.add('open');
+  el('nl-pdf-input').value = '';
+}
+function closeNlModal() {
+  el('nl-modal-overlay').classList.remove('open');
+}
+
+function doNlUpload() {
+  var term = parseInt(el('nl-term-sel').value, 10);
+  var week = parseInt(el('nl-week-sel').value, 10);
+  var fileInput = el('nl-pdf-input');
+  if (!fileInput.files[0]) { alert('Please select a PDF file.'); return; }
+
+  var confirmBtn = el('nl-modal-confirm');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Uploading…';
+
+  var fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fetch('/api/upload/ne', { method:'POST', body:fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.filename) { alert('Upload failed.'); confirmBtn.disabled=false; confirmBtn.textContent='Upload'; return; }
+      // Remove existing entry for same year/term/week
+      newsletters = newsletters.filter(function(nl){
+        return !(nl.year===newsletterYear && nl.term===term && nl.week===week);
+      });
+      newsletters.push({ id:'nl_'+Date.now(), year:newsletterYear, term:term, week:week, filename:d.filename });
+      apiSave('newsletters', newsletters, function() {
+        renderNewsletters();
+        flashSave('Newsletter uploaded!');
+        confirmBtn.disabled=false;
+        confirmBtn.textContent='Upload';
+        closeNlModal();
+      });
+    })
+    .catch(function(){ alert('Upload failed.'); confirmBtn.disabled=false; confirmBtn.textContent='Upload'; });
+}
+
+function deleteNewsletter(id) {
+  var nl = newsletters.find(function(n){ return n.id===id; });
+  if (nl) fetch('/api/ne-image/'+nl.filename, { method:'DELETE' });
+  newsletters = newsletters.filter(function(n){ return n.id!==id; });
+  apiSave('newsletters', newsletters, function() { renderNewsletters(); flashSave('Deleted!'); });
+}
+
+function changeNlYear() {
+  var y = prompt('Enter the current year for new newsletters:', newsletterYear);
+  if (!y) return;
+  y = parseInt(y, 10);
+  if (isNaN(y) || y < 2000 || y > 2100) { alert('Please enter a valid year (e.g. 2026).'); return; }
+  newsletterYear = y;
+  nlExpandedYears = {};
+  nlExpandedYears[y] = true;
+  apiSave('newsletterYear', newsletterYear, function() { renderNewsletters(); flashSave('Year changed to ' + y + '!'); });
 }
 
 // ===================== CLASSROOM IMAGES =====================
