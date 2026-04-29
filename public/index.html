@@ -1701,6 +1701,8 @@ body.is-admin .cl-img-admin-bar{display:flex;}
   <span class="fmt-dot" style="background:#2980b9"         title="Blue"   onclick="fmtColor('#2980b9')"></span>
   <span class="fmt-dot" style="background:#27ae60"         title="Green"  onclick="fmtColor('#27ae60')"></span>
   <span class="fmt-dot" style="background:#e74c3c"         title="Red"    onclick="fmtColor('#e74c3c')"></span>
+  <div class="fmt-sep"></div>
+  <button class="fmt-btn" onclick="fmtClearStyles()" title="Clear pasted formatting" style="font-size:10px;padding:3px 7px;color:#c0392b;">✕ Clear Formatting</button>
 </div>
 
 <!-- CELL CONTEXT MENU -->
@@ -3693,6 +3695,36 @@ function fmtBullet() {
   document.execCommand('insertUnorderedList');
   var sel = window.getSelection();
   if (sel && !sel.isCollapsed) fmtSavedRange = sel.getRangeAt(0).cloneRange();
+}
+
+function fmtClearStyles() {
+  restoreSel();
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  var range = sel.getRangeAt(0);
+  // Walk all nodes in selection and strip inline styles
+  var container = range.commonAncestorContainer;
+  var root = container.nodeType === 3 ? container.parentElement : container;
+  // Find the editable container
+  var editable = root.closest ? root.closest('.editable') : null;
+  if (!editable) return;
+  // Strip style/class/dir from every element inside the editable
+  editable.querySelectorAll('[style],[class],[dir]').forEach(function(el) {
+    el.removeAttribute('style');
+    el.removeAttribute('class');
+    el.removeAttribute('dir');
+  });
+  // Unwrap spans that have no remaining attributes
+  editable.querySelectorAll('span').forEach(function(s) {
+    if (s.attributes.length === 0) {
+      var parent = s.parentNode;
+      while (s.firstChild) parent.insertBefore(s.firstChild, s);
+      parent.removeChild(s);
+    }
+  });
+  // Trigger auto-save
+  editable.dispatchEvent(new Event('input', { bubbles: true }));
+  fmtSavedRange = null;
 }
 
 // ===================== CELL CONTEXT MENU =====================
