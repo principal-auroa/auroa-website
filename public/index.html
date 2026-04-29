@@ -1642,6 +1642,9 @@ body:not(.is-admin) #y78-pdf-ph{display:none;}
         </div>
       </div>
 
+      <!-- Third text box -->
+      <div class="editable y78-section-box" id="ec-year78c"><p>More programme information here.</p></div>
+
       <!-- YouTube row 3 -->
       <div class="y78-yt-wrap">
         <div class="y78-yt-box" id="y78-yt-box-4">
@@ -1980,12 +1983,12 @@ function fetchState() {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','ne1','ne2','busA','busB','year78','year78b','events-0','events-1','classroom','welcome','homeinfo'].forEach(function(k) {
+      ['edu2','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','welcome','homeinfo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
       var neAutoSaveTimers = {};
-      ['ne1','ne2','year78b'].forEach(function(k) {
+      ['ne1','ne2','year78b','year78c'].forEach(function(k) {
         var box = el('ec-' + k);
         if (!box) return;
         box.addEventListener('input', function() {
