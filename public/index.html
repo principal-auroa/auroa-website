@@ -1245,8 +1245,13 @@ body.is-admin .y78-delete-btn{display:block;}
 #y78-add-btn:hover{background:#243d6a;}
 body.is-admin #y78-add-btn{display:inline-block;}
 
+/* Y78 section editable text boxes */
+.y78-section-box{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:14px 16px;margin:20px 0 8px;line-height:1.65;font-size:15px;color:#222;min-height:48px;}
+body.is-admin .y78-section-box{outline:1px dashed rgba(26,43,74,0.3);}
+
 /* Y78 YouTube link boxes */
-#y78-yt-wrap{margin-top:20px;display:flex;flex-wrap:wrap;gap:16px;}
+.y78-yt-wrap{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}
+#y78-yt-wrap{margin-top:20px;}
 .y78-yt-box{flex:1 1 300px;min-width:280px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;}
 .y78-yt-admin-bar{display:none;padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;gap:8px;align-items:center;}
 body.is-admin .y78-yt-admin-bar{display:flex;}
@@ -1274,6 +1279,17 @@ body.is-admin .cl-img-admin-bar{display:flex;}
 .cl-img-admin-bar label{background:#1a2b4a;color:#fff;}
 .cl-img-admin-bar label input{display:none;}
 .cl-img-admin-bar button{background:#c0392b;color:#fff;}
+
+/* Y78 PDF section */
+#y78-pdf-section{margin-top:20px;margin-bottom:24px;}
+.y78-pdf-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
+body.is-admin .y78-pdf-admin-bar{display:flex;}
+.y78-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
+#y78-pdf-remove-btn{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
+#y78-pdf-viewer{width:100%;height:780px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
+#y78-pdf-viewer iframe{width:100%;height:100%;border:0;}
+#y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
+body:not(.is-admin) #y78-pdf-ph{display:none;}
 </style>
 </head>
 <body>
@@ -1584,7 +1600,7 @@ body.is-admin .cl-img-admin-bar{display:flex;}
       </div>
       <div id="y78-boxes-wrap"></div>
       <button id="y78-add-btn" onclick="addY78Box()">+ Add Text Box</button>
-      <div id="y78-yt-wrap">
+      <div id="y78-yt-wrap" class="y78-yt-wrap">
         <div class="y78-yt-box" id="y78-yt-box-0">
           <div class="y78-yt-admin-bar">
             <input type="text" id="y78-yt-input-0" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(0)">
@@ -1601,6 +1617,60 @@ body.is-admin .cl-img-admin-bar{display:flex;}
           <div class="y78-yt-embed" id="y78-yt-embed-1"></div>
           <div class="y78-yt-placeholder" id="y78-yt-ph-1">YouTube video 2</div>
         </div>
+      </div>
+
+      <!-- Second text box -->
+      <div class="editable y78-section-box" id="ec-year78b"><p>More programme information here.</p></div>
+
+      <!-- YouTube row 2 -->
+      <div class="y78-yt-wrap">
+        <div class="y78-yt-box" id="y78-yt-box-2">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-2" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(2)">
+            <button onclick="clearY78Youtube(2)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-2"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-2">YouTube video 3</div>
+        </div>
+        <div class="y78-yt-box" id="y78-yt-box-3">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-3" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(3)">
+            <button onclick="clearY78Youtube(3)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-3"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-3">YouTube video 4</div>
+        </div>
+      </div>
+
+      <!-- YouTube row 3 -->
+      <div class="y78-yt-wrap">
+        <div class="y78-yt-box" id="y78-yt-box-4">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-4" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(4)">
+            <button onclick="clearY78Youtube(4)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-4"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-4">YouTube video 5</div>
+        </div>
+        <div class="y78-yt-box" id="y78-yt-box-5">
+          <div class="y78-yt-admin-bar">
+            <input type="text" id="y78-yt-input-5" placeholder="Paste YouTube link here…" oninput="saveY78Youtube(5)">
+            <button onclick="clearY78Youtube(5)">✕ Clear</button>
+          </div>
+          <div class="y78-yt-embed" id="y78-yt-embed-5"></div>
+          <div class="y78-yt-placeholder" id="y78-yt-ph-5">YouTube video 6</div>
+        </div>
+      </div>
+
+      <!-- PDF upload and viewer -->
+      <div id="y78-pdf-section">
+        <div class="y78-pdf-admin-bar">
+          <label for="y78-pdf-input">⇧ Upload PDF</label>
+          <input type="file" id="y78-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadY78Pdf(this)">
+          <button id="y78-pdf-remove-btn" onclick="removeY78Pdf()">✕ Remove PDF</button>
+        </div>
+        <div id="y78-pdf-viewer"><iframe id="y78-pdf-frame" src=""></iframe></div>
+        <div id="y78-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
     </div>
   </div>
@@ -1759,8 +1829,9 @@ var hitDragState = null;
 var homeinfoImages = {};
 var y78Boxes = [];
 var y78SaveTimers = {};
-var y78YoutubeLinks = ['', ''];
-var y78YtSaveTimers = [null, null];
+var y78YoutubeLinks = ['','','','','',''];
+var y78YtSaveTimers = [null,null,null,null,null,null];
+var y78PdfFile = null;
 var classroomImages = {};
 var hitC2Repos = null;
 var imgLinks = {}, activeLinkBoxId = null;
@@ -1909,12 +1980,12 @@ function fetchState() {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','ne1','ne2','busA','busB','year78','events-0','events-1','classroom','welcome','homeinfo'].forEach(function(k) {
+      ['edu2','ne1','ne2','busA','busB','year78','year78b','events-0','events-1','classroom','welcome','homeinfo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
-      // Auto-save NE text boxes on edit (debounced)
+      // Auto-save editable boxes on edit (debounced)
       var neAutoSaveTimers = {};
-      ['ne1','ne2'].forEach(function(k) {
+      ['ne1','ne2','year78b'].forEach(function(k) {
         var box = el('ec-' + k);
         if (!box) return;
         box.addEventListener('input', function() {
@@ -1956,8 +2027,10 @@ function fetchState() {
 
       y78Boxes = data.y78Boxes || [];
       renderY78Boxes();
-      y78YoutubeLinks = data.y78YoutubeLinks || ['', ''];
+      y78YoutubeLinks = data.y78YoutubeLinks || ['','','','','',''];
       renderY78Youtube();
+      y78PdfFile = data.y78PdfFile || null;
+      renderY78Pdf();
 
       classroomImages = data.classroomImages || {};
       renderClassroomImages();
@@ -4135,7 +4208,7 @@ function getYoutubeEmbedUrl(url) {
 }
 
 function renderY78Youtube() {
-  [0, 1].forEach(function(i) {
+  [0,1,2,3,4,5].forEach(function(i) {
     var inp = el('y78-yt-input-' + i);
     var embedDiv = el('y78-yt-embed-' + i);
     var ph = el('y78-yt-ph-' + i);
@@ -4172,6 +4245,51 @@ function clearY78Youtube(i) {
   if (inp) inp.value = '';
   renderY78Youtube();
   apiSave('y78YoutubeLinks', y78YoutubeLinks, function() { flashSave('Cleared!'); });
+}
+
+// ===================== Y78 PDF =====================
+function renderY78Pdf() {
+  var viewer = el('y78-pdf-viewer');
+  var frame = el('y78-pdf-frame');
+  var ph = el('y78-pdf-ph');
+  var removeBtn = el('y78-pdf-remove-btn');
+  if (!viewer) return;
+  if (y78PdfFile) {
+    if (frame) frame.src = '/uploads/' + y78PdfFile;
+    viewer.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = '';
+  } else {
+    if (frame) frame.src = '';
+    viewer.style.display = 'none';
+    if (ph) ph.style.display = '';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+function uploadY78Pdf(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fetch('/api/upload/ne', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.filename) {
+        if (y78PdfFile) {
+          fetch('/api/ne-image/' + y78PdfFile, { method: 'DELETE' });
+        }
+        y78PdfFile = d.filename;
+        apiSave('y78PdfFile', y78PdfFile, function() { renderY78Pdf(); flashSave('PDF uploaded!'); });
+      }
+    });
+  input.value = '';
+}
+
+function removeY78Pdf() {
+  if (!y78PdfFile) return;
+  fetch('/api/ne-image/' + y78PdfFile, { method: 'DELETE' });
+  y78PdfFile = null;
+  apiSave('y78PdfFile', null, function() { renderY78Pdf(); flashSave('PDF removed!'); });
 }
 
 // ===================== CLASSROOM IMAGES =====================
