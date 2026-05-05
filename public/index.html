@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Auroa School</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1a2b4a">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Auroa">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Quicksand',sans-serif;}
@@ -157,6 +163,15 @@ body{background:#fff;color:#222;min-height:100vh;}
 }
 .sidebar-btn.stationery:hover{background:#2471a3;color:#fff;}
 #sidebar-stationery-wrap{position:relative;}
+.sidebar-btn.parent-portal{
+  color:#fff;font-weight:400;font-size:16px;
+  background:#16a085;border:none;border-left:none;
+  border-radius:8px;margin:14px 16px 14px;
+  padding:12px 20px;text-align:center;display:block;
+  width:calc(100% - 32px);cursor:pointer;
+  transition:background 0.15s;
+}
+.sidebar-btn.parent-portal:hover{background:#0e7a64;color:#fff;}
 #stationery-editor{
   display:none;
   margin:-4px 16px 12px;
@@ -5403,6 +5418,11 @@ document.addEventListener('click', function(e) {
   </div>
   <div id="sidebar-imp-links"></div>
 
+  <button class="sidebar-btn parent-portal"
+          onclick="window.open('https://auroa-students-production.up.railway.app','_blank','noopener')">
+    Login to Parent Portal
+  </button>
+
   <div id="sidebar-audio-wrap">
     <div id="sidebar-audio-label">Page Audio</div>
     <div id="sidebar-audio-page"></div>
@@ -5422,5 +5442,181 @@ document.addEventListener('click', function(e) {
   <button id="lightbox-close" onclick="closeLightbox()" title="Close">&#x2715;</button>
   <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
 </div>
+
+<!-- INSTALL APP POPUP -->
+<style>
+#install-popup{
+  position:fixed;left:50%;bottom:24px;
+  transform:translate(-50%,160%);
+  z-index:3000;width:min(420px,calc(100% - 32px));
+  transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  pointer-events:none;
+}
+#install-popup.show{transform:translate(-50%,0);pointer-events:auto;}
+body.is-admin #install-popup{display:none;}
+.ip-card{
+  background:#fff;border-radius:18px;
+  box-shadow:0 24px 64px rgba(0,0,0,0.22),0 4px 12px rgba(0,0,0,0.08);
+  padding:20px 22px 18px;
+  display:flex;gap:16px;align-items:flex-start;
+  position:relative;
+  font-family:'Quicksand',sans-serif;
+  border:1px solid rgba(0,0,0,0.06);
+}
+.ip-icon img{display:block;border-radius:12px;flex-shrink:0;}
+.ip-body{flex:1;min-width:0;}
+.ip-body h3{
+  color:#1a2b4a;font-size:16px;font-weight:700;
+  margin:0 0 4px;letter-spacing:0.2px;
+  padding-right:24px;
+}
+.ip-body p{color:#555;font-size:13px;line-height:1.45;margin:0 0 12px;}
+.ip-body ol{margin:0 0 12px 18px;color:#444;font-size:13px;line-height:1.6;}
+.ip-body ol strong{color:#1a2b4a;}
+.ip-share{
+  display:inline-block;color:#1a2b4a;font-weight:700;
+  background:rgba(26,43,74,0.08);border-radius:6px;
+  padding:0 6px;margin:0 2px;
+}
+.ip-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+.ip-btn{
+  border:none;border-radius:20px;cursor:pointer;
+  padding:8px 18px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;letter-spacing:0.2px;
+  transition:background .15s;
+}
+.ip-btn-primary{background:#1a2b4a;color:#fff;}
+.ip-btn-primary:hover{background:#243d6a;}
+.ip-btn-secondary{background:#f0f0f0;color:#555;}
+.ip-btn-secondary:hover{background:#e4e4e4;color:#333;}
+.ip-close{
+  position:absolute;top:8px;right:8px;
+  background:none;border:none;cursor:pointer;
+  font-size:22px;line-height:1;color:#999;
+  width:30px;height:30px;border-radius:50%;
+}
+.ip-close:hover{background:rgba(0,0,0,0.06);color:#333;}
+@media (max-width:480px){
+  .ip-card{flex-direction:column;}
+  .ip-icon img{width:44px;height:44px;}
+}
+</style>
+
+<div id="install-popup" role="dialog" aria-labelledby="ip-title" aria-hidden="true">
+  <div class="ip-card">
+    <button class="ip-close" id="ip-close" aria-label="Close">&times;</button>
+    <div class="ip-icon">
+      <img src="/icon.svg" alt="" width="52" height="52">
+    </div>
+    <div class="ip-body">
+      <h3 id="ip-title">Install the Auroa School app?</h3>
+      <p id="ip-text">Get quick access from your home screen.</p>
+      <div id="ip-ios-steps" hidden>
+        <p style="margin-bottom:6px;">To install on iPhone or iPad:</p>
+        <ol>
+          <li>Tap the <strong>Share</strong> button <span class="ip-share">&#x2BAD;</span> in Safari.</li>
+          <li>Choose <strong>Add to Home Screen</strong>.</li>
+          <li>Tap <strong>Add</strong> in the top-right corner.</li>
+        </ol>
+      </div>
+      <div class="ip-actions">
+        <button id="ip-no" class="ip-btn ip-btn-secondary">Not now</button>
+        <button id="ip-yes" class="ip-btn ip-btn-primary">Yes, install</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Register service worker (needed for installability).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    });
+  }
+
+  var popup    = document.getElementById('install-popup');
+  var yesBtn   = document.getElementById('ip-yes');
+  var noBtn    = document.getElementById('ip-no');
+  var closeBtn = document.getElementById('ip-close');
+  var text     = document.getElementById('ip-text');
+  var iosSteps = document.getElementById('ip-ios-steps');
+  if (!popup) return;
+
+  var DISMISS_KEY = 'auroa_install_dismissed_v1';
+  var THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  // Already installed? Don't show.
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+  if (standalone) return;
+
+  // Recently dismissed? Don't show.
+  try {
+    var d = localStorage.getItem(DISMISS_KEY);
+    if (d && (Date.now() - parseInt(d, 10) < THIRTY_DAYS)) return;
+  } catch (e) {}
+
+  var ua = navigator.userAgent || '';
+  var isIOS = /iPhone|iPad|iPod/.test(ua) && !window.MSStream;
+  // iPadOS 13+ reports as Mac; detect via touch points.
+  if (!isIOS && /Macintosh/.test(ua) && navigator.maxTouchPoints > 1) isIOS = true;
+
+  var deferredPrompt = null;
+  var mode = 'prompt'; // 'prompt' | 'ios-steps'
+
+  function show(){
+    popup.classList.add('show');
+    popup.setAttribute('aria-hidden', 'false');
+  }
+  function hide(remember){
+    popup.classList.remove('show');
+    popup.setAttribute('aria-hidden', 'true');
+    if (remember) {
+      try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
+    }
+  }
+
+  // Android / Chromium desktop: capture native install prompt.
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    setTimeout(show, 1500);
+  });
+
+  // iOS Safari: no beforeinstallprompt, but we can show instructions.
+  if (isIOS) setTimeout(show, 1500);
+
+  yesBtn.addEventListener('click', function(){
+    if (mode === 'ios-steps') { hide(true); return; }
+
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choice){
+        deferredPrompt = null;
+        hide(choice && choice.outcome === 'accepted' ? false : true);
+      }).catch(function(){ hide(true); });
+      return;
+    }
+
+    if (isIOS) {
+      text.hidden = true;
+      iosSteps.hidden = false;
+      yesBtn.textContent = 'Got it';
+      noBtn.hidden = true;
+      mode = 'ios-steps';
+      return;
+    }
+
+    hide(true);
+  });
+
+  noBtn.addEventListener('click', function(){ hide(true); });
+  closeBtn.addEventListener('click', function(){ hide(true); });
+
+  window.addEventListener('appinstalled', function(){ hide(false); });
+})();
+</script>
 </body>
 </html>
