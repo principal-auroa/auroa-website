@@ -1392,6 +1392,34 @@ body:not(.is-admin) #y78-pdf-ph{display:none;}
   #home-sidebar.open{transform:translateX(0);}
   #mobile-menu-btn{display:flex;}
   #sidebar-backdrop.open{display:block;}
+
+  /* Stack side-by-side content into a single full-width column */
+  .cal-grid{grid-template-columns:1fr;gap:14px;}
+  .cal-frame-wrap{min-height:0;}
+  .cal-frame-wrap iframe,.cal-empty{height:420px;}
+  .ev-img-grid{grid-template-columns:1fr;gap:12px;}
+  .ne-main-row{grid-template-columns:1fr;gap:16px;}
+  .staff-grid{grid-template-columns:1fr;gap:14px;}
+  #hit-grid{grid-template-columns:1fr;max-height:none;}
+  .hit-text-cell{border-right:none;border-bottom:1.5px solid #ddd;}
+  .bus-grid{grid-template-columns:1fr;}
+
+  /* Reduce dense button grids from 4 cols to 2 */
+  .btn-grid,.sport-btn-grid,.event-btn-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+
+  /* Shrink sport/event detail table to fit phone width */
+  .sd-table{font-size:12.5px;}
+  .sd-table td,.sd-table th{padding:8px 10px;word-break:break-word;}
+  .sd-table td:first-child{width:auto;min-width:90px;font-size:12px;padding-left:10px;}
+
+  /* Generic safety net: any HTML content table from rich-text editors */
+  .editable table,.page table:not(.sd-table){
+    display:block;width:100%;overflow-x:auto;font-size:13px;
+  }
+
+  /* Prevent images and embeds from blowing out the viewport */
+  .page img,.editable img{max-width:100%;height:auto;}
+  .page iframe{max-width:100%;}
 }
 </style>
 </head>
