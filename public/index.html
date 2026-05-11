@@ -172,6 +172,24 @@ body{background:#fff;color:#222;min-height:100vh;}
   transition:background 0.15s;
 }
 .sidebar-btn.parent-portal:hover{background:#0e7a64;color:#fff;}
+/* Grouped colour buttons in the sidebar */
+.sidebar-btn.group-blue,
+.sidebar-btn.group-red,
+.sidebar-btn.group-green{
+  color:#fff;font-weight:400;font-size:15px;
+  border:none;border-left:none;border-radius:8px;
+  margin:0 16px 8px;padding:10px 18px;
+  text-align:center;display:block;
+  width:calc(100% - 32px);cursor:pointer;
+  transition:background 0.15s;
+}
+.sidebar-btn.group-blue{background:#3498db;}
+.sidebar-btn.group-blue:hover{background:#2980b9;color:#fff;border-left-color:transparent;}
+.sidebar-btn.group-red{background:#e74c3c;}
+.sidebar-btn.group-red:hover{background:#c0392b;color:#fff;border-left-color:transparent;}
+.sidebar-btn.group-green{background:#27ae60;}
+.sidebar-btn.group-green:hover{background:#1f8b4d;color:#fff;border-left-color:transparent;}
+.sidebar-btn.last-in-group{margin-bottom:18px;}
 #stationery-editor{
   display:none;
   margin:-4px 16px 12px;
@@ -2756,12 +2774,23 @@ function renderSidebarPages() {
   var wrap = el('sidebar-pages');
   if (!wrap) return;
   wrap.innerHTML = '';
-  pageConfig.forEach(function(pg) {
+
+  function findPage(id) {
+    for (var i = 0; i < pageConfig.length; i++) {
+      if (pageConfig[i].id === id) return pageConfig[i];
+    }
+    return null;
+  }
+
+  function renderPage(pg, colorClass, lastInGroup) {
+    if (!pg) return;
     var div = document.createElement('div');
     div.className = 'sb-page-wrap' + (pg.hidden ? ' sb-hidden' : '');
 
     var btn = document.createElement('button');
-    btn.className = 'sidebar-btn';
+    btn.className = 'sidebar-btn'
+      + (colorClass ? ' ' + colorClass : '')
+      + (lastInGroup ? ' last-in-group' : '');
     btn.textContent = pg.label;
     btn.onclick = (function(id){ return function(e){ bubbleGo(e, id); }; })(pg.id);
     div.appendChild(btn);
@@ -2792,34 +2821,41 @@ function renderSidebarPages() {
     adminRow.appendChild(delBtn);
     div.appendChild(adminRow);
     wrap.appendChild(div);
+  }
 
-    // Inject Order Stationery button immediately after Buses
-    if (pg.id === 'pg-buses') {
-      var statDiv = document.createElement('div');
-      statDiv.className = 'sb-page-wrap';
-      var statBtn = document.createElement('button');
-      statBtn.className = 'sidebar-btn';
-      statBtn.id = 'stationery-btn';
-      statBtn.textContent = 'Order Stationery';
-      statBtn.onclick = function(e) { stationeryClick(e); };
-      statDiv.appendChild(statBtn);
-      wrap.appendChild(statDiv);
-    }
+  function renderSynthetic(label, colorClass, onClick, btnId, lastInGroup) {
+    var div = document.createElement('div');
+    div.className = 'sb-page-wrap';
+    var btn = document.createElement('button');
+    btn.className = 'sidebar-btn'
+      + (colorClass ? ' ' + colorClass : '')
+      + (lastInGroup ? ' last-in-group' : '');
+    if (btnId) btn.id = btnId;
+    btn.textContent = label;
+    btn.onclick = onClick;
+    div.appendChild(btn);
+    wrap.appendChild(div);
+  }
 
-    // Inject School Lunch Orders button immediately after New Entrant Info
-    if (pg.id === 'pg-newentrant') {
-      var lunchDiv = document.createElement('div');
-      lunchDiv.className = 'sb-page-wrap';
-      var lunchBtn = document.createElement('button');
-      lunchBtn.className = 'sidebar-btn';
-      lunchBtn.id = 'lunch-orders-btn';
-      lunchBtn.textContent = 'School Lunch Orders';
-      lunchBtn.onclick = function(){
-        window.open('https://forms.gle/APcPyt15QL4JZryp8', '_blank', 'noopener');
-      };
-      lunchDiv.appendChild(lunchBtn);
-      wrap.appendChild(lunchDiv);
-    }
+  // Group 1 — light blue: Home, About us, New Entrant Info
+  renderSynthetic('Home', 'group-blue', function(e){ bubbleGo(e, 'pg-home'); });
+  renderPage(findPage('pg-educate'),    'group-blue');
+  renderPage(findPage('pg-newentrant'), 'group-blue', true);
+
+  // Group 2 — red: Upcoming Events, Sports & Events
+  renderPage(findPage('pg-events'), 'group-red');
+  renderPage(findPage('pg-sports'), 'group-red', true);
+
+  // Group 3 — green: Order Stationery, School Lunch Orders
+  renderSynthetic('Order Stationery',    'group-green', function(e){ stationeryClick(e); }, 'stationery-btn');
+  renderSynthetic('School Lunch Orders', 'group-green', function(){
+    window.open('https://forms.gle/APcPyt15QL4JZryp8', '_blank', 'noopener');
+  }, 'lunch-orders-btn', true);
+
+  // Remaining pages — plain style, original order
+  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1 };
+  pageConfig.forEach(function(pg) {
+    if (!alreadyRendered[pg.id]) renderPage(pg, null);
   });
 }
 
@@ -5492,7 +5528,6 @@ document.addEventListener('click', function(e) {
       </div>
     </div>
   </div>
-  <button class="sidebar-btn" onclick="bubbleGo(event,'pg-home')">Home</button>
   <div id="sidebar-pages"></div>
   <div id="stationery-editor">
     <label>Order Stationery URL:</label>
