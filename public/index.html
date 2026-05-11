@@ -110,7 +110,14 @@ body{background:#fff;color:#222;min-height:100vh;}
   position:fixed;top:0;left:0;
   width:260px;height:100vh;
   z-index:850;
-  background:#1a2b4a;
+  background:linear-gradient(180deg,
+    rgba(50,100,165,0.78) 0%,
+    rgba(35,75,135,0.82) 60%,
+    rgba(25,55,105,0.86) 100%);
+  backdrop-filter:blur(22px) saturate(180%);
+  -webkit-backdrop-filter:blur(22px) saturate(180%);
+  border-right:1px solid rgba(255,255,255,0.12);
+  box-shadow:4px 0 28px rgba(0,0,0,0.08);
   padding:28px 0 40px;
   overflow-y:auto;
   display:flex;flex-direction:column;
