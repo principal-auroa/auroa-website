@@ -2805,6 +2805,21 @@ function renderSidebarPages() {
       statDiv.appendChild(statBtn);
       wrap.appendChild(statDiv);
     }
+
+    // Inject School Lunch Orders button immediately after New Entrant Info
+    if (pg.id === 'pg-newentrant') {
+      var lunchDiv = document.createElement('div');
+      lunchDiv.className = 'sb-page-wrap';
+      var lunchBtn = document.createElement('button');
+      lunchBtn.className = 'sidebar-btn';
+      lunchBtn.id = 'lunch-orders-btn';
+      lunchBtn.textContent = 'School Lunch Orders';
+      lunchBtn.onclick = function(){
+        window.open('https://forms.gle/APcPyt15QL4JZryp8', '_blank', 'noopener');
+      };
+      lunchDiv.appendChild(lunchBtn);
+      wrap.appendChild(lunchDiv);
+    }
   });
 }
 
