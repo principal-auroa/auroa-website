@@ -110,14 +110,29 @@ body{background:#fff;color:#222;min-height:100vh;}
   position:fixed;top:0;left:0;
   width:260px;height:100vh;
   z-index:850;
-  background:linear-gradient(180deg,
-    rgba(50,100,165,0.78) 0%,
-    rgba(35,75,135,0.82) 60%,
-    rgba(25,55,105,0.86) 100%);
-  backdrop-filter:blur(22px) saturate(180%);
-  -webkit-backdrop-filter:blur(22px) saturate(180%);
-  border-right:1px solid rgba(255,255,255,0.12);
-  box-shadow:4px 0 28px rgba(0,0,0,0.08);
+  background:
+    /* Diagonal glass shine streak */
+    linear-gradient(118deg,
+      transparent 32%,
+      rgba(255,255,255,0.04) 46%,
+      rgba(255,255,255,0.09) 50%,
+      rgba(255,255,255,0.04) 54%,
+      transparent 68%),
+    /* Faint frosted haze - barely visible */
+    radial-gradient(ellipse 320px 600px at 30% 20%, rgba(255,255,255,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 260px 500px at 70% 75%, rgba(255,255,255,0.04) 0%, transparent 60%),
+    /* Top sheen + bottom shadow for depth */
+    linear-gradient(180deg,
+      rgba(255,255,255,0.05) 0%,
+      transparent 10%,
+      transparent 90%,
+      rgba(0,0,0,0.28) 100%),
+    /* Solid dark blue base */
+    #0f1f3a;
+  border-right:1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    inset 1px 0 0 rgba(255,255,255,0.05),
+    4px 0 28px rgba(0,0,0,0.14);
   padding:28px 0 40px;
   overflow-y:auto;
   display:flex;flex-direction:column;
