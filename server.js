@@ -11,6 +11,31 @@ const UPLOADS   = path.join(DATA_DIR, 'uploads');
 
 if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
 
+// ---- lunch menu (single source of truth) ----
+const LUNCH_MENU = [
+  { id: 'pie_chips',     name: 'Small pie and chips',  price: 6.50 },
+  { id: 'pizza_chips',   name: 'Pizza and chips',      price: 7.50 },
+  { id: 'hotdog_chips',  name: 'Hot dog and chips',    price: 9.00 },
+  { id: 'tenders_chips', name: '2 tenders and chips',  price: 10.00 },
+  { id: 'juice',         name: 'Juice drink',          price: 3.00 },
+  { id: 'donut',         name: 'Donut',                price: 5.00 }
+];
+function lunchMenuLookup(id) {
+  for (var i = 0; i < LUNCH_MENU.length; i++) {
+    if (LUNCH_MENU[i].id === id) return LUNCH_MENU[i];
+  }
+  return null;
+}
+function mondayKey(when) {
+  var d = new Date(when);
+  var day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + dd;
+}
+
 // ---- defaults ----
 function defaultTable() {
   return [
@@ -79,6 +104,7 @@ function load() {
   if (!data.homeinfoImages)    data.homeinfoImages    = {};
   if (!data.classroomImages)   data.classroomImages   = {};
   if (!data.staffSlots)        data.staffSlots        = {};
+  if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   // ensure every term has an eventIds array
   data.sportTerms.forEach(t => { if (!t.eventIds) t.eventIds = []; });
   return data;
@@ -344,6 +370,55 @@ app.delete('/api/event-image/:filename', (req, res) => {
   save(data);
   deleteFile(name);
   res.json({ ok: true });
+});
+
+// ---- Lunch orders ----
+app.get('/api/lunch-menu', (req, res) => res.json(LUNCH_MENU));
+
+app.post('/api/lunch-order', (req, res) => {
+  const b = req.body || {};
+  const studentName = String(b.studentName || '').trim();
+  if (!studentName) return res.status(400).json({ error: 'Student name required' });
+  if (studentName.length > 100) return res.status(400).json({ error: 'Student name too long' });
+
+  const raw = Array.isArray(b.items) ? b.items : [];
+  const items = [];
+  let total = 0;
+  for (const it of raw) {
+    const menu = lunchMenuLookup(String(it && it.id || ''));
+    if (!menu) continue;
+    const qty = Math.floor(Number(it.qty));
+    if (!qty || qty < 1 || qty > 20) continue;
+    items.push({ id: menu.id, name: menu.name, price: menu.price, qty });
+    total += menu.price * qty;
+  }
+  if (!items.length) return res.status(400).json({ error: 'Please choose at least one item' });
+
+  const now = Date.now();
+  const order = {
+    id: 'lo_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    studentName,
+    items,
+    total: Math.round(total * 100) / 100,
+    weekKey: mondayKey(now),
+    submittedAt: now
+  };
+
+  const data = load();
+  if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
+  data.lunchOrders.push(order);
+  save(data);
+  res.json({ ok: true, order });
+});
+
+app.delete('/api/lunch-order/:id', (req, res) => {
+  const id = req.params.id;
+  const data = load();
+  if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
+  const before = data.lunchOrders.length;
+  data.lunchOrders = data.lunchOrders.filter(o => o.id !== id);
+  save(data);
+  res.json({ ok: true, removed: before - data.lunchOrders.length });
 });
 
 // Generic save

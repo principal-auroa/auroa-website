@@ -1396,6 +1396,140 @@ body.is-admin .y78-pdf-admin-bar{display:flex;}
 #y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
+/* ---- LUNCH ORDERS PAGE ---- */
+#pg-lunch-orders .pg-body{max-width:760px;margin:0 auto;padding:24px;}
+.lunch-notice{
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+  border:1.5px solid #f59e0b;color:#78350f;
+  padding:14px 18px;border-radius:10px;
+  font-size:15px;font-weight:600;margin:18px 0 22px;
+  display:flex;align-items:center;gap:10px;
+}
+.lunch-notice::before{content:'\23F0';font-size:20px;}
+.lunch-field-label{
+  display:block;color:#1a2b4a;font-weight:700;
+  font-size:14px;margin-bottom:6px;letter-spacing:0.3px;
+}
+.lunch-name-input{
+  width:100%;padding:12px 14px;
+  border:1.5px solid #e0e0e0;border-radius:10px;
+  font-family:'Quicksand',sans-serif;font-size:15px;
+  margin-bottom:18px;background:#fff;
+}
+.lunch-name-input:focus{outline:none;border-color:#1a2b4a;}
+.lunch-section-h{
+  color:#1a2b4a;font-size:17px;font-weight:700;
+  margin:8px 0 10px;
+}
+.lunch-items{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.lunch-item{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:#fff;border:1.5px solid #e6e6e6;border-radius:10px;
+  padding:12px 14px;
+  transition:border-color 0.15s,box-shadow 0.15s;
+}
+.lunch-item.has-qty{
+  border-color:#1a2b4a;
+  box-shadow:0 0 0 3px rgba(26,43,74,0.08);
+}
+.lunch-item-info{flex:1;min-width:0;}
+.lunch-item-name{color:#1a2b4a;font-weight:600;font-size:15px;}
+.lunch-item-price{color:#666;font-size:13px;margin-top:2px;}
+.lunch-qty-controls{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.lunch-qty-btn{
+  width:32px;height:32px;border-radius:50%;
+  border:1.5px solid #ccc;background:#fff;color:#1a2b4a;
+  font-family:'Quicksand',sans-serif;font-size:18px;font-weight:700;
+  cursor:pointer;line-height:1;padding:0;
+  transition:background 0.15s,border-color 0.15s,color 0.15s;
+}
+.lunch-qty-btn:hover{background:#1a2b4a;border-color:#1a2b4a;color:#fff;}
+.lunch-qty-btn:disabled{opacity:0.35;cursor:not-allowed;background:#fff;color:#1a2b4a;border-color:#ccc;}
+.lunch-qty{min-width:24px;text-align:center;font-weight:700;color:#1a2b4a;font-size:15px;}
+.lunch-total-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#1a2b4a;color:#fff;
+  padding:14px 18px;border-radius:10px;margin-bottom:14px;
+}
+.lunch-total-label{font-size:13px;letter-spacing:0.5px;text-transform:uppercase;opacity:0.85;}
+.lunch-total-amount{font-size:22px;font-weight:700;}
+.lunch-submit-row{display:flex;justify-content:flex-end;}
+.lunch-submit-btn{
+  background:#27ae60;color:#fff;border:none;border-radius:10px;
+  padding:12px 28px;font-family:'Quicksand',sans-serif;
+  font-size:15px;font-weight:700;cursor:pointer;
+  transition:background 0.15s;
+}
+.lunch-submit-btn:hover{background:#1f8b4d;}
+.lunch-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lunch-err{color:#c0392b;font-size:13px;margin-top:10px;min-height:18px;}
+.lunch-confirm{
+  text-align:center;padding:40px 20px;
+  background:#fff;border:1.5px solid #d4edda;
+  border-radius:14px;margin-top:18px;
+}
+.lunch-confirm-icon{
+  width:64px;height:64px;border-radius:50%;
+  background:#27ae60;color:#fff;
+  font-size:32px;font-weight:700;line-height:64px;
+  margin:0 auto 16px;
+}
+.lunch-confirm h2{color:#1a2b4a;margin-bottom:10px;font-size:24px;}
+.lunch-confirm p{color:#555;font-size:14px;line-height:1.6;margin-bottom:20px;}
+.lunch-new-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:10px;
+  padding:10px 22px;font-family:'Quicksand',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;
+}
+.lunch-new-btn:hover{background:#243d6a;}
+.lunch-admin{display:none;margin-top:36px;padding-top:24px;border-top:2px dashed #d0d0d0;}
+body.is-admin .lunch-admin{display:block;}
+.lunch-admin-h{
+  color:#c0642b;font-size:20px;font-weight:700;
+  margin-bottom:18px;letter-spacing:0.5px;
+}
+.lunch-admin-block{
+  background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;
+  padding:18px 20px;margin-bottom:18px;
+}
+.lunch-admin-block-h{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:10px;flex-wrap:wrap;gap:8px;
+}
+.lunch-admin-block-h h3{color:#1a2b4a;font-size:16px;font-weight:700;margin:0;}
+.lunch-admin-week{color:#666;font-size:13px;}
+.lunch-table{width:100%;border-collapse:collapse;font-size:13px;}
+.lunch-table th,.lunch-table td{
+  text-align:left;padding:8px 10px;
+  border-bottom:1px solid #ececec;color:#222;
+}
+.lunch-table th{
+  color:#555;font-weight:700;font-size:11px;
+  text-transform:uppercase;letter-spacing:0.5px;background:#fff;
+}
+.lunch-table tr:last-child td{border-bottom:none;}
+.lunch-totals-table td:last-child{text-align:right;font-weight:700;color:#1a2b4a;}
+.lunch-del-btn{
+  background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:3px 10px;border-radius:6px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;
+}
+.lunch-del-btn:hover{background:#c0392b;color:#fff;}
+.lunch-empty{color:#888;font-size:13px;padding:8px 0;}
+.lunch-admin-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+.lunch-dl-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:8px;
+  padding:8px 16px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;
+}
+.lunch-dl-btn:hover{background:#243d6a;}
+.lunch-sub-h{
+  color:#555;font-size:13px;font-weight:700;letter-spacing:0.5px;
+  text-transform:uppercase;margin:14px 0 8px;
+}
+.lunch-row-summary{background:#eef2f7;}
+.lunch-row-summary td{font-weight:700;color:#1a2b4a;}
+
 /* ---- MOBILE: drawer sidebar ---- */
 #mobile-menu-btn{
   display:none;
@@ -1975,6 +2109,80 @@ body:not(.is-admin) #y78-pdf-ph{display:none;}
     </div>
   </div>
 
+  <!-- ======== SCHOOL LUNCH ORDERS PAGE ======== -->
+  <div id="pg-lunch-orders" class="page">
+    <div class="pg-header" id="ph-lunch-orders"></div>
+    <div class="pg-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">School Lunch Orders</h1>
+      </div>
+
+      <div class="lunch-notice">All orders need to be in by Wednesday 8am</div>
+
+      <div id="lunch-form-wrap">
+        <label class="lunch-field-label" for="lunch-student-name">Child's name</label>
+        <input id="lunch-student-name" class="lunch-name-input" type="text"
+               placeholder="e.g. Emma Smith" maxlength="100" autocomplete="off" />
+
+        <h3 class="lunch-section-h">Choose items</h3>
+        <div id="lunch-items" class="lunch-items"></div>
+
+        <div class="lunch-total-bar">
+          <div class="lunch-total-label">Total</div>
+          <div id="lunch-total-amount" class="lunch-total-amount">$0.00</div>
+        </div>
+
+        <div class="lunch-submit-row">
+          <button id="lunch-submit-btn" class="lunch-submit-btn" onclick="submitLunchOrder()">Submit order</button>
+        </div>
+        <div id="lunch-form-err" class="lunch-err"></div>
+      </div>
+
+      <div id="lunch-confirm" class="lunch-confirm" hidden>
+        <div class="lunch-confirm-icon">&#10003;</div>
+        <h2>Order received!</h2>
+        <p id="lunch-confirm-text"></p>
+        <button class="lunch-new-btn" onclick="resetLunchForm()">Submit another order</button>
+      </div>
+
+      <div id="lunch-admin" class="lunch-admin">
+        <h2 class="lunch-admin-h">ADMIN: LUNCH ORDERS</h2>
+
+        <div class="lunch-admin-block">
+          <div class="lunch-admin-block-h">
+            <h3>This week's orders</h3>
+            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span></div>
+          </div>
+          <table id="lunch-week-table" class="lunch-table"></table>
+          <div id="lunch-week-empty" class="lunch-empty">No orders yet this week.</div>
+          <div class="lunch-admin-actions">
+            <button class="lunch-dl-btn" onclick="downloadLunchWeekCsv()">⬇ Download this week's orders (CSV)</button>
+          </div>
+        </div>
+
+        <div class="lunch-admin-block">
+          <div class="lunch-admin-block-h">
+            <h3>To make this week</h3>
+          </div>
+          <table id="lunch-week-totals-table" class="lunch-table lunch-totals-table"></table>
+        </div>
+
+        <div class="lunch-admin-block">
+          <div class="lunch-admin-block-h">
+            <h3>All-time running totals</h3>
+          </div>
+          <table id="lunch-all-totals-table" class="lunch-table lunch-totals-table"></table>
+          <h4 class="lunch-sub-h">Week-by-week breakdown</h4>
+          <table id="lunch-by-week-table" class="lunch-table"></table>
+          <div class="lunch-admin-actions">
+            <button class="lunch-dl-btn" onclick="downloadLunchRunningCsv()">⬇ Download running totals (CSV)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- NEWSLETTER UPLOAD MODAL -->
@@ -2189,6 +2397,7 @@ function fetchState() {
       stationeryLink = data.stationeryLink || '';
       contactImage = data.contactImage || null;
       importantLinks = data.importantLinks || [];
+      lunchOrders = Array.isArray(data.lunchOrders) ? data.lunchOrders : [];
       if (Array.isArray(data.calendarData) && data.calendarData.length >= 2) {
         calendarData = data.calendarData;
       }
@@ -2591,6 +2800,7 @@ function showPage(id) {
   }
   currentPageId = id;
   updateSidebarAudio(id);
+  if (id === 'pg-lunch-orders' && typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 function bubbleGo(event, pageId) {
   if (event) {
@@ -2870,8 +3080,8 @@ function renderSidebarPages() {
 
   // Group 3 — green: Order Stationery, School Lunch Orders
   renderSynthetic('Order Stationery',    'group-green', function(e){ stationeryClick(e); }, 'stationery-btn');
-  renderSynthetic('School Lunch Orders', 'group-green', function(){
-    window.open('https://forms.gle/APcPyt15QL4JZryp8', '_blank', 'noopener');
+  renderSynthetic('School Lunch Orders', 'group-green', function(e){
+    bubbleGo(e, 'pg-lunch-orders');
   }, 'lunch-orders-btn', true);
 
   // Remaining pages — plain style, original order
@@ -5619,6 +5829,352 @@ document.addEventListener('click', function(e){
     setTimeout(closeMobileSidebar, 80);
   }
 });
+</script>
+
+<!-- LUNCH ORDERS LOGIC -->
+<script>
+var LUNCH_MENU = [
+  { id: 'pie_chips',     name: 'Small pie and chips',  price: 6.50 },
+  { id: 'pizza_chips',   name: 'Pizza and chips',      price: 7.50 },
+  { id: 'hotdog_chips',  name: 'Hot dog and chips',    price: 9.00 },
+  { id: 'tenders_chips', name: '2 tenders and chips',  price: 10.00 },
+  { id: 'juice',         name: 'Juice drink',          price: 3.00 },
+  { id: 'donut',         name: 'Donut',                price: 5.00 }
+];
+var lunchQtys = {};
+var lunchOrders = [];
+
+function lunchFmt(amount) {
+  return '$' + (Math.round(amount * 100) / 100).toFixed(2);
+}
+function lunchEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+function lunchMondayKey(when) {
+  var d = new Date(when);
+  var day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + dd;
+}
+function lunchAggregate(orders) {
+  var agg = {};
+  orders.forEach(function(o) {
+    (o.items || []).forEach(function(i) {
+      if (!agg[i.id]) agg[i.id] = { qty: 0, revenue: 0 };
+      agg[i.id].qty += i.qty;
+      agg[i.id].revenue += i.qty * i.price;
+    });
+  });
+  return agg;
+}
+
+function renderLunchMenu() {
+  var wrap = el('lunch-items');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  LUNCH_MENU.forEach(function(it) {
+    var row = document.createElement('div');
+    row.className = 'lunch-item' + (lunchQtys[it.id] ? ' has-qty' : '');
+    var info = document.createElement('div');
+    info.className = 'lunch-item-info';
+    var nm = document.createElement('div');
+    nm.className = 'lunch-item-name'; nm.textContent = it.name;
+    var pr = document.createElement('div');
+    pr.className = 'lunch-item-price'; pr.textContent = lunchFmt(it.price);
+    info.appendChild(nm); info.appendChild(pr);
+    var ctrl = document.createElement('div');
+    ctrl.className = 'lunch-qty-controls';
+    var minus = document.createElement('button');
+    minus.className = 'lunch-qty-btn';
+    minus.type = 'button';
+    minus.textContent = '−';
+    minus.disabled = !lunchQtys[it.id];
+    minus.onclick = (function(id){ return function(){ lunchQtyChange(id, -1); }; })(it.id);
+    var qty = document.createElement('span');
+    qty.className = 'lunch-qty';
+    qty.textContent = String(lunchQtys[it.id] || 0);
+    var plus = document.createElement('button');
+    plus.className = 'lunch-qty-btn';
+    plus.type = 'button';
+    plus.textContent = '+';
+    plus.onclick = (function(id){ return function(){ lunchQtyChange(id, 1); }; })(it.id);
+    ctrl.appendChild(minus); ctrl.appendChild(qty); ctrl.appendChild(plus);
+    row.appendChild(info); row.appendChild(ctrl);
+    wrap.appendChild(row);
+  });
+  updateLunchTotal();
+}
+
+function lunchQtyChange(itemId, delta) {
+  var current = lunchQtys[itemId] || 0;
+  var next = Math.max(0, Math.min(20, current + delta));
+  if (next === 0) delete lunchQtys[itemId];
+  else lunchQtys[itemId] = next;
+  renderLunchMenu();
+}
+
+function updateLunchTotal() {
+  var total = 0;
+  LUNCH_MENU.forEach(function(it) {
+    total += (lunchQtys[it.id] || 0) * it.price;
+  });
+  var elTot = el('lunch-total-amount');
+  if (elTot) elTot.textContent = lunchFmt(total);
+}
+
+function submitLunchOrder() {
+  var nameInput = el('lunch-student-name');
+  var errBox = el('lunch-form-err');
+  var btn = el('lunch-submit-btn');
+  if (!nameInput || !errBox || !btn) return;
+  errBox.textContent = '';
+
+  var name = (nameInput.value || '').trim();
+  if (!name) { errBox.textContent = "Please enter your child's name."; return; }
+
+  var items = [];
+  Object.keys(lunchQtys).forEach(function(id) {
+    if (lunchQtys[id] > 0) items.push({ id: id, qty: lunchQtys[id] });
+  });
+  if (!items.length) { errBox.textContent = 'Please choose at least one item.'; return; }
+
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  fetch('/api/lunch-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentName: name, items: items })
+  })
+  .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = 'Submit order';
+    if (!res.ok || !res.body || !res.body.order) {
+      errBox.textContent = (res.body && res.body.error) || 'Something went wrong. Please try again.';
+      return;
+    }
+    var order = res.body.order;
+    lunchOrders.push(order);
+    var itemList = order.items.map(function(i){ return i.qty + ' × ' + i.name; }).join(', ');
+    var ct = el('lunch-confirm-text');
+    if (ct) {
+      ct.textContent = 'Saved for ' + order.studentName + ': ' + itemList +
+        '. Total ' + lunchFmt(order.total) +
+        '. Please send payment by lunch day.';
+    }
+    var fw = el('lunch-form-wrap'); if (fw) fw.hidden = true;
+    var cf = el('lunch-confirm'); if (cf) cf.hidden = false;
+    if (isAdmin) renderLunchAdmin();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Submit order';
+    errBox.textContent = 'Network error. Please try again.';
+  });
+}
+
+function resetLunchForm() {
+  lunchQtys = {};
+  var ni = el('lunch-student-name'); if (ni) ni.value = '';
+  var er = el('lunch-form-err'); if (er) er.textContent = '';
+  var fw = el('lunch-form-wrap'); if (fw) fw.hidden = false;
+  var cf = el('lunch-confirm');   if (cf) cf.hidden = true;
+  renderLunchMenu();
+}
+
+function renderLunchAdmin() {
+  var weekLabel = el('lunch-week-label');
+  if (!weekLabel) return;
+  var currentWeek = lunchMondayKey(Date.now());
+  weekLabel.textContent = currentWeek;
+
+  // This week's orders
+  var weekOrders = lunchOrders.filter(function(o){ return o.weekKey === currentWeek; });
+  weekOrders.sort(function(a,b){ return a.submittedAt - b.submittedAt; });
+  var tbl = el('lunch-week-table');
+  var empty = el('lunch-week-empty');
+  if (weekOrders.length === 0) {
+    tbl.innerHTML = '';
+    tbl.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    tbl.style.display = '';
+    var html = '<thead><tr><th>Student</th><th>Items</th><th>Total</th><th>Submitted</th><th></th></tr></thead><tbody>';
+    weekOrders.forEach(function(o) {
+      var itemsStr = o.items.map(function(i){ return i.qty + ' × ' + i.name; }).join(', ');
+      var whenStr = new Date(o.submittedAt).toLocaleString();
+      html += '<tr>' +
+        '<td>' + lunchEsc(o.studentName) + '</td>' +
+        '<td>' + lunchEsc(itemsStr) + '</td>' +
+        '<td>' + lunchFmt(o.total) + '</td>' +
+        '<td>' + lunchEsc(whenStr) + '</td>' +
+        '<td><button class="lunch-del-btn" onclick="deleteLunchOrder(\'' + o.id + '\')">Delete</button></td>' +
+      '</tr>';
+    });
+    html += '</tbody>';
+    tbl.innerHTML = html;
+  }
+
+  // This-week per-item totals
+  var weekTotals = lunchAggregate(weekOrders);
+  var weekRevenue = 0;
+  var wtHtml = '<thead><tr><th>Item</th><th>Quantity</th><th>Revenue</th></tr></thead><tbody>';
+  LUNCH_MENU.forEach(function(it) {
+    var t = weekTotals[it.id] || { qty: 0, revenue: 0 };
+    weekRevenue += t.revenue;
+    wtHtml += '<tr><td>' + lunchEsc(it.name) + '</td><td>' + t.qty + '</td><td>' + lunchFmt(t.revenue) + '</td></tr>';
+  });
+  wtHtml += '<tr class="lunch-row-summary"><td>Week total</td><td></td><td>' + lunchFmt(weekRevenue) + '</td></tr></tbody>';
+  el('lunch-week-totals-table').innerHTML = wtHtml;
+
+  // All-time totals
+  var allTotals = lunchAggregate(lunchOrders);
+  var grandQty = 0; var grandRevenue = 0;
+  var atHtml = '<thead><tr><th>Item</th><th>Total ordered (all time)</th><th>Total revenue</th></tr></thead><tbody>';
+  LUNCH_MENU.forEach(function(it) {
+    var t = allTotals[it.id] || { qty: 0, revenue: 0 };
+    grandQty += t.qty; grandRevenue += t.revenue;
+    atHtml += '<tr><td>' + lunchEsc(it.name) + '</td><td>' + t.qty + '</td><td>' + lunchFmt(t.revenue) + '</td></tr>';
+  });
+  atHtml += '<tr class="lunch-row-summary"><td>Grand total</td><td>' + grandQty + '</td><td>' + lunchFmt(grandRevenue) + '</td></tr></tbody>';
+  el('lunch-all-totals-table').innerHTML = atHtml;
+
+  // Per-week breakdown
+  var byWeek = {};
+  lunchOrders.forEach(function(o) {
+    if (!byWeek[o.weekKey]) byWeek[o.weekKey] = [];
+    byWeek[o.weekKey].push(o);
+  });
+  var weeks = Object.keys(byWeek).sort().reverse();
+  var bwTbl = el('lunch-by-week-table');
+  if (weeks.length === 0) {
+    bwTbl.innerHTML = '<tbody><tr><td style="color:#888;">No orders yet.</td></tr></tbody>';
+  } else {
+    var bwHtml = '<thead><tr><th>Week of</th>';
+    LUNCH_MENU.forEach(function(it) {
+      bwHtml += '<th title="' + lunchEsc(it.name) + '">' + lunchEsc(it.name.split(' ')[0]) + '</th>';
+    });
+    bwHtml += '<th>Revenue</th></tr></thead><tbody>';
+    weeks.forEach(function(wk) {
+      var totals = lunchAggregate(byWeek[wk]);
+      var rev = 0;
+      var row = '<tr><td>' + lunchEsc(wk) + '</td>';
+      LUNCH_MENU.forEach(function(it) {
+        var t = totals[it.id] || { qty: 0, revenue: 0 };
+        rev += t.revenue;
+        row += '<td>' + t.qty + '</td>';
+      });
+      row += '<td>' + lunchFmt(rev) + '</td></tr>';
+      bwHtml += row;
+    });
+    bwHtml += '</tbody>';
+    bwTbl.innerHTML = bwHtml;
+  }
+}
+
+function deleteLunchOrder(id) {
+  if (!confirm('Delete this order?')) return;
+  fetch('/api/lunch-order/' + encodeURIComponent(id), { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function() {
+      lunchOrders = lunchOrders.filter(function(o){ return o.id !== id; });
+      renderLunchAdmin();
+    });
+}
+
+function lunchDownloadCsv(rows, filename) {
+  function esc(v) {
+    var s = String(v == null ? '' : v);
+    if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  var csv = rows.map(function(row){ return row.map(esc).join(','); }).join('\r\n');
+  var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function downloadLunchWeekCsv() {
+  var currentWeek = lunchMondayKey(Date.now());
+  var weekOrders = lunchOrders.filter(function(o){ return o.weekKey === currentWeek; });
+  weekOrders.sort(function(a,b){ return a.submittedAt - b.submittedAt; });
+  var rows = [];
+  rows.push(['Auroa School Lunch Orders']);
+  rows.push(['Week of ' + currentWeek]);
+  rows.push(['Generated', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['STUDENT ORDERS']);
+  rows.push(['Student', 'Items', 'Total', 'Submitted']);
+  weekOrders.forEach(function(o) {
+    var itemsStr = o.items.map(function(i){ return i.qty + ' x ' + i.name; }).join('; ');
+    rows.push([o.studentName, itemsStr, '$' + o.total.toFixed(2), new Date(o.submittedAt).toLocaleString()]);
+  });
+  rows.push([]);
+  rows.push(['TO MAKE THIS WEEK']);
+  rows.push(['Item', 'Quantity', 'Revenue']);
+  var totals = lunchAggregate(weekOrders);
+  var grandRevenue = 0;
+  LUNCH_MENU.forEach(function(it) {
+    var t = totals[it.id] || { qty: 0, revenue: 0 };
+    grandRevenue += t.revenue;
+    rows.push([it.name, t.qty, '$' + t.revenue.toFixed(2)]);
+  });
+  rows.push(['Week total', '', '$' + grandRevenue.toFixed(2)]);
+  lunchDownloadCsv(rows, 'auroa-lunch-orders-' + currentWeek + '.csv');
+}
+
+function downloadLunchRunningCsv() {
+  var rows = [];
+  rows.push(['Auroa School Lunch - Running Totals']);
+  rows.push(['Generated', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['ALL-TIME TOTALS']);
+  rows.push(['Item', 'Total ordered', 'Total revenue']);
+  var allTotals = lunchAggregate(lunchOrders);
+  var grandQty = 0; var grandRevenue = 0;
+  LUNCH_MENU.forEach(function(it) {
+    var t = allTotals[it.id] || { qty: 0, revenue: 0 };
+    grandQty += t.qty; grandRevenue += t.revenue;
+    rows.push([it.name, t.qty, '$' + t.revenue.toFixed(2)]);
+  });
+  rows.push(['Grand total', grandQty, '$' + grandRevenue.toFixed(2)]);
+  rows.push([]);
+  rows.push(['WEEK-BY-WEEK BREAKDOWN']);
+  var header = ['Week of'];
+  LUNCH_MENU.forEach(function(it){ header.push(it.name); });
+  header.push('Revenue');
+  rows.push(header);
+  var byWeek = {};
+  lunchOrders.forEach(function(o) {
+    if (!byWeek[o.weekKey]) byWeek[o.weekKey] = [];
+    byWeek[o.weekKey].push(o);
+  });
+  Object.keys(byWeek).sort().forEach(function(wk) {
+    var totals = lunchAggregate(byWeek[wk]);
+    var rev = 0;
+    var row = [wk];
+    LUNCH_MENU.forEach(function(it) {
+      var t = totals[it.id] || { qty: 0, revenue: 0 };
+      rev += t.revenue;
+      row.push(t.qty);
+    });
+    row.push('$' + rev.toFixed(2));
+    rows.push(row);
+  });
+  lunchDownloadCsv(rows, 'auroa-lunch-running-totals.csv');
+}
+
+// Render menu on initial load (when the script first runs after DOM is ready)
+document.addEventListener('DOMContentLoaded', renderLunchMenu);
+if (document.readyState !== 'loading') renderLunchMenu();
 </script>
 
 <!-- INSTALL APP POPUP -->
