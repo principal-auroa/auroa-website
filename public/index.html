@@ -2366,6 +2366,24 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <button type="button" class="nl-add-btn" onclick="nlAddNotice()">+ Add notice</button>
       </div>
 
+      <h2 class="nl-section-h">School Accounts and Payments</h2>
+      <div id="nl-school-accounts" class="nl-msg" data-placeholder="Reminders, payment options, due dates..."></div>
+
+      <h2 class="nl-section-h">Camps and Day Trips</h2>
+      <div id="nl-camps" class="nl-msg" data-placeholder="Details about upcoming camps and day trips..."></div>
+
+      <div id="nl-footer-slot" class="nl-image-slot nl-hero" style="margin-top:32px;">
+        <img id="nl-footer-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No footer image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'footer')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('footer')">Remove</button>
+        </div>
+      </div>
+
       <div class="nl-save-bar">
         <button type="button" class="nl-save-btn" onclick="saveNewsletter()">💾 Save newsletter</button>
         <div id="nl-save-status" class="nl-save-status"></div>
@@ -2499,20 +2517,19 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   <button class="fmt-btn" onclick="fmtBold()" title="Bold"><b>B</b></button>
   <button class="fmt-btn" onclick="fmtBullet()" title="Bullet list" style="font-size:16px;padding:3px 7px;">•</button>
   <div class="fmt-sep"></div>
-  <button class="fmt-size-btn" onclick="fmtSize('10')">10</button>
-  <button class="fmt-size-btn" onclick="fmtSize('12')">12</button>
-  <button class="fmt-size-btn" onclick="fmtSize('16')">16</button>
-  <button class="fmt-size-btn" onclick="fmtSize('20')">20</button>
-  <button class="fmt-size-btn" onclick="fmtSize('30')">30</button>
+  <button class="fmt-size-btn" onclick="fmtSize('12')" title="12 px">12</button>
+  <button class="fmt-size-btn" onclick="fmtSize('14')" title="14 px">14</button>
+  <button class="fmt-size-btn" onclick="fmtSize('18')" title="18 px">18</button>
+  <button class="fmt-size-btn" onclick="fmtSize('20')" title="20 px">20</button>
+  <button class="fmt-size-btn" onclick="fmtSize('30')" title="30 px">30</button>
   <div class="fmt-sep"></div>
-  <span class="fmt-dot" style="background:#111"            title="Black"  onclick="fmtColor('#111111')"></span>
-  <span class="fmt-dot" style="background:#fff"            title="White"  onclick="fmtColor('#ffffff')"></span>
-  <span class="fmt-dot" style="background:#e67e22"         title="Orange" onclick="fmtColor('#e67e22')"></span>
-  <span class="fmt-dot" style="background:#2980b9"         title="Blue"   onclick="fmtColor('#2980b9')"></span>
-  <span class="fmt-dot" style="background:#27ae60"         title="Green"  onclick="fmtColor('#27ae60')"></span>
-  <span class="fmt-dot" style="background:#e74c3c"         title="Red"    onclick="fmtColor('#e74c3c')"></span>
+  <span class="fmt-dot" style="background:#2980b9"                            title="Blue"   onclick="fmtColor('#2980b9')"></span>
+  <span class="fmt-dot" style="background:#e67e22"                            title="Orange" onclick="fmtColor('#e67e22')"></span>
+  <span class="fmt-dot" style="background:#27ae60"                            title="Green"  onclick="fmtColor('#27ae60')"></span>
+  <span class="fmt-dot" style="background:#111"                               title="Black"  onclick="fmtColor('#111111')"></span>
+  <span class="fmt-dot" style="background:#fff;border:1px solid #888;"        title="White"  onclick="fmtColor('#ffffff')"></span>
   <div class="fmt-sep"></div>
-  <button class="fmt-btn" onclick="fmtClearStyles()" title="Clear pasted formatting" style="font-size:10px;padding:3px 7px;color:#c0392b;">✕ Clear Formatting</button>
+  <button class="fmt-btn" onclick="fmtClearStyles()" title="Clear pasted formatting" style="font-size:10px;padding:3px 7px;color:#c0392b;">✕ Clear</button>
 </div>
 
 <!-- CELL CONTEXT MENU -->
@@ -4589,7 +4606,7 @@ document.addEventListener('selectionchange', function() {
   if (!sel || sel.isCollapsed || !sel.rangeCount) { hideFmtToolbar(); return; }
   var node = sel.anchorNode;
   while (node && node.nodeType !== 1) node = node.parentNode;
-  if (!node || (!node.closest('.editable.editing') && !node.closest('td[contenteditable]'))) { hideFmtToolbar(); return; }
+  if (!node || (!node.closest('[contenteditable="true"]') && !node.closest('.editable.editing') && !node.closest('td[contenteditable]'))) { hideFmtToolbar(); return; }
   fmtSavedRange = sel.getRangeAt(0).cloneRange();
   var rect = sel.getRangeAt(0).getBoundingClientRect();
   var tb = el('fmt-toolbar');
@@ -4662,8 +4679,8 @@ function fmtClearStyles() {
   // Walk all nodes in selection and strip inline styles
   var container = range.commonAncestorContainer;
   var root = container.nodeType === 3 ? container.parentElement : container;
-  // Find the editable container
-  var editable = root.closest ? root.closest('.editable') : null;
+  // Find the editable container — works for legacy .editable or any contenteditable
+  var editable = root.closest ? (root.closest('.editable') || root.closest('[contenteditable="true"]')) : null;
   if (!editable) return;
   // Strip style/class/dir from every element inside the editable
   editable.querySelectorAll('[style],[class],[dir]').forEach(function(el) {
@@ -6644,6 +6661,9 @@ var newsletterData = {
   importantDates: '',
   studentsWeekImage: null,
   studentsWeekMessage: '',
+  campsDayTrips: '',
+  schoolAccountsPayments: '',
+  footerImage: null,
   notices: [
     { id: 'nt_1', caption: '', filename: null },
     { id: 'nt_2', caption: '', filename: null },
@@ -6693,6 +6713,21 @@ function renderNewsletter() {
     sotwMsg.textContent = newsletterData.studentsWeekMessage || '';
     sotwMsg.contentEditable = isAdmin ? 'true' : 'false';
   }
+
+  var campsEl = el('nl-camps');
+  if (campsEl) {
+    campsEl.textContent = newsletterData.campsDayTrips || '';
+    campsEl.contentEditable = isAdmin ? 'true' : 'false';
+  }
+
+  var sapEl = el('nl-school-accounts');
+  if (sapEl) {
+    sapEl.textContent = newsletterData.schoolAccountsPayments || '';
+    sapEl.contentEditable = isAdmin ? 'true' : 'false';
+  }
+
+  var footerImg = el('nl-footer-img');
+  if (footerImg) nlSetImage(el('nl-footer-slot'), footerImg, newsletterData.footerImage);
 
   renderNlNotices();
   renderNewsletterSnapshots();
@@ -6782,6 +6817,7 @@ function nlUploadImage(event, slot) {
       if (slot === 'header') newsletterData.headerImage = res.filename;
       else if (slot === 'principal') newsletterData.principalImage = res.filename;
       else if (slot === 'sotw') newsletterData.studentsWeekImage = res.filename;
+      else if (slot === 'footer') newsletterData.footerImage = res.filename;
       renderNewsletter();
     });
   event.target.value = '';
@@ -6791,6 +6827,7 @@ function nlRemoveImage(slot) {
   if (slot === 'header') newsletterData.headerImage = null;
   else if (slot === 'principal') newsletterData.principalImage = null;
   else if (slot === 'sotw') newsletterData.studentsWeekImage = null;
+  else if (slot === 'footer') newsletterData.footerImage = null;
   renderNewsletter();
 }
 
@@ -6859,6 +6896,8 @@ function saveNewsletter() {
   collectNoticeEdits();
   var datesEl = el('nl-important-dates');
   var sotwMsgEl = el('nl-sotw-msg');
+  var campsEdEl = el('nl-camps');
+  var sapEdEl = el('nl-school-accounts');
   var draft = {
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
@@ -6866,6 +6905,9 @@ function saveNewsletter() {
     importantDates: datesEl ? (datesEl.innerText || '') : '',
     studentsWeekImage: newsletterData.studentsWeekImage || null,
     studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerText || '') : '',
+    campsDayTrips: campsEdEl ? (campsEdEl.innerText || '') : '',
+    schoolAccountsPayments: sapEdEl ? (sapEdEl.innerText || '') : '',
+    footerImage: newsletterData.footerImage || null,
     principalMessage: (el('nl-principal-msg').innerText || '').replace(/ /g, ' '),
     notices: (newsletterData.notices || []).map(function(n) {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };

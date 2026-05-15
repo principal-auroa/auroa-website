@@ -132,6 +132,9 @@ function load() {
     if (typeof data.newsletter.importantDates !== 'string') data.newsletter.importantDates = '';
     if (typeof data.newsletter.studentsWeekImage === 'undefined') data.newsletter.studentsWeekImage = null;
     if (typeof data.newsletter.studentsWeekMessage !== 'string') data.newsletter.studentsWeekMessage = '';
+    if (typeof data.newsletter.campsDayTrips !== 'string') data.newsletter.campsDayTrips = '';
+    if (typeof data.newsletter.schoolAccountsPayments !== 'string') data.newsletter.schoolAccountsPayments = '';
+    if (typeof data.newsletter.footerImage === 'undefined') data.newsletter.footerImage = null;
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
@@ -553,6 +556,9 @@ app.post('/api/newsletter/save', (req, res) => {
     importantDates: String(b.importantDates || '').slice(0, 20000),
     studentsWeekImage: b.studentsWeekImage || null,
     studentsWeekMessage: String(b.studentsWeekMessage || '').slice(0, 20000),
+    campsDayTrips: String(b.campsDayTrips || '').slice(0, 20000),
+    schoolAccountsPayments: String(b.schoolAccountsPayments || '').slice(0, 20000),
+    footerImage: b.footerImage || null,
     notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
       caption: String((n && n.caption) || '').slice(0, 500),
@@ -574,6 +580,9 @@ app.post('/api/newsletter/save', (req, res) => {
     snap.importantDates       = draft.importantDates;
     snap.studentsWeekImage    = draft.studentsWeekImage;
     snap.studentsWeekMessage  = draft.studentsWeekMessage;
+    snap.campsDayTrips        = draft.campsDayTrips;
+    snap.schoolAccountsPayments = draft.schoolAccountsPayments;
+    snap.footerImage            = draft.footerImage;
     snap.notices              = draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename }));
     snap.updatedAt            = now;
   } else {
@@ -588,6 +597,9 @@ app.post('/api/newsletter/save', (req, res) => {
       importantDates: draft.importantDates,
       studentsWeekImage: draft.studentsWeekImage,
       studentsWeekMessage: draft.studentsWeekMessage,
+      campsDayTrips: draft.campsDayTrips,
+      schoolAccountsPayments: draft.schoolAccountsPayments,
+      footerImage: draft.footerImage,
       notices: draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename })),
       createdAt: now,
       updatedAt: now
@@ -607,12 +619,14 @@ function collectReferencedFiles(data) {
     add(data.newsletter.headerImage);
     add(data.newsletter.principalImage);
     add(data.newsletter.studentsWeekImage);
+    add(data.newsletter.footerImage);
     (data.newsletter.notices || []).forEach(n => add(n && n.filename));
   }
   (data.newsletterSnapshots || []).forEach(s => {
     add(s.headerImage);
     add(s.principalImage);
     add(s.studentsWeekImage);
+    add(s.footerImage);
     (s.notices || []).forEach(n => add(n && n.filename));
   });
   return refs;
@@ -631,6 +645,7 @@ app.delete('/api/newsletter-snapshot/:id', (req, res) => {
   add(target.headerImage);
   add(target.principalImage);
   add(target.studentsWeekImage);
+  add(target.footerImage);
   (target.notices || []).forEach(n => add(n && n.filename));
 
   // Drop the snapshot first so we can compute "still referenced" correctly
@@ -691,6 +706,9 @@ app.get('/newsletter/:slug', (req, res) => {
   const nlSotw = snap.studentsWeekImage ? '/uploads/' + nlEscape(snap.studentsWeekImage) : null;
   const datesHtml = nlEscape(snap.importantDates || '').replace(/\n/g, '<br>');
   const sotwHtml = nlEscape(snap.studentsWeekMessage || '').replace(/\n/g, '<br>');
+  const campsHtml = nlEscape(snap.campsDayTrips || '').replace(/\n/g, '<br>');
+  const sapHtml = nlEscape(snap.schoolAccountsPayments || '').replace(/\n/g, '<br>');
+  const nlFooter = snap.footerImage ? '/uploads/' + nlEscape(snap.footerImage) : null;
   const noticesHtml = (snap.notices || []).filter(n => n.filename).map(n => {
     const url = '/uploads/' + nlEscape(n.filename);
     return `<figure class="nl-pub-notice">
@@ -748,6 +766,9 @@ app.get('/newsletter/:slug', (req, res) => {
   ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg"><p>${sotwHtml}</p></div>` : ''}` : ''}
   ${datesHtml ? `<h2>Important Dates</h2><div class="nl-pub-msg"><p>${datesHtml}</p></div>` : ''}
   ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}
+  ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg"><p>${sapHtml}</p></div>` : ''}
+  ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg"><p>${campsHtml}</p></div>` : ''}
+  ${nlFooter ? `<div class="nl-pub-hero" style="margin-top:32px;"><img src="${nlFooter}" alt=""></div>` : ''}
   <div class="nl-pub-meta">Saved ${new Date(snap.updatedAt || snap.createdAt).toLocaleString()}</div>
 </div>
 <div id="lb" onclick="lbClose()">
