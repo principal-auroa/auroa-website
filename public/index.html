@@ -2865,6 +2865,10 @@ function enterAdmin() {
     var _s = sportsData[currentSportId];
     if (_s) { renderSdTable(_s.tableData); el('sd-table-admin').style.display = 'flex'; el('sd-img-admin').style.display = 'block'; }
   }
+  // Newsletter and lunch-admin use their own contentEditable management;
+  // re-render so the boxes pick up the new admin state.
+  if (typeof renderNewsletter === 'function') renderNewsletter();
+  if (typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 function exitAdmin() {
   document.body.classList.remove('is-admin');
@@ -2885,6 +2889,8 @@ function exitAdmin() {
   renderPrideBtnLabels();
   renderY78Boxes();
   renderSidebarPages();
+  if (typeof renderNewsletter === 'function') renderNewsletter();
+  if (typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 
 // ===================== EDUCATE IMAGE TRANSFORM =====================
