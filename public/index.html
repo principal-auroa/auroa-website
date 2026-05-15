@@ -1529,6 +1529,26 @@ body.is-admin .lunch-admin{display:block;}
 }
 .lunch-row-summary{background:#eef2f7;}
 .lunch-row-summary td{font-weight:700;color:#1a2b4a;}
+.lunch-archive-list{display:flex;flex-direction:column;gap:8px;}
+.lunch-archive-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:#fff;border:1px solid #e6e6e6;border-radius:8px;
+  padding:10px 14px;font-size:13px;flex-wrap:wrap;
+}
+.lunch-archive-row-info{color:#444;line-height:1.4;}
+.lunch-archive-row-info strong{color:#1a2b4a;}
+.lunch-archive-dl-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:6px;
+  padding:6px 12px;font-family:'Quicksand',sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.lunch-archive-dl-btn:hover{background:#243d6a;}
+.lunch-reset-btn{
+  background:#c0642b;color:#fff;border:none;border-radius:8px;
+  padding:7px 14px;font-family:'Quicksand',sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.lunch-reset-btn:hover{background:#a85325;}
 
 /* ---- MOBILE: drawer sidebar ---- */
 #mobile-menu-btn{
@@ -2152,13 +2172,15 @@ body.is-admin .lunch-admin{display:block;}
         <div class="lunch-admin-block">
           <div class="lunch-admin-block-h">
             <h3>This week's orders</h3>
-            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span></div>
+            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span> (resets every Saturday)</div>
           </div>
           <table id="lunch-week-table" class="lunch-table"></table>
           <div id="lunch-week-empty" class="lunch-empty">No orders yet this week.</div>
           <div class="lunch-admin-actions">
             <button class="lunch-dl-btn" onclick="downloadLunchWeekCsv()">⬇ Download this week's orders (CSV)</button>
           </div>
+          <h4 class="lunch-sub-h">Earlier weeks (auto-archived)</h4>
+          <div id="lunch-earlier-weeks" class="lunch-archive-list"></div>
         </div>
 
         <div class="lunch-admin-block">
@@ -2170,14 +2192,18 @@ body.is-admin .lunch-admin{display:block;}
 
         <div class="lunch-admin-block">
           <div class="lunch-admin-block-h">
-            <h3>All-time running totals</h3>
+            <h3>Running totals (current term)</h3>
+            <div class="lunch-admin-week" id="lunch-rt-since"></div>
+            <button class="lunch-reset-btn" onclick="resetLunchTotals()">⟲ Reset running totals</button>
           </div>
           <table id="lunch-all-totals-table" class="lunch-table lunch-totals-table"></table>
-          <h4 class="lunch-sub-h">Week-by-week breakdown</h4>
+          <h4 class="lunch-sub-h">Week-by-week breakdown (current term)</h4>
           <table id="lunch-by-week-table" class="lunch-table"></table>
           <div class="lunch-admin-actions">
             <button class="lunch-dl-btn" onclick="downloadLunchRunningCsv()">⬇ Download running totals (CSV)</button>
           </div>
+          <h4 class="lunch-sub-h">Past terms (snapshots from previous resets)</h4>
+          <div id="lunch-term-archives" class="lunch-archive-list"></div>
         </div>
       </div>
     </div>
@@ -2398,6 +2424,8 @@ function fetchState() {
       contactImage = data.contactImage || null;
       importantLinks = data.importantLinks || [];
       lunchOrders = Array.isArray(data.lunchOrders) ? data.lunchOrders : [];
+      lunchResetAt = Number(data.lunchResetAt) || 0;
+      lunchTermArchives = Array.isArray(data.lunchTermArchives) ? data.lunchTermArchives : [];
       if (Array.isArray(data.calendarData) && data.calendarData.length >= 2) {
         calendarData = data.calendarData;
       }
@@ -2652,7 +2680,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','events','classroom','linkdetail','sport','event','staff'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img src="' + src + '" alt="Header" />';
@@ -5843,6 +5871,8 @@ var LUNCH_MENU = [
 ];
 var lunchQtys = {};
 var lunchOrders = [];
+var lunchResetAt = 0;
+var lunchTermArchives = [];
 
 function lunchFmt(amount) {
   return '$' + (Math.round(amount * 100) / 100).toFixed(2);
@@ -5852,10 +5882,12 @@ function lunchEsc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
-function lunchMondayKey(when) {
+function lunchWeekKey(when) {
+  // Most recent Saturday on or before `when` — boundary is midnight Fri -> Sat.
   var d = new Date(when);
   var day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  var diff = (day === 6) ? 0 : -(day + 1);
+  d.setDate(d.getDate() + diff);
   var y = d.getFullYear();
   var m = String(d.getMonth() + 1).padStart(2, '0');
   var dd = String(d.getDate()).padStart(2, '0');
@@ -5987,10 +6019,15 @@ function resetLunchForm() {
 function renderLunchAdmin() {
   var weekLabel = el('lunch-week-label');
   if (!weekLabel) return;
-  var currentWeek = lunchMondayKey(Date.now());
+  var currentWeek = lunchWeekKey(Date.now());
   weekLabel.textContent = currentWeek;
 
-  // This week's orders
+  // Current-term orders (since last reset)
+  var currentTermOrders = lunchOrders.filter(function(o){
+    return (o.submittedAt || 0) >= lunchResetAt;
+  });
+
+  // This week's orders (subset of current-term)
   var weekOrders = lunchOrders.filter(function(o){ return o.weekKey === currentWeek; });
   weekOrders.sort(function(a,b){ return a.submittedAt - b.submittedAt; });
   var tbl = el('lunch-week-table');
@@ -6030,10 +6067,16 @@ function renderLunchAdmin() {
   wtHtml += '<tr class="lunch-row-summary"><td>Week total</td><td></td><td>' + lunchFmt(weekRevenue) + '</td></tr></tbody>';
   el('lunch-week-totals-table').innerHTML = wtHtml;
 
-  // All-time totals
-  var allTotals = lunchAggregate(lunchOrders);
+  // Running totals — current term only
+  var rtLabel = el('lunch-rt-since');
+  if (rtLabel) {
+    rtLabel.textContent = lunchResetAt
+      ? 'Since reset on ' + new Date(lunchResetAt).toLocaleDateString()
+      : 'All-time (no reset yet)';
+  }
+  var allTotals = lunchAggregate(currentTermOrders);
   var grandQty = 0; var grandRevenue = 0;
-  var atHtml = '<thead><tr><th>Item</th><th>Total ordered (all time)</th><th>Total revenue</th></tr></thead><tbody>';
+  var atHtml = '<thead><tr><th>Item</th><th>Total ordered</th><th>Total revenue</th></tr></thead><tbody>';
   LUNCH_MENU.forEach(function(it) {
     var t = allTotals[it.id] || { qty: 0, revenue: 0 };
     grandQty += t.qty; grandRevenue += t.revenue;
@@ -6042,16 +6085,16 @@ function renderLunchAdmin() {
   atHtml += '<tr class="lunch-row-summary"><td>Grand total</td><td>' + grandQty + '</td><td>' + lunchFmt(grandRevenue) + '</td></tr></tbody>';
   el('lunch-all-totals-table').innerHTML = atHtml;
 
-  // Per-week breakdown
+  // Per-week breakdown — current term only
   var byWeek = {};
-  lunchOrders.forEach(function(o) {
+  currentTermOrders.forEach(function(o) {
     if (!byWeek[o.weekKey]) byWeek[o.weekKey] = [];
     byWeek[o.weekKey].push(o);
   });
   var weeks = Object.keys(byWeek).sort().reverse();
   var bwTbl = el('lunch-by-week-table');
   if (weeks.length === 0) {
-    bwTbl.innerHTML = '<tbody><tr><td style="color:#888;">No orders yet.</td></tr></tbody>';
+    bwTbl.innerHTML = '<tbody><tr><td style="color:#888;padding:8px 10px;">No orders yet.</td></tr></tbody>';
   } else {
     var bwHtml = '<thead><tr><th>Week of</th>';
     LUNCH_MENU.forEach(function(it) {
@@ -6073,6 +6116,156 @@ function renderLunchAdmin() {
     bwHtml += '</tbody>';
     bwTbl.innerHTML = bwHtml;
   }
+
+  renderLunchEarlierWeeks(currentWeek);
+  renderLunchTermArchives();
+}
+
+function renderLunchEarlierWeeks(currentWeek) {
+  var wrap = el('lunch-earlier-weeks');
+  if (!wrap) return;
+  // Group all orders (any term) by weekKey, excluding current week
+  var byWeek = {};
+  lunchOrders.forEach(function(o) {
+    if (o.weekKey === currentWeek) return;
+    if (!byWeek[o.weekKey]) byWeek[o.weekKey] = [];
+    byWeek[o.weekKey].push(o);
+  });
+  var weeks = Object.keys(byWeek).sort().reverse();
+  if (weeks.length === 0) {
+    wrap.innerHTML = '<div class="lunch-empty">No earlier weeks archived yet.</div>';
+    return;
+  }
+  var html = '';
+  weeks.forEach(function(wk) {
+    var orders = byWeek[wk];
+    var rev = 0;
+    orders.forEach(function(o){ rev += o.total; });
+    html += '<div class="lunch-archive-row">' +
+      '<div class="lunch-archive-row-info">' +
+        '<strong>Week of ' + lunchEsc(wk) + '</strong> &middot; ' +
+        orders.length + ' order' + (orders.length === 1 ? '' : 's') +
+        ' &middot; ' + lunchFmt(rev) +
+      '</div>' +
+      '<button class="lunch-archive-dl-btn" onclick="downloadLunchWeekArchiveCsv(\'' + wk + '\')">⬇ Download</button>' +
+      '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+function renderLunchTermArchives() {
+  var wrap = el('lunch-term-archives');
+  if (!wrap) return;
+  if (!lunchTermArchives.length) {
+    wrap.innerHTML = '<div class="lunch-empty">No previous terms archived yet.</div>';
+    return;
+  }
+  var sorted = lunchTermArchives.slice().sort(function(a,b){ return b.snapshotTakenAt - a.snapshotTakenAt; });
+  var html = '';
+  sorted.forEach(function(ar) {
+    var when = new Date(ar.snapshotTakenAt).toLocaleDateString();
+    html += '<div class="lunch-archive-row">' +
+      '<div class="lunch-archive-row-info">' +
+        '<strong>' + lunchEsc(ar.label) + '</strong> &middot; ' +
+        'snapshot ' + lunchEsc(when) + ' &middot; ' +
+        ar.orderCount + ' order' + (ar.orderCount === 1 ? '' : 's') +
+        ' &middot; ' + lunchFmt(ar.grandRevenue) +
+      '</div>' +
+      '<button class="lunch-archive-dl-btn" onclick="downloadLunchTermArchiveCsv(\'' + ar.id + '\')">⬇ Download</button>' +
+      '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+function resetLunchTotals() {
+  var label = prompt('Label for this term snapshot (e.g. "Term 1 2026"):', '');
+  if (label === null) return;
+  if (!confirm('This will archive the current running totals and reset them to zero. The orders themselves are kept (so the Earlier Weeks list still shows them). Continue?')) return;
+  fetch('/api/lunch-orders/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: label.trim() })
+  })
+  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    if (!res.ok || !res.body || !res.body.archive) {
+      alert('Reset failed: ' + ((res.body && res.body.error) || 'unknown error'));
+      return;
+    }
+    lunchTermArchives.push(res.body.archive);
+    lunchResetAt = res.body.archive.snapshotTakenAt;
+    renderLunchAdmin();
+  })
+  .catch(function(){ alert('Network error.'); });
+}
+
+function downloadLunchWeekArchiveCsv(weekKey) {
+  var orders = lunchOrders.filter(function(o){ return o.weekKey === weekKey; });
+  orders.sort(function(a,b){ return a.submittedAt - b.submittedAt; });
+  var rows = [];
+  rows.push(['Auroa School Lunch Orders']);
+  rows.push(['Week of ' + weekKey]);
+  rows.push(['Generated', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['STUDENT ORDERS']);
+  rows.push(['Student', 'Items', 'Total', 'Submitted']);
+  orders.forEach(function(o) {
+    var itemsStr = o.items.map(function(i){ return i.qty + ' x ' + i.name; }).join('; ');
+    rows.push([o.studentName, itemsStr, '$' + o.total.toFixed(2), new Date(o.submittedAt).toLocaleString()]);
+  });
+  rows.push([]);
+  rows.push(['ITEMS MADE THIS WEEK']);
+  rows.push(['Item', 'Quantity', 'Revenue']);
+  var totals = lunchAggregate(orders);
+  var rev = 0;
+  LUNCH_MENU.forEach(function(it) {
+    var t = totals[it.id] || { qty: 0, revenue: 0 };
+    rev += t.revenue;
+    rows.push([it.name, t.qty, '$' + t.revenue.toFixed(2)]);
+  });
+  rows.push(['Week total', '', '$' + rev.toFixed(2)]);
+  lunchDownloadCsv(rows, 'auroa-lunch-orders-' + weekKey + '.csv');
+}
+
+function downloadLunchTermArchiveCsv(archiveId) {
+  var ar = null;
+  for (var i = 0; i < lunchTermArchives.length; i++) {
+    if (lunchTermArchives[i].id === archiveId) { ar = lunchTermArchives[i]; break; }
+  }
+  if (!ar) return;
+  var rows = [];
+  rows.push(['Auroa School Lunch - Term Snapshot']);
+  rows.push(['Label', ar.label]);
+  rows.push(['Snapshot taken', new Date(ar.snapshotTakenAt).toLocaleString()]);
+  if (ar.fromTime) rows.push(['Term started', new Date(ar.fromTime).toLocaleString()]);
+  rows.push(['Order count', ar.orderCount]);
+  rows.push([]);
+  rows.push(['ITEM TOTALS']);
+  rows.push(['Item', 'Total ordered', 'Total revenue']);
+  // Use archived perItem, but fall back to live MENU order so columns are stable
+  var byId = {};
+  (ar.perItem || []).forEach(function(t){ byId[t.id] = t; });
+  LUNCH_MENU.forEach(function(it) {
+    var t = byId[it.id] || { qty: 0, revenue: 0 };
+    rows.push([it.name, t.qty, '$' + (Number(t.revenue) || 0).toFixed(2)]);
+  });
+  rows.push(['Grand total', ar.grandQty, '$' + (Number(ar.grandRevenue) || 0).toFixed(2)]);
+  rows.push([]);
+  rows.push(['WEEK-BY-WEEK BREAKDOWN']);
+  var header = ['Week of'];
+  LUNCH_MENU.forEach(function(it){ header.push(it.name); });
+  header.push('Revenue');
+  rows.push(header);
+  (ar.byWeek || []).slice().sort(function(a,b){ return a.weekKey < b.weekKey ? -1 : 1; }).forEach(function(wk) {
+    var row = [wk.weekKey];
+    LUNCH_MENU.forEach(function(it) {
+      var t = (wk.perItem && wk.perItem[it.id]) || { qty: 0, revenue: 0 };
+      row.push(t.qty);
+    });
+    row.push('$' + (Number(wk.total) || 0).toFixed(2));
+    rows.push(row);
+  });
+  lunchDownloadCsv(rows, 'auroa-lunch-term-' + ar.label.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.csv');
 }
 
 function deleteLunchOrder(id) {
@@ -6103,7 +6296,7 @@ function lunchDownloadCsv(rows, filename) {
 }
 
 function downloadLunchWeekCsv() {
-  var currentWeek = lunchMondayKey(Date.now());
+  var currentWeek = lunchWeekKey(Date.now());
   var weekOrders = lunchOrders.filter(function(o){ return o.weekKey === currentWeek; });
   weekOrders.sort(function(a,b){ return a.submittedAt - b.submittedAt; });
   var rows = [];

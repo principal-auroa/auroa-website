@@ -26,10 +26,14 @@ function lunchMenuLookup(id) {
   }
   return null;
 }
-function mondayKey(when) {
+function weekKeyFor(when) {
+  // Returns YYYY-MM-DD of the most recent Saturday on or before `when`.
+  // Week boundary is midnight Friday -> Saturday, so the weekly table
+  // automatically resets each Saturday morning.
   var d = new Date(when);
-  var day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  var day = d.getDay(); // 0=Sun .. 6=Sat
+  var diff = (day === 6) ? 0 : -(day + 1);
+  d.setDate(d.getDate() + diff);
   var y = d.getFullYear();
   var m = String(d.getMonth() + 1).padStart(2, '0');
   var dd = String(d.getDate()).padStart(2, '0');
@@ -105,6 +109,15 @@ function load() {
   if (!data.classroomImages)   data.classroomImages   = {};
   if (!data.staffSlots)        data.staffSlots        = {};
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
+  if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
+  if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
+  // Migration: re-key any orders that were stored under the old Monday-based scheme
+  data.lunchOrders.forEach(function(o) {
+    if (o.submittedAt) {
+      var expected = weekKeyFor(o.submittedAt);
+      if (o.weekKey !== expected) o.weekKey = expected;
+    }
+  });
   // ensure every term has an eventIds array
   data.sportTerms.forEach(t => { if (!t.eventIds) t.eventIds = []; });
   return data;
@@ -400,7 +413,7 @@ app.post('/api/lunch-order', (req, res) => {
     studentName,
     items,
     total: Math.round(total * 100) / 100,
-    weekKey: mondayKey(now),
+    weekKey: weekKeyFor(now),
     submittedAt: now
   };
 
@@ -419,6 +432,60 @@ app.delete('/api/lunch-order/:id', (req, res) => {
   data.lunchOrders = data.lunchOrders.filter(o => o.id !== id);
   save(data);
   res.json({ ok: true, removed: before - data.lunchOrders.length });
+});
+
+// Snapshot current running totals, then bump the reset point so subsequent
+// running-totals views start from zero (used at end of term).
+app.post('/api/lunch-orders/reset', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
+  if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
+
+  const label = String((req.body && req.body.label) || '').trim().slice(0, 80);
+  const since = Number(data.lunchResetAt) || 0;
+  const now = Date.now();
+  const inTerm = data.lunchOrders.filter(o => (o.submittedAt || 0) >= since);
+
+  const perItem = {};
+  inTerm.forEach(o => {
+    (o.items || []).forEach(i => {
+      if (!perItem[i.id]) perItem[i.id] = { id: i.id, name: i.name, price: i.price, qty: 0, revenue: 0 };
+      perItem[i.id].qty += i.qty;
+      perItem[i.id].revenue += i.qty * i.price;
+    });
+  });
+
+  const byWeek = {};
+  inTerm.forEach(o => {
+    if (!byWeek[o.weekKey]) byWeek[o.weekKey] = { weekKey: o.weekKey, perItem: {}, total: 0 };
+    (o.items || []).forEach(i => {
+      if (!byWeek[o.weekKey].perItem[i.id]) byWeek[o.weekKey].perItem[i.id] = { qty: 0, revenue: 0 };
+      byWeek[o.weekKey].perItem[i.id].qty += i.qty;
+      byWeek[o.weekKey].perItem[i.id].revenue += i.qty * i.price;
+      byWeek[o.weekKey].total += i.qty * i.price;
+    });
+  });
+
+  let grandQty = 0; let grandRevenue = 0;
+  Object.values(perItem).forEach(t => { grandQty += t.qty; grandRevenue += t.revenue; });
+
+  const archive = {
+    id: 'lt_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    label: label || ('Term reset ' + new Date(now).toISOString().slice(0, 10)),
+    snapshotTakenAt: now,
+    fromTime: since,
+    toTime: now,
+    orderCount: inTerm.length,
+    perItem: Object.values(perItem),
+    byWeek: Object.values(byWeek),
+    grandQty,
+    grandRevenue: Math.round(grandRevenue * 100) / 100
+  };
+
+  data.lunchTermArchives.push(archive);
+  data.lunchResetAt = now;
+  save(data);
+  res.json({ ok: true, archive });
 });
 
 // Generic save
