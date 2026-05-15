@@ -1550,6 +1550,199 @@ body.is-admin .lunch-admin{display:block;}
 }
 .lunch-reset-btn:hover{background:#a85325;}
 
+/* ---- NEWSLETTER PAGE ---- */
+.nl-body{max-width:820px;margin:0 auto;padding:24px;}
+.nl-term-label{
+  color:#1a2b4a;font-size:36px;font-weight:700;
+  text-align:center;letter-spacing:0.5px;
+  margin:8px 0 24px;padding:6px 8px;border-radius:6px;
+  min-height:48px;outline:none;
+}
+.nl-term-label:empty::before{
+  content:attr(data-placeholder);color:#bbb;font-weight:400;
+}
+body.is-admin .nl-term-label{
+  border:1.5px dashed transparent;cursor:text;
+}
+body.is-admin .nl-term-label:hover{border-color:#d0d6e0;}
+body.is-admin .nl-term-label:focus{border-color:#1a2b4a;border-style:solid;background:#fffdf0;}
+.nl-section-h{
+  color:#1a2b4a;font-size:22px;font-weight:700;
+  border-bottom:2px solid #c0642b;padding-bottom:6px;
+  margin:32px 0 14px;
+}
+.nl-image-slot{position:relative;margin:0 0 18px;}
+.nl-image-slot img{
+  width:100%;display:none;border-radius:12px;cursor:zoom-in;
+}
+.nl-image-slot img.loaded{display:block;}
+.nl-image-placeholder{
+  background:#f5f6f8;border:2px dashed #d0d6e0;
+  color:#888;font-size:14px;
+  padding:48px 20px;border-radius:12px;text-align:center;
+}
+.nl-image-slot img.loaded ~ .nl-image-placeholder{display:none;}
+body:not(.is-admin) .nl-image-placeholder{display:none;}
+.nl-principal img.loaded{max-width:280px;}
+.nl-image-tools{
+  display:none;
+  position:absolute;top:8px;right:8px;
+  gap:6px;background:rgba(255,255,255,0.95);
+  padding:6px;border-radius:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.18);
+}
+body.is-admin .nl-image-tools{display:flex;}
+.nl-upload-label{
+  background:#1a2b4a;color:#fff;border-radius:6px;
+  padding:6px 12px;font-size:12px;font-weight:700;
+  cursor:pointer;display:inline-block;
+}
+.nl-upload-label:hover{background:#243d6a;}
+.nl-upload-label input{display:none;}
+.nl-remove-btn{
+  background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:5px 10px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
+}
+.nl-remove-btn:hover{background:#c0392b;color:#fff;}
+body:not(.is-admin) .nl-principal:not(:has(img.loaded)),
+body:not(.is-admin) .nl-hero:not(:has(img.loaded)){display:none;}
+.nl-msg{
+  font-size:15px;color:#333;line-height:1.6;
+  padding:8px 4px;min-height:28px;outline:none;border-radius:6px;
+  white-space:pre-wrap;
+}
+.nl-msg:empty::before{content:attr(data-placeholder);color:#bbb;}
+body.is-admin .nl-msg{
+  border:1.5px dashed transparent;cursor:text;padding:10px 12px;
+}
+body.is-admin .nl-msg:hover{border-color:#d0d6e0;}
+body.is-admin .nl-msg:focus{border-color:#1a2b4a;border-style:solid;background:#fffdf0;}
+body:not(.is-admin) .nl-msg:empty{display:none;}
+.nl-notices-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:18px;margin-bottom:14px;
+}
+.nl-notice-card{
+  display:flex;flex-direction:column;gap:8px;
+  background:#fff;border-radius:10px;position:relative;
+}
+.nl-notice-caption{
+  font-weight:600;color:#1a2b4a;font-size:14px;
+  padding:4px 6px;outline:none;border-radius:4px;min-height:22px;
+}
+.nl-notice-caption:empty::before{
+  content:attr(data-placeholder);color:#bbb;font-weight:400;
+}
+body.is-admin .nl-notice-caption{
+  border:1.5px dashed transparent;cursor:text;
+}
+body.is-admin .nl-notice-caption:hover{border-color:#d0d6e0;}
+body.is-admin .nl-notice-caption:focus{border-color:#1a2b4a;border-style:solid;background:#fffdf0;}
+body:not(.is-admin) .nl-notice-caption:empty{display:none;}
+.nl-notice-img-wrap{
+  position:relative;border-radius:10px;overflow:hidden;
+  background:#f5f6f8;border:1.5px dashed #d0d6e0;
+  aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+}
+.nl-notice-img-wrap img{
+  width:100%;height:100%;display:none;object-fit:cover;cursor:zoom-in;
+}
+.nl-notice-img-wrap img.loaded{display:block;}
+.nl-notice-img-wrap img.loaded ~ .nl-notice-empty{display:none;}
+.nl-notice-empty{
+  color:#888;font-size:13px;
+}
+body:not(.is-admin) .nl-notice-img-wrap:not(:has(img.loaded)){display:none;}
+body:not(.is-admin) .nl-notice-card:has(.nl-notice-img-wrap:not(:has(img.loaded)))
+  .nl-notice-caption{display:none;}
+.nl-notice-tools{
+  display:none;position:absolute;top:8px;right:8px;
+  gap:6px;background:rgba(255,255,255,0.95);
+  padding:4px;border-radius:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.18);z-index:2;
+}
+body.is-admin .nl-notice-img-wrap .nl-notice-tools{display:flex;}
+.nl-notice-tools .nl-upload-label,
+.nl-notice-tools .nl-remove-btn{font-size:11px;padding:4px 8px;}
+.nl-notice-del{
+  position:absolute;top:-8px;right:-8px;
+  width:24px;height:24px;border-radius:50%;
+  background:#c0392b;color:#fff;border:none;cursor:pointer;
+  font-size:14px;line-height:1;font-weight:700;z-index:3;
+  display:none;
+}
+body.is-admin .nl-notice-del{display:block;}
+.nl-add-row{display:none;margin-bottom:20px;}
+body.is-admin .nl-add-row{display:block;}
+.nl-add-btn{
+  background:#27ae60;color:#fff;border:none;border-radius:8px;
+  padding:8px 16px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;
+}
+.nl-add-btn:hover{background:#1f8b4d;}
+.nl-save-bar{
+  display:none;align-items:center;gap:14px;flex-wrap:wrap;
+  margin-top:24px;padding:14px 0;border-top:1px solid #ececec;
+}
+body.is-admin .nl-save-bar{display:flex;}
+.nl-save-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:8px;
+  padding:10px 22px;font-family:'Quicksand',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;
+}
+.nl-save-btn:hover{background:#243d6a;}
+.nl-save-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.nl-save-status{font-size:13px;color:#555;}
+.nl-save-status.ok{color:#27ae60;}
+.nl-save-status.err{color:#c0392b;}
+.nl-snapshots{display:flex;flex-direction:column;gap:8px;}
+.nl-snapshots:empty::before{content:'No newsletters saved yet.';color:#888;font-size:13px;}
+.nl-snapshot-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;
+  background:#fff;border:1px solid #e6e6e6;border-radius:10px;
+  padding:12px 14px;
+}
+.nl-snapshot-info{flex:1;min-width:200px;}
+.nl-snapshot-info strong{color:#1a2b4a;font-size:14px;display:block;margin-bottom:4px;}
+.nl-snapshot-info a{color:#1a2b4a;font-size:13px;word-break:break-all;text-decoration:none;}
+.nl-snapshot-info a:hover{text-decoration:underline;}
+.nl-snapshot-info .nl-snapshot-date{color:#888;font-size:12px;margin-top:2px;}
+.nl-snapshot-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.nl-copy-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:6px;
+  padding:6px 12px;font-family:'Quicksand',sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.nl-copy-btn:hover{background:#243d6a;}
+.nl-copy-btn.copied{background:#27ae60;}
+.nl-snapshot-del{
+  background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:5px 10px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
+}
+.nl-snapshot-del:hover{background:#c0392b;color:#fff;}
+.nl-snapshot-hide{
+  background:none;border:1px solid #888;color:#666;
+  padding:5px 10px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
+}
+.nl-snapshot-hide:hover{background:#666;color:#fff;}
+body:not(.is-admin) .nl-snapshot-del,
+body:not(.is-admin) .nl-snapshot-hide{display:none;}
+.nl-snapshot-row.is-hidden{opacity:0.55;background:#fafafa;}
+.nl-snapshot-row.is-hidden .nl-snapshot-info strong::after{
+  content:' (hidden)';color:#888;font-weight:400;font-size:12px;
+}
+.nl-hidden-toggle{
+  background:none;border:none;color:#1a2b4a;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;
+  padding:6px 0;text-align:left;display:none;
+}
+body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
+.nl-hidden-toggle:hover{text-decoration:underline;}
+
 /* ---- MOBILE: drawer sidebar ---- */
 #mobile-menu-btn{
   display:none;
@@ -2116,16 +2309,71 @@ body.is-admin .lunch-admin{display:block;}
   <!-- ======== NEWSLETTER PAGE ======== -->
   <div id="pg-newsletter" class="page">
     <div class="pg-header" id="ph-newsletter"></div>
-    <div class="pg-body">
+    <div class="pg-body nl-body">
       <div class="pg-title-row">
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">School Newsletter</h1>
       </div>
-      <div class="nl-admin-bar">
-        <button class="nl-admin-btn" onclick="showNlModal()">⇧ Upload Newsletter</button>
-        <button class="nl-admin-btn nl-year-btn" onclick="changeNlYear()">✏️ Change Year</button>
+
+      <h2 id="nl-term-label" class="nl-term-label" data-placeholder="Term 1, Week 1"></h2>
+
+      <div id="nl-header-slot" class="nl-image-slot nl-hero">
+        <img id="nl-header-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'header')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('header')">Remove</button>
+        </div>
       </div>
-      <div id="nl-list"></div>
+
+      <h2 class="nl-section-h">Principal's Message</h2>
+      <div id="nl-principal-slot" class="nl-image-slot nl-principal">
+        <img id="nl-principal-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'principal')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('principal')">Remove</button>
+        </div>
+      </div>
+      <div id="nl-principal-msg" class="nl-msg" data-placeholder="Write the principal's message here..."></div>
+
+      <h2 class="nl-section-h">Students of the Week</h2>
+      <div id="nl-sotw-slot" class="nl-image-slot nl-hero">
+        <img id="nl-sotw-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'sotw')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('sotw')">Remove</button>
+        </div>
+      </div>
+      <div id="nl-sotw-msg" class="nl-msg" data-placeholder="Names of this week's recognised students..."></div>
+
+      <h2 class="nl-section-h">Important Dates</h2>
+      <div id="nl-important-dates" class="nl-msg" data-placeholder="Add upcoming dates, one per line..."></div>
+
+      <h2 class="nl-section-h">Notices</h2>
+      <div id="nl-notices" class="nl-notices-grid"></div>
+      <div class="nl-add-row">
+        <button type="button" class="nl-add-btn" onclick="nlAddNotice()">+ Add notice</button>
+      </div>
+
+      <div class="nl-save-bar">
+        <button type="button" class="nl-save-btn" onclick="saveNewsletter()">💾 Save newsletter</button>
+        <div id="nl-save-status" class="nl-save-status"></div>
+      </div>
+
+      <h2 class="nl-section-h">Saved newsletters</h2>
+      <button type="button" id="nl-hidden-toggle" class="nl-hidden-toggle" onclick="nlToggleHidden()">Show hidden</button>
+      <div id="nl-snapshots" class="nl-snapshots"></div>
     </div>
   </div>
 
@@ -2426,6 +2674,15 @@ function fetchState() {
       lunchOrders = Array.isArray(data.lunchOrders) ? data.lunchOrders : [];
       lunchResetAt = Number(data.lunchResetAt) || 0;
       lunchTermArchives = Array.isArray(data.lunchTermArchives) ? data.lunchTermArchives : [];
+      newsletterData = data.newsletter || newsletterData;
+      newsletterSnapshots = Array.isArray(data.newsletterSnapshots) ? data.newsletterSnapshots : [];
+      if (typeof renderNewsletter === 'function') renderNewsletter();
+      // If this load was triggered by a deep-link URL like /lunch-orders,
+      // jump to that page once state is available.
+      if (window.__autoPage && el(window.__autoPage)) {
+        showPage(window.__autoPage);
+        window.__autoPage = null;
+      }
       if (Array.isArray(data.calendarData) && data.calendarData.length >= 2) {
         calendarData = data.calendarData;
       }
@@ -2829,6 +3086,7 @@ function showPage(id) {
   currentPageId = id;
   updateSidebarAudio(id);
   if (id === 'pg-lunch-orders' && typeof renderLunchAdmin === 'function') renderLunchAdmin();
+  if (id === 'pg-newsletter' && typeof renderNewsletter === 'function') renderNewsletter();
 }
 function bubbleGo(event, pageId) {
   if (event) {
@@ -6368,6 +6626,407 @@ function downloadLunchRunningCsv() {
 // Render menu on initial load (when the script first runs after DOM is ready)
 document.addEventListener('DOMContentLoaded', renderLunchMenu);
 if (document.readyState !== 'loading') renderLunchMenu();
+</script>
+
+<!-- NEWSLETTER LOGIC -->
+<script>
+var newsletterData = {
+  termLabel: 'Term 1, Week 1',
+  headerImage: null,
+  principalImage: null,
+  principalMessage: '',
+  importantDates: '',
+  studentsWeekImage: null,
+  studentsWeekMessage: '',
+  notices: [
+    { id: 'nt_1', caption: '', filename: null },
+    { id: 'nt_2', caption: '', filename: null },
+    { id: 'nt_3', caption: '', filename: null }
+  ]
+};
+var newsletterSnapshots = [];
+
+function nlSetImage(slotEl, imgEl, filename) {
+  if (filename) {
+    imgEl.src = '/uploads/' + filename;
+    imgEl.classList.add('loaded');
+  } else {
+    imgEl.removeAttribute('src');
+    imgEl.classList.remove('loaded');
+  }
+}
+
+function renderNewsletter() {
+  var termEl = el('nl-term-label');
+  if (!termEl) return;
+
+  termEl.textContent = newsletterData.termLabel || '';
+  termEl.contentEditable = isAdmin ? 'true' : 'false';
+
+  var hdrImg = el('nl-header-img');
+  nlSetImage(el('nl-header-slot'), hdrImg, newsletterData.headerImage);
+
+  var prImg = el('nl-principal-img');
+  nlSetImage(el('nl-principal-slot'), prImg, newsletterData.principalImage);
+
+  var msgEl = el('nl-principal-msg');
+  msgEl.textContent = newsletterData.principalMessage || '';
+  msgEl.contentEditable = isAdmin ? 'true' : 'false';
+
+  var datesEl = el('nl-important-dates');
+  if (datesEl) {
+    datesEl.textContent = newsletterData.importantDates || '';
+    datesEl.contentEditable = isAdmin ? 'true' : 'false';
+  }
+
+  var sotwImg = el('nl-sotw-img');
+  if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, newsletterData.studentsWeekImage);
+
+  var sotwMsg = el('nl-sotw-msg');
+  if (sotwMsg) {
+    sotwMsg.textContent = newsletterData.studentsWeekMessage || '';
+    sotwMsg.contentEditable = isAdmin ? 'true' : 'false';
+  }
+
+  renderNlNotices();
+  renderNewsletterSnapshots();
+
+  var status = el('nl-save-status');
+  if (status) { status.textContent = ''; status.className = 'nl-save-status'; }
+}
+
+function renderNlNotices() {
+  var wrap = el('nl-notices');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  (newsletterData.notices || []).forEach(function(notice) {
+    wrap.appendChild(buildNoticeCard(notice));
+  });
+}
+
+function buildNoticeCard(notice) {
+  var card = document.createElement('div');
+  card.className = 'nl-notice-card';
+  card.dataset.noticeId = notice.id;
+
+  var cap = document.createElement('div');
+  cap.className = 'nl-notice-caption';
+  cap.dataset.placeholder = 'Caption';
+  cap.textContent = notice.caption || '';
+  cap.contentEditable = isAdmin ? 'true' : 'false';
+  card.appendChild(cap);
+
+  var wrapImg = document.createElement('div');
+  wrapImg.className = 'nl-notice-img-wrap';
+
+  var img = document.createElement('img');
+  img.alt = notice.caption || '';
+  img.onclick = function() { nlMaybeLightbox(img); };
+  if (notice.filename) {
+    img.src = '/uploads/' + notice.filename;
+    img.classList.add('loaded');
+  }
+  wrapImg.appendChild(img);
+
+  var empty = document.createElement('div');
+  empty.className = 'nl-notice-empty';
+  empty.textContent = 'No image yet';
+  wrapImg.appendChild(empty);
+
+  var tools = document.createElement('div');
+  tools.className = 'nl-notice-tools';
+  var lbl = document.createElement('label');
+  lbl.className = 'nl-upload-label';
+  var sp = document.createElement('span'); sp.textContent = 'Upload'; lbl.appendChild(sp);
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = function(e) { nlUploadNoticeImage(e, notice.id); };
+  lbl.appendChild(inp);
+  tools.appendChild(lbl);
+  var rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'nl-remove-btn';
+  rm.textContent = 'Remove';
+  rm.onclick = function() { nlRemoveNoticeImage(notice.id); };
+  tools.appendChild(rm);
+  wrapImg.appendChild(tools);
+
+  card.appendChild(wrapImg);
+
+  var del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'nl-notice-del';
+  del.title = 'Remove this notice';
+  del.textContent = '×';
+  del.onclick = function() { nlRemoveNotice(notice.id); };
+  card.appendChild(del);
+
+  return card;
+}
+
+function nlUploadImage(event, slot) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var fd = new FormData();
+  fd.append('image', file);
+  fetch('/api/upload/newsletter', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(res) {
+      if (!res || !res.filename) return;
+      if (slot === 'header') newsletterData.headerImage = res.filename;
+      else if (slot === 'principal') newsletterData.principalImage = res.filename;
+      else if (slot === 'sotw') newsletterData.studentsWeekImage = res.filename;
+      renderNewsletter();
+    });
+  event.target.value = '';
+}
+
+function nlRemoveImage(slot) {
+  if (slot === 'header') newsletterData.headerImage = null;
+  else if (slot === 'principal') newsletterData.principalImage = null;
+  else if (slot === 'sotw') newsletterData.studentsWeekImage = null;
+  renderNewsletter();
+}
+
+function nlAddNotice() {
+  if (!newsletterData.notices) newsletterData.notices = [];
+  newsletterData.notices.push({
+    id: 'nt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    caption: '',
+    filename: null
+  });
+  renderNlNotices();
+}
+
+function nlRemoveNotice(noticeId) {
+  if (!confirm('Remove this notice?')) return;
+  // Capture any in-progress caption edits first
+  collectNoticeEdits();
+  newsletterData.notices = (newsletterData.notices || []).filter(function(n){ return n.id !== noticeId; });
+  renderNlNotices();
+}
+
+function nlUploadNoticeImage(event, noticeId) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  collectNoticeEdits();
+  var fd = new FormData();
+  fd.append('image', file);
+  fetch('/api/upload/newsletter', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(res) {
+      if (!res || !res.filename) return;
+      var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
+      if (n) n.filename = res.filename;
+      renderNlNotices();
+    });
+  event.target.value = '';
+}
+
+function nlRemoveNoticeImage(noticeId) {
+  collectNoticeEdits();
+  var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
+  if (n) n.filename = null;
+  renderNlNotices();
+}
+
+function nlMaybeLightbox(img) {
+  if (!img || !img.classList.contains('loaded') || !img.src) return;
+  if (isAdmin) return;
+  if (typeof openLightbox === 'function') openLightbox(img.src);
+}
+
+function collectNoticeEdits() {
+  // Pull current captions from the DOM into newsletterData so re-render preserves edits
+  var cards = document.querySelectorAll('#nl-notices .nl-notice-card');
+  cards.forEach(function(card) {
+    var id = card.dataset.noticeId;
+    var capEl = card.querySelector('.nl-notice-caption');
+    var n = (newsletterData.notices || []).find(function(x){ return x.id === id; });
+    if (n && capEl) n.caption = (capEl.textContent || '').trim();
+  });
+}
+
+function saveNewsletter() {
+  var status = el('nl-save-status');
+  var btn = document.querySelector('.nl-save-btn');
+  collectNoticeEdits();
+  var datesEl = el('nl-important-dates');
+  var sotwMsgEl = el('nl-sotw-msg');
+  var draft = {
+    termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
+    headerImage: newsletterData.headerImage || null,
+    principalImage: newsletterData.principalImage || null,
+    importantDates: datesEl ? (datesEl.innerText || '') : '',
+    studentsWeekImage: newsletterData.studentsWeekImage || null,
+    studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerText || '') : '',
+    principalMessage: (el('nl-principal-msg').innerText || '').replace(/ /g, ' '),
+    notices: (newsletterData.notices || []).map(function(n) {
+      return { id: n.id, caption: n.caption || '', filename: n.filename || null };
+    })
+  };
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (status) { status.textContent = ''; status.className = 'nl-save-status'; }
+  fetch('/api/newsletter/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft)
+  })
+  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save newsletter'; }
+    if (!res.ok || !res.body || !res.body.snapshot) {
+      if (status) { status.textContent = (res.body && res.body.error) || 'Save failed.'; status.className = 'nl-save-status err'; }
+      return;
+    }
+    var snap = res.body.snapshot;
+    newsletterData = draft;
+    var existing = newsletterSnapshots.findIndex(function(s){ return s.id === snap.id; });
+    if (existing >= 0) newsletterSnapshots[existing] = snap;
+    else newsletterSnapshots.push(snap);
+    if (status) {
+      status.innerHTML = 'Saved &middot; <a href="/newsletter/' + snap.slug + '" target="_blank">' + window.location.origin + '/newsletter/' + snap.slug + '</a>';
+      status.className = 'nl-save-status ok';
+    }
+    renderNewsletterSnapshots();
+  })
+  .catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save newsletter'; }
+    if (status) { status.textContent = 'Network error.'; status.className = 'nl-save-status err'; }
+  });
+}
+
+var nlShowHidden = false;
+
+function nlToggleHidden() {
+  nlShowHidden = !nlShowHidden;
+  var btn = el('nl-hidden-toggle');
+  if (btn) btn.textContent = nlShowHidden ? 'Hide hidden newsletters' : 'Show hidden';
+  renderNewsletterSnapshots();
+}
+
+function renderNewsletterSnapshots() {
+  var wrap = el('nl-snapshots');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  var sorted = newsletterSnapshots.slice().sort(function(a,b){
+    return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+  });
+  var hiddenCount = sorted.filter(function(s){ return s.hidden; }).length;
+  var toggle = el('nl-hidden-toggle');
+  if (toggle) {
+    toggle.classList.toggle('has-hidden', hiddenCount > 0);
+    if (hiddenCount > 0 && !nlShowHidden) {
+      toggle.textContent = 'Show hidden (' + hiddenCount + ')';
+    } else if (hiddenCount > 0) {
+      toggle.textContent = 'Hide hidden newsletters';
+    } else {
+      toggle.textContent = '';
+    }
+  }
+  var visible = sorted.filter(function(s){ return nlShowHidden || !s.hidden; });
+  visible.forEach(function(s) {
+    var row = document.createElement('div');
+    row.className = 'nl-snapshot-row' + (s.hidden ? ' is-hidden' : '');
+
+    var info = document.createElement('div');
+    info.className = 'nl-snapshot-info';
+    var nm = document.createElement('strong');
+    nm.textContent = s.termLabel || 'Newsletter';
+    info.appendChild(nm);
+    var link = document.createElement('a');
+    var url = window.location.origin + '/newsletter/' + s.slug;
+    link.href = '/newsletter/' + s.slug;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = url;
+    info.appendChild(link);
+    var dt = document.createElement('div');
+    dt.className = 'nl-snapshot-date';
+    var when = new Date(s.updatedAt || s.createdAt || Date.now());
+    dt.textContent = 'Last saved ' + when.toLocaleString();
+    info.appendChild(dt);
+
+    var actions = document.createElement('div');
+    actions.className = 'nl-snapshot-actions';
+    var copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'nl-copy-btn';
+    copy.textContent = 'Copy link';
+    copy.onclick = function() { nlCopyUrl(url, copy); };
+    actions.appendChild(copy);
+    var hide = document.createElement('button');
+    hide.type = 'button';
+    hide.className = 'nl-snapshot-hide';
+    hide.textContent = s.hidden ? 'Unhide' : 'Hide from list';
+    hide.title = s.hidden
+      ? 'Restore to the visible list'
+      : 'Remove from list but keep the URL working';
+    hide.onclick = function() { nlSetHidden(s.id, !s.hidden); };
+    actions.appendChild(hide);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'nl-snapshot-del';
+    del.textContent = 'Delete permanently';
+    del.title = 'Remove snapshot, purge unused image files, link will stop working';
+    del.onclick = function() { nlDeleteSnapshot(s.id); };
+    actions.appendChild(del);
+
+    row.appendChild(info);
+    row.appendChild(actions);
+    wrap.appendChild(row);
+  });
+}
+
+function nlSetHidden(id, hidden) {
+  fetch('/api/newsletter-snapshot/' + encodeURIComponent(id) + '/hidden', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: hidden })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function() {
+    var s = newsletterSnapshots.find(function(x){ return x.id === id; });
+    if (s) s.hidden = hidden;
+    renderNewsletterSnapshots();
+  });
+}
+
+function nlCopyUrl(url, btn) {
+  function done() {
+    if (btn) {
+      var prev = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = prev;
+        btn.classList.remove('copied');
+      }, 1500);
+    }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(function() { fallback(); });
+  } else {
+    fallback();
+  }
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+  }
+}
+
+function nlDeleteSnapshot(id) {
+  if (!confirm('PERMANENTLY delete this newsletter?\n\n- The shareable link will stop working immediately.\n- Image files used only by this snapshot will be removed from the server.\n\nIf you just want to tidy your admin list while keeping the link working for parents, click "Hide from list" instead.')) return;
+  fetch('/api/newsletter-snapshot/' + encodeURIComponent(id), { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function() {
+      newsletterSnapshots = newsletterSnapshots.filter(function(s){ return s.id !== id; });
+      renderNewsletterSnapshots();
+    });
+}
 </script>
 
 <!-- INSTALL APP POPUP -->

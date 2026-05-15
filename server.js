@@ -111,6 +111,29 @@ function load() {
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
   if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
+  if (!data.newsletter) {
+    data.newsletter = {
+      termLabel: 'Term 1, Week 1',
+      headerImage: null,
+      principalImage: null,
+      principalMessage: '',
+      importantDates: '',
+      studentsWeekImage: null,
+      studentsWeekMessage: '',
+      notices: [
+        { id: 'nt_1', caption: '', filename: null },
+        { id: 'nt_2', caption: '', filename: null },
+        { id: 'nt_3', caption: '', filename: null }
+      ]
+    };
+  }
+  // Migrate older drafts that don't have the new fields
+  if (data.newsletter) {
+    if (typeof data.newsletter.importantDates !== 'string') data.newsletter.importantDates = '';
+    if (typeof data.newsletter.studentsWeekImage === 'undefined') data.newsletter.studentsWeekImage = null;
+    if (typeof data.newsletter.studentsWeekMessage !== 'string') data.newsletter.studentsWeekMessage = '';
+  }
+  if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -486,6 +509,259 @@ app.post('/api/lunch-orders/reset', (req, res) => {
   data.lunchResetAt = now;
   save(data);
   res.json({ ok: true, archive });
+});
+
+// ---- Newsletter ----
+function nlSlug(label) {
+  return String(label || 'newsletter')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'newsletter';
+}
+function nlUniqueSlug(base, snapshots, ignoreId) {
+  let slug = base;
+  let i = 1;
+  while (snapshots.some(s => s.slug === slug && s.id !== ignoreId)) {
+    i += 1;
+    slug = base + '-' + i;
+  }
+  return slug;
+}
+function nlEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// Single image upload for the newsletter (header, principal, notice).
+// Files persist forever so saved snapshots keep working even when the
+// admin replaces the editing draft's images.
+app.post('/api/upload/newsletter', uploader('nl').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  res.json({ filename: req.file.filename });
+});
+
+// Save (or update) the current newsletter draft + create/update a public snapshot.
+app.post('/api/newsletter/save', (req, res) => {
+  const b = req.body || {};
+  const draft = {
+    termLabel: String(b.termLabel || '').trim().slice(0, 200) || 'Newsletter',
+    headerImage: b.headerImage || null,
+    principalImage: b.principalImage || null,
+    principalMessage: String(b.principalMessage || '').slice(0, 50000),
+    importantDates: String(b.importantDates || '').slice(0, 20000),
+    studentsWeekImage: b.studentsWeekImage || null,
+    studentsWeekMessage: String(b.studentsWeekMessage || '').slice(0, 20000),
+    notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
+      id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
+      caption: String((n && n.caption) || '').slice(0, 500),
+      filename: (n && n.filename) || null
+    })) : []
+  };
+
+  const data = load();
+  data.newsletter = draft;
+  if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
+
+  const now = Date.now();
+  // Update existing snapshot if same termLabel, else create new
+  let snap = data.newsletterSnapshots.find(s => s.termLabel === draft.termLabel);
+  if (snap) {
+    snap.headerImage          = draft.headerImage;
+    snap.principalImage       = draft.principalImage;
+    snap.principalMessage     = draft.principalMessage;
+    snap.importantDates       = draft.importantDates;
+    snap.studentsWeekImage    = draft.studentsWeekImage;
+    snap.studentsWeekMessage  = draft.studentsWeekMessage;
+    snap.notices              = draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename }));
+    snap.updatedAt            = now;
+  } else {
+    const baseSlug = nlSlug(draft.termLabel);
+    snap = {
+      id: 'ns_' + now + '_' + Math.random().toString(36).slice(2, 8),
+      termLabel: draft.termLabel,
+      slug: nlUniqueSlug(baseSlug, data.newsletterSnapshots),
+      headerImage: draft.headerImage,
+      principalImage: draft.principalImage,
+      principalMessage: draft.principalMessage,
+      importantDates: draft.importantDates,
+      studentsWeekImage: draft.studentsWeekImage,
+      studentsWeekMessage: draft.studentsWeekMessage,
+      notices: draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename })),
+      createdAt: now,
+      updatedAt: now
+    };
+    data.newsletterSnapshots.push(snap);
+  }
+  save(data);
+  res.json({ ok: true, snapshot: snap });
+});
+
+// Collect every image filename still referenced somewhere — used to decide
+// which files are safe to remove when a snapshot is permanently deleted.
+function collectReferencedFiles(data) {
+  const refs = new Set();
+  const add = (f) => { if (f) refs.add(f); };
+  if (data.newsletter) {
+    add(data.newsletter.headerImage);
+    add(data.newsletter.principalImage);
+    add(data.newsletter.studentsWeekImage);
+    (data.newsletter.notices || []).forEach(n => add(n && n.filename));
+  }
+  (data.newsletterSnapshots || []).forEach(s => {
+    add(s.headerImage);
+    add(s.principalImage);
+    add(s.studentsWeekImage);
+    (s.notices || []).forEach(n => add(n && n.filename));
+  });
+  return refs;
+}
+
+// Permanently delete a snapshot. URL stops working. Image files used by
+// no other snapshot or the live draft are also removed from disk.
+app.delete('/api/newsletter-snapshot/:id', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
+  const target = data.newsletterSnapshots.find(s => s.id === req.params.id);
+  if (!target) return res.json({ ok: true, removed: 0 });
+
+  const filesInTarget = new Set();
+  const add = (f) => { if (f) filesInTarget.add(f); };
+  add(target.headerImage);
+  add(target.principalImage);
+  add(target.studentsWeekImage);
+  (target.notices || []).forEach(n => add(n && n.filename));
+
+  // Drop the snapshot first so we can compute "still referenced" correctly
+  data.newsletterSnapshots = data.newsletterSnapshots.filter(s => s.id !== req.params.id);
+  const stillReferenced = collectReferencedFiles(data);
+  let filesRemoved = 0;
+  filesInTarget.forEach(name => {
+    if (!stillReferenced.has(name)) {
+      deleteFile(name);
+      filesRemoved += 1;
+    }
+  });
+  save(data);
+  res.json({ ok: true, removed: 1, filesRemoved });
+});
+
+// Soft-delete: hide a snapshot from the admin list without breaking the URL.
+app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
+  const snap = data.newsletterSnapshots.find(s => s.id === req.params.id);
+  if (!snap) return res.status(404).json({ error: 'Not found' });
+  snap.hidden = !!(req.body && req.body.hidden);
+  save(data);
+  res.json({ ok: true, snapshot: snap });
+});
+
+// Permanent, shareable URLs for the SPA's lunch ordering page. Hitting any
+// of these returns index.html with a tiny inline marker the client uses to
+// navigate to the right page once it has loaded.
+['/lunch-orders', '/lunch', '/order-lunch'].forEach(p => {
+  app.get(p, (req, res) => {
+    fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8', (err, html) => {
+      if (err) return res.status(500).send('Error loading page');
+      const inject = '<script>window.__autoPage="pg-lunch-orders";</script>';
+      res.set('Content-Type', 'text/html; charset=utf-8')
+         .send(html.replace('</head>', inject + '</head>'));
+    });
+  });
+});
+
+// Public route — renders a saved snapshot as a standalone HTML page.
+app.get('/newsletter/:slug', (req, res) => {
+  const data = load();
+  const snaps = data.newsletterSnapshots || [];
+  const snap = snaps.find(s => s.slug === req.params.slug);
+  if (!snap) {
+    return res.status(404).send(`<!doctype html><meta charset="utf-8"><title>Not found</title>
+      <body style="font-family:sans-serif;max-width:520px;margin:80px auto;padding:0 20px;color:#444;text-align:center;">
+        <h1 style="color:#1a2b4a;">Newsletter not found</h1>
+        <p>This newsletter may have been removed.</p>
+        <p><a href="/" style="color:#1a2b4a;">Back to Auroa School</a></p>
+      </body>`);
+  }
+  const schoolHeader = data.headerImage ? '/uploads/' + nlEscape(data.headerImage) : null;
+  const nlHeader = snap.headerImage ? '/uploads/' + nlEscape(snap.headerImage) : null;
+  const nlPrincipal = snap.principalImage ? '/uploads/' + nlEscape(snap.principalImage) : null;
+  const nlSotw = snap.studentsWeekImage ? '/uploads/' + nlEscape(snap.studentsWeekImage) : null;
+  const datesHtml = nlEscape(snap.importantDates || '').replace(/\n/g, '<br>');
+  const sotwHtml = nlEscape(snap.studentsWeekMessage || '').replace(/\n/g, '<br>');
+  const noticesHtml = (snap.notices || []).filter(n => n.filename).map(n => {
+    const url = '/uploads/' + nlEscape(n.filename);
+    return `<figure class="nl-pub-notice">
+      ${n.caption ? `<figcaption>${nlEscape(n.caption)}</figcaption>` : ''}
+      <img src="${url}" alt="${nlEscape(n.caption || 'Notice image')}" onclick="lbOpen('${url}')" />
+    </figure>`;
+  }).join('');
+  const msgHtml = nlEscape(snap.principalMessage || '').replace(/\n/g, '<br>');
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${nlEscape(snap.termLabel)} - Auroa School Newsletter</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Quicksand',sans-serif;}
+  body{background:#f5f6f8;color:#222;line-height:1.5;}
+  .nl-pub{max-width:820px;margin:0 auto;padding:24px 22px 80px;background:#fff;min-height:100vh;}
+  .nl-pub-school-hdr{margin:0 auto 22px;max-width:70%;}
+  .nl-pub-school-hdr img{width:100%;display:block;border-radius:10px;}
+  .nl-pub h1{color:#1a2b4a;font-size:36px;font-weight:700;text-align:center;margin:8px 0 24px;letter-spacing:0.5px;}
+  .nl-pub-hero{margin:0 0 28px;}
+  .nl-pub-hero img{width:100%;display:block;border-radius:12px;}
+  .nl-pub h2{color:#1a2b4a;font-size:22px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;}
+  .nl-pub-principal-img{margin:0 0 14px;}
+  .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
+  .nl-pub-msg{font-size:15px;color:#333;}
+  .nl-pub-msg p{margin-bottom:10px;}
+  .nl-pub-notices{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px;}
+  .nl-pub-notice{display:flex;flex-direction:column;gap:8px;}
+  .nl-pub-notice figcaption{font-weight:600;color:#1a2b4a;font-size:14px;}
+  .nl-pub-notice img{width:100%;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
+  .nl-pub-meta{color:#888;font-size:12px;text-align:center;margin-top:40px;}
+  #lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;justify-content:center;align-items:center;padding:20px;cursor:zoom-out;}
+  #lb.open{display:flex;}
+  #lb img{max-width:100%;max-height:100%;border-radius:6px;}
+  #lb-close{position:fixed;top:14px;right:18px;background:#fff;border:none;color:#1a2b4a;font-size:22px;width:38px;height:38px;border-radius:50%;cursor:pointer;}
+  @media (max-width:768px){
+    .nl-pub h1{font-size:26px;}
+    .nl-pub h2{font-size:18px;}
+    .nl-pub-notices{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="nl-pub">
+  ${schoolHeader ? `<div class="nl-pub-school-hdr"><img src="${schoolHeader}" alt="Auroa School"></div>` : ''}
+  <h1>${nlEscape(snap.termLabel)}</h1>
+  ${nlHeader ? `<div class="nl-pub-hero"><img src="${nlHeader}" alt=""></div>` : ''}
+  <h2>Principal's Message</h2>
+  ${nlPrincipal ? `<div class="nl-pub-principal-img"><img src="${nlPrincipal}" alt=""></div>` : ''}
+  <div class="nl-pub-msg"><p>${msgHtml || ''}</p></div>
+  ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg"><p>${sotwHtml}</p></div>` : ''}` : ''}
+  ${datesHtml ? `<h2>Important Dates</h2><div class="nl-pub-msg"><p>${datesHtml}</p></div>` : ''}
+  ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}
+  <div class="nl-pub-meta">Saved ${new Date(snap.updatedAt || snap.createdAt).toLocaleString()}</div>
+</div>
+<div id="lb" onclick="lbClose()">
+  <button id="lb-close" type="button" onclick="lbClose(event)">&times;</button>
+  <img id="lb-img" alt="">
+</div>
+<script>
+  function lbOpen(src){ var lb=document.getElementById('lb'); document.getElementById('lb-img').src=src; lb.classList.add('open'); }
+  function lbClose(e){ if(e) e.stopPropagation(); document.getElementById('lb').classList.remove('open'); }
+</script>
+</body>
+</html>`;
+
+  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
 });
 
 // Generic save
