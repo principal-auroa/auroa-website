@@ -27,12 +27,19 @@ function lunchMenuLookup(id) {
   return null;
 }
 function weekKeyFor(when) {
-  // Returns YYYY-MM-DD of the most recent Saturday on or before `when`.
-  // Week boundary is midnight Friday -> Saturday, so the weekly table
-  // automatically resets each Saturday morning.
+  // Returns YYYY-MM-DD of the most recent Friday-3pm boundary at or before `when`.
+  // Each week's batch runs Fri 3pm → following Fri 2:59pm. After Friday 3pm the
+  // admin's "This week" view automatically flips to a new (empty) week.
   var d = new Date(when);
   var day = d.getDay(); // 0=Sun .. 6=Sat
-  var diff = (day === 6) ? 0 : -(day + 1);
+  var diff;
+  if (day === 5) {
+    // Friday: split at 3pm local time
+    diff = (d.getHours() < 15) ? -7 : 0;
+  } else {
+    // Days since most recent Friday going backwards
+    diff = -((day - 5 + 7) % 7);
+  }
   d.setDate(d.getDate() + diff);
   var y = d.getFullYear();
   var m = String(d.getMonth() + 1).padStart(2, '0');
@@ -112,6 +119,7 @@ function load() {
   if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
   if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
   if (typeof data.lastUpdate !== 'number') data.lastUpdate = Date.now();
+  if (typeof data.lastUpdateLabel !== 'string') data.lastUpdateLabel = '';
   if (!Array.isArray(data.editHistory)) data.editHistory = [];
   if (!data.newsletter) {
     data.newsletter = {
@@ -163,7 +171,6 @@ function snapshotForHistory(data) {
 function save(data, opts) {
   opts = opts || {};
   const now = Date.now();
-  // Build a snapshot of the CURRENT on-disk state so an undo can roll back to it
   if (!opts.skipHistory) {
     let prior = null;
     if (fs.existsSync(DATA_FILE)) {
@@ -182,8 +189,49 @@ function save(data, opts) {
       }
     }
   }
-  data.lastUpdate = now;
+  // `silent` writes (parent lunch orders, admin housekeeping) don't bump the
+  // visible version, so other parents don't get an "updates available" banner.
+  if (!opts.silent) {
+    data.lastUpdate = now;
+    data.lastUpdateLabel = opts.label || '';
+  }
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+// Friendly tag for a save key — used to populate the update banner.
+function saveLabelForKey(key) {
+  if (!key) return '';
+  const map = {
+    'enrolLink':         'Site settings',
+    'stationeryLink':    'Site settings',
+    'contactImage':      'Site settings',
+    'newsletter':        'Newsletter',
+    'newsletterSnapshots':'Newsletter',
+    'calendarData':      'Upcoming Events',
+    'importantLinks':    'Important links',
+    'sports':            'Sports & Events',
+    'sportTerms':        'Sports & Events',
+    'eventsData':        'Upcoming Events',
+    'pageAudio':         'Page audio',
+    'hitColWidths':      'Home page',
+    'busColWidths':      'Buses',
+    'busHeights':        'Buses',
+    'busLayout':         'Buses',
+    'pageConfig':        'Site navigation'
+  };
+  if (map[key]) return map[key];
+  const pageLabels = {
+    'pg-home':'Home page','pg-educate':'About us','pg-newentrant':'New Entrant Info',
+    'pg-buses':'Buses','pg-year78':'Year 7/8','pg-classroom':'Classroom Lists',
+    'pg-staff':'Staff','pg-sports':'Sports & Events','pg-events':'Upcoming Events',
+    'pg-sport':'Sports & Events','pg-event':'Upcoming Events','pg-newsletter':'Newsletter',
+    'pg-lunch-orders':'School Lunch Orders','pg-linkdetail':'Important links'
+  };
+  if (key.startsWith('pageContent.')) {
+    const pg = key.slice('pageContent.'.length);
+    return pageLabels[pg] || 'Page content';
+  }
+  return 'Content';
 }
 function deleteFile(filename) {
   if (!filename) return;
@@ -249,7 +297,8 @@ app.post('/api/undo', (req, res) => {
 // Cheaper than fetching the whole state every time.
 app.get('/api/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ version: load().lastUpdate || 0 });
+  const data = load();
+  res.json({ version: data.lastUpdate || 0, label: data.lastUpdateLabel || '' });
 });
 
 app.post('/api/upload/header', uploader('header').single('image'), (req, res) => {
@@ -513,7 +562,7 @@ app.post('/api/lunch-order', (req, res) => {
   const data = load();
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   data.lunchOrders.push(order);
-  save(data);
+  save(data, { silent: true }); // parent submission — don't notify other parents
   res.json({ ok: true, order });
 });
 
@@ -523,7 +572,7 @@ app.delete('/api/lunch-order/:id', (req, res) => {
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   const before = data.lunchOrders.length;
   data.lunchOrders = data.lunchOrders.filter(o => o.id !== id);
-  save(data);
+  save(data, { silent: true });
   res.json({ ok: true, removed: before - data.lunchOrders.length });
 });
 
@@ -577,7 +626,7 @@ app.post('/api/lunch-orders/reset', (req, res) => {
 
   data.lunchTermArchives.push(archive);
   data.lunchResetAt = now;
-  save(data);
+  save(data, { silent: true }); // admin term rollover — internal, no parent banner
   res.json({ ok: true, archive });
 });
 
@@ -604,6 +653,19 @@ function nlEscape(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+// Minimal HTML sanitiser for newsletter rich-text fields. The admin user is
+// trusted, but accidentally pasted scripts or event handlers shouldn't survive.
+function sanitiseRich(s) {
+  return String(s == null ? '' : s)
+    .replace(/<\s*script\b[\s\S]*?<\s*\/\s*script\s*>/gi, '')
+    .replace(/<\s*style\b[\s\S]*?<\s*\/\s*style\s*>/gi, '')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/(href|src)\s*=\s*"\s*javascript:[^"]*"/gi, '$1="#"')
+    .replace(/(href|src)\s*=\s*'\s*javascript:[^']*'/gi, "$1='#'");
+}
+
 // Single image upload for the newsletter (header, principal, notice).
 // Files persist forever so saved snapshots keep working even when the
 // admin replaces the editing draft's images.
@@ -619,12 +681,12 @@ app.post('/api/newsletter/save', (req, res) => {
     termLabel: String(b.termLabel || '').trim().slice(0, 200) || 'Newsletter',
     headerImage: b.headerImage || null,
     principalImage: b.principalImage || null,
-    principalMessage: String(b.principalMessage || '').slice(0, 50000),
-    importantDates: String(b.importantDates || '').slice(0, 20000),
+    principalMessage: sanitiseRich(b.principalMessage || '').slice(0, 50000),
+    importantDates: sanitiseRich(b.importantDates || '').slice(0, 20000),
     studentsWeekImage: b.studentsWeekImage || null,
-    studentsWeekMessage: String(b.studentsWeekMessage || '').slice(0, 20000),
-    campsDayTrips: String(b.campsDayTrips || '').slice(0, 20000),
-    schoolAccountsPayments: String(b.schoolAccountsPayments || '').slice(0, 20000),
+    studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 20000),
+    campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 20000),
+    schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 20000),
     footerImage: b.footerImage || null,
     notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
@@ -673,7 +735,7 @@ app.post('/api/newsletter/save', (req, res) => {
     };
     data.newsletterSnapshots.push(snap);
   }
-  save(data);
+  save(data, { label: 'Newsletter' });
   res.json({ ok: true, snapshot: snap });
 });
 
@@ -725,7 +787,7 @@ app.delete('/api/newsletter-snapshot/:id', (req, res) => {
       filesRemoved += 1;
     }
   });
-  save(data);
+  save(data, { silent: true }); // admin housekeeping — no parent banner
   res.json({ ok: true, removed: 1, filesRemoved });
 });
 
@@ -736,7 +798,7 @@ app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
   const snap = data.newsletterSnapshots.find(s => s.id === req.params.id);
   if (!snap) return res.status(404).json({ error: 'Not found' });
   snap.hidden = !!(req.body && req.body.hidden);
-  save(data);
+  save(data, { silent: true });
   res.json({ ok: true, snapshot: snap });
 });
 
@@ -771,10 +833,17 @@ app.get('/newsletter/:slug', (req, res) => {
   const nlHeader = snap.headerImage ? '/uploads/' + nlEscape(snap.headerImage) : null;
   const nlPrincipal = snap.principalImage ? '/uploads/' + nlEscape(snap.principalImage) : null;
   const nlSotw = snap.studentsWeekImage ? '/uploads/' + nlEscape(snap.studentsWeekImage) : null;
-  const datesHtml = nlEscape(snap.importantDates || '').replace(/\n/g, '<br>');
-  const sotwHtml = nlEscape(snap.studentsWeekMessage || '').replace(/\n/g, '<br>');
-  const campsHtml = nlEscape(snap.campsDayTrips || '').replace(/\n/g, '<br>');
-  const sapHtml = nlEscape(snap.schoolAccountsPayments || '').replace(/\n/g, '<br>');
+  // Rich-text fields now hold HTML (bullets, colour spans). Older content is plain
+  // text — detect and escape that, otherwise pass HTML straight through.
+  const richField = (raw) => {
+    const s = String(raw == null ? '' : raw);
+    if (/<\/?(p|br|ul|ol|li|strong|em|span|b|i|u|a|div)\b/i.test(s)) return s;
+    return nlEscape(s).replace(/\n/g, '<br>');
+  };
+  const datesHtml = richField(snap.importantDates);
+  const sotwHtml  = richField(snap.studentsWeekMessage);
+  const campsHtml = richField(snap.campsDayTrips);
+  const sapHtml   = richField(snap.schoolAccountsPayments);
   const nlFooter = snap.footerImage ? '/uploads/' + nlEscape(snap.footerImage) : null;
   const noticesHtml = (snap.notices || []).filter(n => n.filename).map(n => {
     const url = '/uploads/' + nlEscape(n.filename);
@@ -783,7 +852,7 @@ app.get('/newsletter/:slug', (req, res) => {
       <img src="${url}" alt="${nlEscape(n.caption || 'Notice image')}" onclick="lbOpen('${url}')" />
     </figure>`;
   }).join('');
-  const msgHtml = nlEscape(snap.principalMessage || '').replace(/\n/g, '<br>');
+  const msgHtml = richField(snap.principalMessage);
 
   const html = `<!doctype html>
 <html lang="en">
@@ -806,6 +875,8 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
   .nl-pub-msg{font-size:15px;color:#333;}
   .nl-pub-msg p{margin-bottom:10px;}
+  .nl-pub-msg ul,.nl-pub-msg ol{padding-left:2em;margin:0.4em 0 0.8em 1.5em;}
+  .nl-pub-msg li{margin-bottom:0.25em;padding-left:0.25em;}
   .nl-pub-notices{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px;}
   .nl-pub-notice{display:flex;flex-direction:column;gap:8px;}
   .nl-pub-notice figcaption{font-weight:600;color:#1a2b4a;font-size:14px;}
@@ -829,12 +900,12 @@ app.get('/newsletter/:slug', (req, res) => {
   ${nlHeader ? `<div class="nl-pub-hero"><img src="${nlHeader}" alt=""></div>` : ''}
   <h2>Principal's Message</h2>
   ${nlPrincipal ? `<div class="nl-pub-principal-img"><img src="${nlPrincipal}" alt=""></div>` : ''}
-  <div class="nl-pub-msg"><p>${msgHtml || ''}</p></div>
-  ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg"><p>${sotwHtml}</p></div>` : ''}` : ''}
-  ${datesHtml ? `<h2>Important Dates</h2><div class="nl-pub-msg"><p>${datesHtml}</p></div>` : ''}
+  <div class="nl-pub-msg">${msgHtml || ''}</div>
+  ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg">${sotwHtml}</div>` : ''}` : ''}
+  ${datesHtml ? `<h2>Important Dates</h2><div class="nl-pub-msg">${datesHtml}</div>` : ''}
   ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}
-  ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg"><p>${sapHtml}</p></div>` : ''}
-  ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg"><p>${campsHtml}</p></div>` : ''}
+  ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg">${sapHtml}</div>` : ''}
+  ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg">${campsHtml}</div>` : ''}
   ${nlFooter ? `<div class="nl-pub-hero" style="margin-top:32px;"><img src="${nlFooter}" alt=""></div>` : ''}
   <div class="nl-pub-meta">Saved ${new Date(snap.updatedAt || snap.createdAt).toLocaleString()}</div>
 </div>
@@ -868,11 +939,12 @@ app.post('/api/save-batch', (req, res) => {
       data[it.key] = it.value;
     }
   });
-  save(data);
+  // Most batch saves cover one page (e.g. all .editable blocks on About us);
+  // use the first item's label so the banner says something specific.
+  save(data, { label: saveLabelForKey(items[0] && items[0].key) });
   res.json({ ok: true });
 });
 
-// Generic save
 app.post('/api/save', (req, res) => {
   const { key, value } = req.body;
   if (!key) return res.status(400).json({ error: 'Missing key' });
@@ -882,7 +954,7 @@ app.post('/api/save', (req, res) => {
   } else {
     data[key] = value;
   }
-  save(data);
+  save(data, { label: saveLabelForKey(key) });
   res.json({ ok: true });
 });
 

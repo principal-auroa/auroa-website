@@ -1268,8 +1268,13 @@ body.is-admin .ss-caption{border-top-color:#ddd;background:#fafafa;}
   cursor:pointer;line-height:1.5;min-width:24px;
 }
 .fmt-size-btn:hover{background:rgba(255,255,255,0.28);}
-.editable ul,.editable ol{padding-left:1.6em;margin:0.3em 0;}
-.editable li{margin-bottom:0.15em;}
+.editable ul,.editable ol,
+[contenteditable="true"] ul,[contenteditable="true"] ol{
+  padding-left:2em;margin:0.4em 0 0.4em 1.5em;
+}
+.editable li,[contenteditable="true"] li{
+  margin-bottom:0.2em;padding-left:0.25em;
+}
 
 /* ---- CELL CONTEXT MENU ---- */
 #cell-ctx-menu{
@@ -1875,7 +1880,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 <div id="update-banner" role="status" aria-live="polite">
   <span class="ub-icon">&#x21BB;</span>
   <div class="ub-text">
-    <div>New updates to the website</div>
+    <div id="ub-title">New updates to the website</div>
     <div class="ub-sub">Refresh to see the latest content.</div>
   </div>
   <button class="ub-refresh-btn" type="button" onclick="ubRefresh()">Refresh</button>
@@ -2508,7 +2513,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="lunch-admin-block">
           <div class="lunch-admin-block-h">
             <h3>This week's orders</h3>
-            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span> (resets every Saturday)</div>
+            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span> (resets every Friday at 3pm)</div>
           </div>
           <table id="lunch-week-table" class="lunch-table"></table>
           <div id="lunch-week-empty" class="lunch-empty">No orders yet this week.</div>
@@ -6234,11 +6239,30 @@ function lunchEsc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
+
+// Newsletter rich-text fields can hold HTML (bullets, color spans, etc.) or
+// legacy plain text. Treat anything with formatting tags as HTML; otherwise
+// escape and convert newlines so old plain-text content keeps its line breaks.
+function nlContentToHtml(content) {
+  if (content == null) return '';
+  var s = String(content);
+  if (/<\/?(p|br|ul|ol|li|strong|em|span|b|i|u|a|div)\b/i.test(s)) return s;
+  return s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
 function lunchWeekKey(when) {
-  // Most recent Saturday on or before `when` — boundary is midnight Fri -> Sat.
+  // Most recent Friday-3pm boundary on or before `when`. Each week runs
+  // Fri 3pm → next Fri 2:59pm, so the admin's "This week" view auto-clears
+  // every Friday at 3pm sharp.
   var d = new Date(when);
   var day = d.getDay();
-  var diff = (day === 6) ? 0 : -(day + 1);
+  var diff;
+  if (day === 5) {
+    diff = (d.getHours() < 15) ? -7 : 0;
+  } else {
+    diff = -((day - 5 + 7) % 7);
+  }
   d.setDate(d.getDate() + diff);
   var y = d.getFullYear();
   var m = String(d.getMonth() + 1).padStart(2, '0');
@@ -6767,12 +6791,12 @@ function renderNewsletter() {
   nlSetImage(el('nl-principal-slot'), prImg, newsletterData.principalImage);
 
   var msgEl = el('nl-principal-msg');
-  msgEl.textContent = newsletterData.principalMessage || '';
+  msgEl.innerHTML = nlContentToHtml(newsletterData.principalMessage);
   msgEl.contentEditable = isAdmin ? 'true' : 'false';
 
   var datesEl = el('nl-important-dates');
   if (datesEl) {
-    datesEl.textContent = newsletterData.importantDates || '';
+    datesEl.innerHTML = nlContentToHtml(newsletterData.importantDates);
     datesEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
@@ -6781,19 +6805,19 @@ function renderNewsletter() {
 
   var sotwMsg = el('nl-sotw-msg');
   if (sotwMsg) {
-    sotwMsg.textContent = newsletterData.studentsWeekMessage || '';
+    sotwMsg.innerHTML = nlContentToHtml(newsletterData.studentsWeekMessage);
     sotwMsg.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var campsEl = el('nl-camps');
   if (campsEl) {
-    campsEl.textContent = newsletterData.campsDayTrips || '';
+    campsEl.innerHTML = nlContentToHtml(newsletterData.campsDayTrips);
     campsEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var sapEl = el('nl-school-accounts');
   if (sapEl) {
-    sapEl.textContent = newsletterData.schoolAccountsPayments || '';
+    sapEl.innerHTML = nlContentToHtml(newsletterData.schoolAccountsPayments);
     sapEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
@@ -6881,15 +6905,15 @@ function nlCollectAllTextEdits() {
   var termEl = el('nl-term-label');
   if (termEl) newsletterData.termLabel = (termEl.textContent || '').trim();
   var msgEl = el('nl-principal-msg');
-  if (msgEl) newsletterData.principalMessage = (msgEl.innerText || '');
+  if (msgEl) newsletterData.principalMessage = (msgEl.innerHTML || '');
   var datesEl = el('nl-important-dates');
-  if (datesEl) newsletterData.importantDates = (datesEl.innerText || '');
+  if (datesEl) newsletterData.importantDates = (datesEl.innerHTML || '');
   var sotwMsg = el('nl-sotw-msg');
-  if (sotwMsg) newsletterData.studentsWeekMessage = (sotwMsg.innerText || '');
+  if (sotwMsg) newsletterData.studentsWeekMessage = (sotwMsg.innerHTML || '');
   var camps = el('nl-camps');
-  if (camps) newsletterData.campsDayTrips = (camps.innerText || '');
+  if (camps) newsletterData.campsDayTrips = (camps.innerHTML || '');
   var sap = el('nl-school-accounts');
-  if (sap) newsletterData.schoolAccountsPayments = (sap.innerText || '');
+  if (sap) newsletterData.schoolAccountsPayments = (sap.innerHTML || '');
   collectNoticeEdits();
 }
 
@@ -7002,13 +7026,13 @@ function saveNewsletter() {
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
     principalImage: newsletterData.principalImage || null,
-    importantDates: datesEl ? (datesEl.innerText || '') : '',
+    importantDates: datesEl ? (datesEl.innerHTML || '') : '',
     studentsWeekImage: newsletterData.studentsWeekImage || null,
-    studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerText || '') : '',
-    campsDayTrips: campsEdEl ? (campsEdEl.innerText || '') : '',
-    schoolAccountsPayments: sapEdEl ? (sapEdEl.innerText || '') : '',
+    studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerHTML || '') : '',
+    campsDayTrips: campsEdEl ? (campsEdEl.innerHTML || '') : '',
+    schoolAccountsPayments: sapEdEl ? (sapEdEl.innerHTML || '') : '',
     footerImage: newsletterData.footerImage || null,
-    principalMessage: (el('nl-principal-msg').innerText || '').replace(/ /g, ' '),
+    principalMessage: (el('nl-principal-msg').innerHTML || '').replace(/ /g, ' '),
     notices: (newsletterData.notices || []).map(function(n) {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
     })
@@ -7184,6 +7208,7 @@ function nlDeleteSnapshot(id) {
   var DISMISS_KEY = 'auroa_update_dismissed_until_v';
   var initialVersion = null;
   var serverVersion = null;
+  var serverLabel = '';
   var bannerEl = null;
 
   function dismissedVersion() {
@@ -7210,6 +7235,12 @@ function nlDeleteSnapshot(id) {
       return;
     }
     if (serverVersion && initialVersion && serverVersion > initialVersion && serverVersion > dismissedVersion()) {
+      var titleEl = document.getElementById('ub-title');
+      if (titleEl) {
+        titleEl.textContent = serverLabel
+          ? serverLabel + ' updated'
+          : 'New updates to the website';
+      }
       bannerEl.classList.add('show');
     }
   }
@@ -7222,6 +7253,7 @@ function nlDeleteSnapshot(id) {
         if (!v) return;
         if (initialVersion === null) initialVersion = v;
         serverVersion = v;
+        serverLabel = (j && typeof j.label === 'string') ? j.label : '';
         maybeShow();
       })
       .catch(function() { /* network blip — try again next interval */ });
