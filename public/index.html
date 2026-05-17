@@ -1764,18 +1764,23 @@ body.is-admin .nl-save-bar{display:flex;}
   padding:12px 14px;
 }
 .nl-snapshot-info{flex:1;min-width:200px;}
-.nl-snapshot-info strong{color:#1a2b4a;font-size:14px;display:block;margin-bottom:4px;}
-.nl-snapshot-info a{color:#1a2b4a;font-size:13px;word-break:break-all;text-decoration:none;}
-.nl-snapshot-info a:hover{text-decoration:underline;}
-.nl-snapshot-info .nl-snapshot-date{color:#888;font-size:12px;margin-top:2px;}
-.nl-snapshot-actions{display:flex;gap:6px;flex-wrap:wrap;}
-.nl-copy-btn{
-  background:#1a2b4a;color:#fff;border:none;border-radius:6px;
-  padding:6px 12px;font-family:'Quicksand',sans-serif;
-  font-size:12px;font-weight:700;cursor:pointer;
+.nl-snapshot-title{
+  color:#1a2b4a;font-size:16px;font-weight:700;
+  display:block;text-decoration:none;margin-bottom:4px;
 }
+.nl-snapshot-title:hover{text-decoration:underline;color:#243d6a;}
+.nl-snapshot-info .nl-snapshot-date{color:#888;font-size:12px;margin-top:2px;}
+.nl-snapshot-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.nl-copy-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:8px;
+  padding:8px 16px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.nl-copy-btn::before{content:'\1F517';font-size:14px;}
 .nl-copy-btn:hover{background:#243d6a;}
 .nl-copy-btn.copied{background:#27ae60;}
+.nl-copy-btn.copied::before{content:'\2713';}
 .nl-snapshot-del{
   background:none;border:1px solid #c0392b;color:#c0392b;
   padding:5px 10px;border-radius:6px;
@@ -7103,16 +7108,16 @@ function renderNewsletterSnapshots() {
 
     var info = document.createElement('div');
     info.className = 'nl-snapshot-info';
-    var nm = document.createElement('strong');
-    nm.textContent = s.termLabel || 'Newsletter';
-    info.appendChild(nm);
-    var link = document.createElement('a');
+    // The Term/Week label IS the link — opens the public page in a new tab.
+    // The actual URL is hidden from view but the Copy link button still copies it.
     var url = window.location.origin + '/newsletter/' + s.slug;
-    link.href = '/newsletter/' + s.slug;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = url;
-    info.appendChild(link);
+    var titleLink = document.createElement('a');
+    titleLink.href = '/newsletter/' + s.slug;
+    titleLink.target = '_blank';
+    titleLink.rel = 'noopener';
+    titleLink.className = 'nl-snapshot-title';
+    titleLink.textContent = s.termLabel || 'Newsletter';
+    info.appendChild(titleLink);
     var dt = document.createElement('div');
     dt.className = 'nl-snapshot-date';
     var when = new Date(s.updatedAt || s.createdAt || Date.now());
@@ -7191,11 +7196,31 @@ function nlCopyUrl(url, btn) {
 }
 
 function nlDeleteSnapshot(id) {
-  if (!confirm('PERMANENTLY delete this newsletter?\n\n- The shareable link will stop working immediately.\n- Image files used only by this snapshot will be removed from the server.\n\nIf you just want to tidy your admin list while keeping the link working for parents, click "Hide from list" instead.')) return;
+  var snap = newsletterSnapshots.find(function(s){ return s.id === id; });
+  if (!confirm('PERMANENTLY delete this newsletter?\n\n- The shareable link will stop working immediately.\n- Image files used only by this snapshot will be removed from the server.\n- If you were editing this newsletter, the editor will be cleared so auto-save doesn\'t re-create it.\n\nIf you just want to tidy your admin list while keeping the link working for parents, click "Hide from list" instead.')) return;
   fetch('/api/newsletter-snapshot/' + encodeURIComponent(id), { method: 'DELETE' })
     .then(function(r){ return r.json(); })
     .then(function() {
       newsletterSnapshots = newsletterSnapshots.filter(function(s){ return s.id !== id; });
+      // If the editor's current draft is the same one we just deleted, clear it
+      // so the next auto-save can't silently re-create the snapshot.
+      if (snap && newsletterData && newsletterData.termLabel === snap.termLabel) {
+        newsletterData = {
+          termLabel: '', headerImage: null, principalImage: null,
+          principalMessage: '', importantDates: '',
+          studentsWeekImage: null, studentsWeekMessage: '',
+          campsDayTrips: '', schoolAccountsPayments: '',
+          footerImage: null,
+          notices: [
+            { id: 'nt_1', caption: '', filename: null },
+            { id: 'nt_2', caption: '', filename: null },
+            { id: 'nt_3', caption: '', filename: null }
+          ]
+        };
+        renderNewsletter();
+        // Persist the cleared draft so the server forgets the deleted state too
+        if (typeof saveNewsletter === 'function') saveNewsletter();
+      }
       renderNewsletterSnapshots();
     });
 }
