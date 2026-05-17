@@ -111,6 +111,7 @@ function load() {
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
   if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
+  if (typeof data.lastUpdate !== 'number') data.lastUpdate = Date.now();
   if (!data.newsletter) {
     data.newsletter = {
       termLabel: 'Term 1, Week 1',
@@ -149,6 +150,7 @@ function load() {
   return data;
 }
 function save(data) {
+  data.lastUpdate = Date.now();
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 function deleteFile(filename) {
@@ -184,6 +186,13 @@ app.use('/uploads', express.static(UPLOADS));
 // ---- API ----
 
 app.get('/api/state', (req, res) => res.json(load()));
+
+// Tiny version endpoint — clients poll this to detect content changes.
+// Cheaper than fetching the whole state every time.
+app.get('/api/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ version: load().lastUpdate || 0 });
+});
 
 app.post('/api/upload/header', uploader('header').single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
