@@ -44,7 +44,34 @@ body{background:#fff;color:#222;min-height:100vh;}
   padding:4px 12px;border-radius:20px;cursor:pointer;
   font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;
 }
-#save-msg{font-size:11px;color:#666;min-width:60px;}
+#save-msg{font-size:12px;color:#666;min-width:80px;font-weight:600;display:inline-flex;align-items:center;gap:4px;}
+#save-msg.saving{color:#c0642b;}
+#save-msg.saved{color:#1d8a4f;}
+#save-msg.error{color:#c0392b;}
+/* Auto-save replaces manual buttons */
+#header-save-btn{display:none !important;}
+.nl-save-btn{display:none;}
+body.is-admin .nl-save-bar{display:none;}
+/* Floating Undo button — bottom-left, admin only, only when history exists */
+#undo-btn{
+  display:none;position:fixed;bottom:20px;left:20px;z-index:990;
+  background:#1a2b4a;color:#fff;border:none;border-radius:24px;
+  padding:10px 18px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,0.25);
+  align-items:center;gap:8px;
+  transition:background 0.15s,transform 0.15s;
+}
+#undo-btn:hover{background:#243d6a;transform:translateY(-1px);}
+#undo-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+body.is-admin #undo-btn.has-history{display:inline-flex;}
+.undo-count{
+  background:rgba(255,255,255,0.22);padding:2px 8px;border-radius:10px;
+  font-size:11px;font-weight:800;
+}
+@media (max-width:768px){
+  #undo-btn{bottom:14px;left:14px;font-size:12px;padding:9px 14px;}
+}
 
 /* ---- LOGIN MODAL ---- */
 #login-modal{
@@ -1839,6 +1866,11 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 </head>
 <body>
 
+<!-- ADMIN UNDO BUTTON -->
+<button id="undo-btn" type="button" onclick="undoLastEdit()" aria-label="Undo last edit">
+  <span aria-hidden="true">&#x21B6;</span> Undo <span class="undo-count" id="undo-count">0</span>
+</button>
+
 <!-- UPDATE AVAILABLE BANNER -->
 <div id="update-banner" role="status" aria-live="polite">
   <span class="ub-icon">&#x21BB;</span>
@@ -2732,6 +2764,7 @@ function fetchState() {
       newsletterData = data.newsletter || newsletterData;
       newsletterSnapshots = Array.isArray(data.newsletterSnapshots) ? data.newsletterSnapshots : [];
       if (typeof renderNewsletter === 'function') renderNewsletter();
+      if (typeof refreshUndoFromState === 'function') refreshUndoFromState(data);
       // If this load was triggered by a deep-link URL like /lunch-orders,
       // jump to that page once state is available.
       if (window.__autoPage && el(window.__autoPage)) {
@@ -6843,9 +6876,31 @@ function buildNoticeCard(notice) {
   return card;
 }
 
+// Pull current DOM text values into newsletterData so re-renders don't wipe in-progress typing
+function nlCollectAllTextEdits() {
+  var termEl = el('nl-term-label');
+  if (termEl) newsletterData.termLabel = (termEl.textContent || '').trim();
+  var msgEl = el('nl-principal-msg');
+  if (msgEl) newsletterData.principalMessage = (msgEl.innerText || '');
+  var datesEl = el('nl-important-dates');
+  if (datesEl) newsletterData.importantDates = (datesEl.innerText || '');
+  var sotwMsg = el('nl-sotw-msg');
+  if (sotwMsg) newsletterData.studentsWeekMessage = (sotwMsg.innerText || '');
+  var camps = el('nl-camps');
+  if (camps) newsletterData.campsDayTrips = (camps.innerText || '');
+  var sap = el('nl-school-accounts');
+  if (sap) newsletterData.schoolAccountsPayments = (sap.innerText || '');
+  collectNoticeEdits();
+}
+
+function nlAutoSave() {
+  if (typeof scheduleAutoSave === 'function') scheduleAutoSave('newsletter');
+}
+
 function nlUploadImage(event, slot) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
+  nlCollectAllTextEdits();
   var fd = new FormData();
   fd.append('image', file);
   fetch('/api/upload/newsletter', { method: 'POST', body: fd })
@@ -6857,19 +6912,23 @@ function nlUploadImage(event, slot) {
       else if (slot === 'sotw') newsletterData.studentsWeekImage = res.filename;
       else if (slot === 'footer') newsletterData.footerImage = res.filename;
       renderNewsletter();
+      nlAutoSave();
     });
   event.target.value = '';
 }
 
 function nlRemoveImage(slot) {
+  nlCollectAllTextEdits();
   if (slot === 'header') newsletterData.headerImage = null;
   else if (slot === 'principal') newsletterData.principalImage = null;
   else if (slot === 'sotw') newsletterData.studentsWeekImage = null;
   else if (slot === 'footer') newsletterData.footerImage = null;
   renderNewsletter();
+  nlAutoSave();
 }
 
 function nlAddNotice() {
+  nlCollectAllTextEdits();
   if (!newsletterData.notices) newsletterData.notices = [];
   newsletterData.notices.push({
     id: 'nt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -6877,20 +6936,21 @@ function nlAddNotice() {
     filename: null
   });
   renderNlNotices();
+  nlAutoSave();
 }
 
 function nlRemoveNotice(noticeId) {
   if (!confirm('Remove this notice?')) return;
-  // Capture any in-progress caption edits first
-  collectNoticeEdits();
+  nlCollectAllTextEdits();
   newsletterData.notices = (newsletterData.notices || []).filter(function(n){ return n.id !== noticeId; });
   renderNlNotices();
+  nlAutoSave();
 }
 
 function nlUploadNoticeImage(event, noticeId) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
-  collectNoticeEdits();
+  nlCollectAllTextEdits();
   var fd = new FormData();
   fd.append('image', file);
   fetch('/api/upload/newsletter', { method: 'POST', body: fd })
@@ -6900,15 +6960,17 @@ function nlUploadNoticeImage(event, noticeId) {
       var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
       if (n) n.filename = res.filename;
       renderNlNotices();
+      nlAutoSave();
     });
   event.target.value = '';
 }
 
 function nlRemoveNoticeImage(noticeId) {
-  collectNoticeEdits();
+  nlCollectAllTextEdits();
   var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
   if (n) n.filename = null;
   renderNlNotices();
+  nlAutoSave();
 }
 
 function nlMaybeLightbox(img) {
@@ -7180,6 +7242,175 @@ function nlDeleteSnapshot(id) {
   } else {
     init();
   }
+})();
+</script>
+
+<!-- AUTO-SAVE + UNDO -->
+<script>
+(function() {
+  var DEBOUNCE_MS = 1500;
+  var _autoTimers = {};
+  var _saveInFlight = {};
+  var _editHistoryCount = 0;
+
+  function setSaveStatus(state, msg) {
+    var box = el('save-msg');
+    if (!box) return;
+    box.className = state || '';
+    if (msg.indexOf('spinner') !== -1) {
+      box.innerHTML = msg;
+    } else {
+      box.textContent = msg;
+      if (state !== 'saving') {
+        setTimeout(function() {
+          if (box.className === state) { box.className = ''; box.textContent = ''; }
+        }, 2500);
+      }
+    }
+  }
+
+  // Override flashSave so existing image upload / link save flows route through here too
+  window.flashSave = function(msg) {
+    var state = 'saved';
+    if (msg.indexOf('spinner') !== -1 || msg.indexOf('Saving') !== -1 || msg.indexOf('Uploading') !== -1) state = 'saving';
+    if (msg.toLowerCase().indexOf('fail') !== -1) state = 'error';
+    setSaveStatus(state, msg);
+  };
+
+  window.scheduleAutoSave = function(kind) {
+    if (!window.isAdmin) return;
+    setSaveStatus('saving', '<span class="spinner"></span>Editing…');
+    clearTimeout(_autoTimers[kind]);
+    _autoTimers[kind] = setTimeout(function() { runAutoSave(kind); }, DEBOUNCE_MS);
+  };
+
+  function runAutoSave(kind) {
+    if (_saveInFlight[kind]) {
+      // Another save is in flight; queue one more after it finishes
+      _autoTimers[kind] = setTimeout(function() { runAutoSave(kind); }, 400);
+      return;
+    }
+    _saveInFlight[kind] = true;
+    setSaveStatus('saving', '<span class="spinner"></span>Saving…');
+    var done = function(ok) {
+      _saveInFlight[kind] = false;
+      if (ok) {
+        bumpUndoCount();
+        setSaveStatus('saved', 'Saved');
+      } else {
+        setSaveStatus('error', 'Save failed');
+      }
+    };
+    if (kind === 'newsletter' && typeof saveNewsletter === 'function') {
+      saveNewsletter();
+      // saveNewsletter doesn't return a promise; assume success and bump
+      setTimeout(function() { done(true); }, 200);
+    } else if (kind === 'page') {
+      autoSavePage().then(function() { done(true); }, function() { done(false); });
+    } else if (kind === 'sport' && typeof sdSave === 'function') {
+      sdSave(function() { done(true); });
+    } else if (kind === 'event' && typeof evSave === 'function') {
+      evSave(function() { done(true); });
+    } else {
+      _saveInFlight[kind] = false;
+    }
+  }
+
+  // Batched page save — uses /api/save-batch so the whole page is ONE history entry
+  function autoSavePage() {
+    var active = document.querySelector('.page.active');
+    if (!active) return Promise.resolve();
+    var items = [];
+    active.querySelectorAll('.editable').forEach(function(e) {
+      var key = (e.id === 'ec-linkdetail' && window.currentLinkId)
+        ? 'pageContent.' + window.currentLinkId
+        : 'pageContent.' + e.id.replace('ec-', '');
+      items.push({ key: key, value: e.innerHTML });
+      if (e.id === 'ec-linkdetail' && window.currentLinkId && window.importantLinks) {
+        var lnk = window.importantLinks.find(function(l) { return l.id === window.currentLinkId; });
+        if (lnk) lnk.content = e.innerHTML;
+      }
+    });
+    if (active.id === 'pg-home' && window.hitColWidths) {
+      items.push({ key: 'hitColWidths', value: window.hitColWidths });
+    }
+    if (active.id === 'pg-buses') {
+      if (window.busColWidths) items.push({ key: 'busColWidths', value: window.busColWidths });
+      if (window.busHeights)   items.push({ key: 'busHeights',   value: window.busHeights });
+      if (window.busLayout)    items.push({ key: 'busLayout',    value: window.busLayout });
+    }
+    if (!items.length) return Promise.resolve();
+    return fetch('/api/save-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items })
+    }).then(function(r) {
+      if (!r.ok) throw new Error('save failed');
+    });
+  }
+
+  function bumpUndoCount() {
+    _editHistoryCount = Math.min(30, _editHistoryCount + 1);
+    refreshUndoButton();
+  }
+  function setUndoCount(n) {
+    _editHistoryCount = Math.max(0, Math.min(30, Number(n) || 0));
+    refreshUndoButton();
+  }
+  function refreshUndoButton() {
+    var btn = el('undo-btn');
+    var cnt = el('undo-count');
+    if (!btn || !cnt) return;
+    cnt.textContent = String(_editHistoryCount);
+    btn.classList.toggle('has-history', _editHistoryCount > 0);
+  }
+  window.refreshUndoFromState = function(data) {
+    if (data && typeof data.editHistoryCount === 'number') setUndoCount(data.editHistoryCount);
+  };
+
+  window.undoLastEdit = function() {
+    if (!window.isAdmin) return;
+    if (_editHistoryCount === 0) { alert('Nothing to undo.'); return; }
+    if (!confirm('Undo the most recent change?\n\nThis will revert the site to its previous saved state.')) return;
+    setSaveStatus('saving', '<span class="spinner"></span>Restoring…');
+    fetch('/api/undo', { method: 'POST' })
+      .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, body: b }; }); })
+      .then(function(res) {
+        if (!res.ok) {
+          setSaveStatus('error', (res.body && res.body.error) || 'Undo failed');
+          return;
+        }
+        if (typeof fetchState === 'function') fetchState();
+        setSaveStatus('saved', 'Restored');
+        setUndoCount(res.body.remaining || 0);
+      })
+      .catch(function() { setSaveStatus('error', 'Undo failed'); });
+  };
+
+  // ── Input listener — routes any edit to the right auto-save kind ──
+  document.addEventListener('input', function(e) {
+    if (!window.isAdmin) return;
+    var t = e.target;
+    if (!t) return;
+    // Newsletter takes precedence (the page itself contains contenteditable fields)
+    if (t.closest && t.closest('#pg-newsletter')) {
+      window.scheduleAutoSave('newsletter');
+      return;
+    }
+    // Sport detail table cells
+    if (t.closest && t.closest('#pg-sport.active')) {
+      window.scheduleAutoSave('sport');
+      return;
+    }
+    if (t.closest && t.closest('#pg-event.active')) {
+      window.scheduleAutoSave('event');
+      return;
+    }
+    // Legacy editable text blocks
+    if (t.closest && t.closest('.editable.editing')) {
+      window.scheduleAutoSave('page');
+    }
+  });
 })();
 </script>
 

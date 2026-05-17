@@ -112,6 +112,7 @@ function load() {
   if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
   if (!Array.isArray(data.lunchTermArchives)) data.lunchTermArchives = [];
   if (typeof data.lastUpdate !== 'number') data.lastUpdate = Date.now();
+  if (!Array.isArray(data.editHistory)) data.editHistory = [];
   if (!data.newsletter) {
     data.newsletter = {
       termLabel: 'Term 1, Week 1',
@@ -149,8 +150,39 @@ function load() {
   data.sportTerms.forEach(t => { if (!t.eventIds) t.eventIds = []; });
   return data;
 }
-function save(data) {
-  data.lastUpdate = Date.now();
+// ---- edit history (for undo) ----
+const HISTORY_LIMIT = 30;
+
+// Snapshot everything except the history itself, so undo states stay small
+// and never recursively include older snapshots of themselves.
+function snapshotForHistory(data) {
+  const { editHistory, ...rest } = data;
+  return JSON.parse(JSON.stringify(rest));
+}
+
+function save(data, opts) {
+  opts = opts || {};
+  const now = Date.now();
+  // Build a snapshot of the CURRENT on-disk state so an undo can roll back to it
+  if (!opts.skipHistory) {
+    let prior = null;
+    if (fs.existsSync(DATA_FILE)) {
+      try { prior = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch(e) {}
+    }
+    if (prior) {
+      if (!Array.isArray(data.editHistory)) data.editHistory = [];
+      data.editHistory.push({
+        id: 'h_' + now + '_' + Math.random().toString(36).slice(2, 6),
+        savedAt: now,
+        label: opts.label || '',
+        snapshot: snapshotForHistory(prior)
+      });
+      if (data.editHistory.length > HISTORY_LIMIT) {
+        data.editHistory.splice(0, data.editHistory.length - HISTORY_LIMIT);
+      }
+    }
+  }
+  data.lastUpdate = now;
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 function deleteFile(filename) {
@@ -185,7 +217,33 @@ app.use('/uploads', express.static(UPLOADS));
 
 // ---- API ----
 
-app.get('/api/state', (req, res) => res.json(load()));
+// /api/state strips the full editHistory snapshots (30 copies of data is heavy)
+// and replaces them with a lightweight count + recent metadata for the Undo UI.
+app.get('/api/state', (req, res) => {
+  const data = load();
+  const { editHistory = [], ...rest } = data;
+  const recent = editHistory.slice(-5).reverse().map(h => ({
+    id: h.id, savedAt: h.savedAt, label: h.label || ''
+  }));
+  res.json(Object.assign({}, rest, {
+    editHistoryCount: editHistory.length,
+    editHistoryRecent: recent
+  }));
+});
+
+// Undo: pop the most recent history entry and overwrite current data with it.
+// The undo itself is NOT pushed to history (otherwise undo would loop forever).
+app.post('/api/undo', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.editHistory) || data.editHistory.length === 0) {
+    return res.status(400).json({ error: 'Nothing to undo' });
+  }
+  const entry = data.editHistory.pop();
+  // Restore the snapshot fields onto current data, preserving the trimmed history
+  const restored = Object.assign({}, entry.snapshot, { editHistory: data.editHistory });
+  save(restored, { skipHistory: true });
+  res.json({ ok: true, restoredFromLabel: entry.label, savedAt: entry.savedAt, remaining: restored.editHistory.length });
+});
 
 // Tiny version endpoint — clients poll this to detect content changes.
 // Cheaper than fetching the whole state every time.
@@ -792,6 +850,26 @@ app.get('/newsletter/:slug', (req, res) => {
 </html>`;
 
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+});
+
+// Batched save — accepts an array of { key, value } and writes them in ONE
+// disk write, so a multi-field page save creates a single undo history entry
+// rather than one per field.
+app.post('/api/save-batch', (req, res) => {
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+  if (!items.length) return res.json({ ok: true });
+  const data = load();
+  if (!data.pageContent) data.pageContent = {};
+  items.forEach(it => {
+    if (!it || !it.key) return;
+    if (it.key.startsWith('pageContent.')) {
+      data.pageContent[it.key.slice('pageContent.'.length)] = it.value;
+    } else {
+      data[it.key] = it.value;
+    }
+  });
+  save(data);
+  res.json({ ok: true });
 });
 
 // Generic save
