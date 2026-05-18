@@ -653,8 +653,9 @@ function nlEscape(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// Minimal HTML sanitiser for newsletter rich-text fields. The admin user is
-// trusted, but accidentally pasted scripts or event handlers shouldn't survive.
+// HTML sanitiser for newsletter rich-text fields. Strips dangerous tags and
+// also paste-bombed styling (CSS variables from Tailwind, foreign class
+// attributes) that would otherwise inflate stored content 5-10x.
 function sanitiseRich(s) {
   return String(s == null ? '' : s)
     .replace(/<\s*script\b[\s\S]*?<\s*\/\s*script\s*>/gi, '')
@@ -663,7 +664,15 @@ function sanitiseRich(s) {
     .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
     .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
     .replace(/(href|src)\s*=\s*"\s*javascript:[^"]*"/gi, '$1="#"')
-    .replace(/(href|src)\s*=\s*'\s*javascript:[^']*'/gi, "$1='#'");
+    .replace(/(href|src)\s*=\s*'\s*javascript:[^']*'/gi, "$1='#'")
+    // Strip style attributes that contain CSS variables (Tailwind/etc. bloat
+    // — these take 1-2 KB per paragraph and aren't needed for display here).
+    .replace(/\s*style\s*=\s*"[^"]*--[a-z-]+\s*:[^"]*"/gi, '')
+    .replace(/\s*style\s*=\s*'[^']*--[a-z-]+\s*:[^']*'/gi, '')
+    // Strip class attributes — they reference foreign stylesheets and add
+    // no value (the format toolbar uses inline styles instead).
+    .replace(/\s*class\s*=\s*"[^"]*"/gi, '')
+    .replace(/\s*class\s*=\s*'[^']*'/gi, '');
 }
 
 // Single image upload for the newsletter (header, principal, notice).
@@ -681,12 +690,12 @@ app.post('/api/newsletter/save', (req, res) => {
     termLabel: String(b.termLabel || '').trim().slice(0, 200) || 'Newsletter',
     headerImage: b.headerImage || null,
     principalImage: b.principalImage || null,
-    principalMessage: sanitiseRich(b.principalMessage || '').slice(0, 50000),
-    importantDates: sanitiseRich(b.importantDates || '').slice(0, 20000),
+    principalMessage: sanitiseRich(b.principalMessage || '').slice(0, 200000),
+    importantDates: sanitiseRich(b.importantDates || '').slice(0, 100000),
     studentsWeekImage: b.studentsWeekImage || null,
-    studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 20000),
-    campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 20000),
-    schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 20000),
+    studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 100000),
+    campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 100000),
+    schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
     footerImage: b.footerImage || null,
     notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),

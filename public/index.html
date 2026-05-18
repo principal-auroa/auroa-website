@@ -6986,6 +6986,24 @@ function nlSetEditableState(canEdit) {
   });
 }
 
+// Newsletter paste handler — strip source formatting so pasted content
+// doesn't carry kilobytes of Tailwind/inline-style bloat that blows past
+// the server's per-field size limit. Plain text only; admins can re-apply
+// any formatting they want with the toolbar afterwards.
+document.addEventListener('paste', function(e) {
+  var t = e.target;
+  if (!t || !t.closest) return;
+  if (!t.closest('#pg-newsletter')) return;
+  if (!t.isContentEditable && !(t.closest && t.closest('[contenteditable="true"]'))) return;
+  var text = '';
+  try {
+    text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  } catch (err) {}
+  if (!text) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, text);
+});
+
 window.addEventListener('beforeunload', function() {
   // Best-effort: fire any pending saves before the tab unloads. Regular
   // fetch() requests can get aborted on unload, so the newsletter save
