@@ -2088,6 +2088,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="pg-title-btns">
           <button class="back-btn" onclick="backToSportsPage()">← Back to Sports</button>
           <button id="sd-current-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;" onclick="sdToggleCurrent()">Current</button>
+          <button id="sd-share-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;background:#1a2b4a;" onclick="sdCopyShareLink()">🔗 Copy link</button>
         </div>
         <h2 class="pg-title" id="sd-name"></h2>
       </div>
@@ -2116,6 +2117,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="pg-title-btns">
           <button class="back-btn" onclick="backToSportsPage()">← Back to Sports &amp; Events</button>
           <button id="ev-current-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;" onclick="evToggleCurrent()">Current</button>
+          <button id="ev-share-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;background:#1a2b4a;" onclick="evCopyShareLink()">🔗 Copy link</button>
         </div>
         <h2 class="pg-title" id="ev-name"></h2>
       </div>
@@ -2795,6 +2797,15 @@ function fetchState() {
       if (window.__autoPage && el(window.__autoPage)) {
         showPage(window.__autoPage);
         window.__autoPage = null;
+      }
+      // Deep-links for specific sport or event detail pages.
+      if (window.__autoSportId && typeof openSportDetail === 'function' && sportsData[window.__autoSportId]) {
+        openSportDetail(window.__autoSportId);
+        window.__autoSportId = null;
+      }
+      if (window.__autoEventId && typeof openEventDetail === 'function' && eventsData[window.__autoEventId]) {
+        openEventDetail(window.__autoEventId);
+        window.__autoEventId = null;
       }
       if (Array.isArray(data.calendarData) && data.calendarData.length >= 2) {
         calendarData = data.calendarData;
@@ -4221,12 +4232,20 @@ function openSportDetail(sportId) {
     curBtn.style.display = 'inline-block';
     curBtn.style.background = sport.current ? '#27ae60' : '';
     curBtn.style.color = sport.current ? '#fff' : '';
+    el('sd-share-btn').style.display = 'inline-block';
   } else {
     el('sd-table-admin').style.display = 'none';
     el('sd-img-admin').style.display = 'none';
     el('sd-current-btn').style.display = 'none';
+    el('sd-share-btn').style.display = 'none';
   }
   showPage('pg-sport');
+}
+
+function sdCopyShareLink() {
+  if (!currentSportId) return;
+  var url = window.location.origin + '/sport/' + encodeURIComponent(currentSportId);
+  copyShareUrl(url, el('sd-share-btn'), '🔗 Copy link');
 }
 
 function renderSdTable(tableData) {
@@ -4509,11 +4528,42 @@ function openEventDetail(eventId) {
     evCurBtn.style.display = 'inline-block';
     evCurBtn.style.background = ev.current ? '#27ae60' : '';
     evCurBtn.style.color = ev.current ? '#fff' : '';
+    el('ev-share-btn').style.display = 'inline-block';
   } else {
     el('ev-text-admin').style.display = 'none';
     el('ev-current-btn').style.display = 'none';
+    el('ev-share-btn').style.display = 'none';
   }
   showPage('pg-event');
+}
+
+function evCopyShareLink() {
+  if (!currentEventId) return;
+  var url = window.location.origin + '/event/' + encodeURIComponent(currentEventId);
+  copyShareUrl(url, el('ev-share-btn'), '🔗 Copy link');
+}
+
+// Generic clipboard helper used by both sport + event share buttons.
+function copyShareUrl(url, btn, originalLabel) {
+  function feedback() {
+    if (!btn) return;
+    btn.textContent = '✓ Copied!';
+    setTimeout(function() { btn.textContent = originalLabel; }, 1500);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(feedback).catch(function() { fallback(); });
+  } else {
+    fallback();
+  }
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    feedback();
+  }
 }
 
 function renderEvTextRows(rows) {

@@ -841,6 +841,24 @@ app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
   });
 });
 
+// Deep-link routes for sport/event detail pages — the client navigates to the
+// matching record once state has loaded.
+function serveSpaWithMarker(req, res, marker) {
+  fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8', (err, html) => {
+    if (err) return res.status(500).send('Error loading page');
+    res.set('Content-Type', 'text/html; charset=utf-8')
+       .send(html.replace('</head>', marker + '</head>'));
+  });
+}
+app.get('/sport/:sportId', (req, res) => {
+  serveSpaWithMarker(req, res,
+    `<script>window.__autoSportId=${JSON.stringify(req.params.sportId)};</script>`);
+});
+app.get('/event/:eventId', (req, res) => {
+  serveSpaWithMarker(req, res,
+    `<script>window.__autoEventId=${JSON.stringify(req.params.eventId)};</script>`);
+});
+
 // Public route — renders a saved snapshot as a standalone HTML page.
 app.get('/newsletter/:slug', (req, res) => {
   const data = load();
