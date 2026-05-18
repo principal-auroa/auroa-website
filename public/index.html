@@ -1279,10 +1279,11 @@ body.is-admin .ss-caption{border-top-color:#ddd;background:#fafafa;}
 }
 .fmt-size-btn:hover{background:rgba(255,255,255,0.28);}
 .editable ul,.editable ol,
-[contenteditable="true"] ul,[contenteditable="true"] ol{
+[contenteditable="true"] ul,[contenteditable="true"] ol,
+.nl-msg ul,.nl-msg ol{
   padding-left:2em;margin:0.4em 0 0.4em 1.5em;
 }
-.editable li,[contenteditable="true"] li{
+.editable li,[contenteditable="true"] li,.nl-msg li{
   margin-bottom:0.2em;padding-left:0.25em;
 }
 
@@ -1636,9 +1637,13 @@ body.is-admin .nl-term-label{
 body.is-admin .nl-term-label:hover{border-color:#d0d6e0;}
 body.is-admin .nl-term-label:focus{border-color:#1a2b4a;border-style:solid;background:#fffdf0;}
 .nl-section-h{
-  color:#c0642b;font-size:30px;font-weight:700;
+  color:#c0642b;font-size:38px;font-weight:700;
   border-bottom:2px solid #c0642b;padding-bottom:6px;
-  margin:32px 0 14px;
+  margin:32px 0 14px;letter-spacing:0.3px;
+}
+.nl-divider{
+  border:none;border-top:2px solid #c0642b;
+  margin:32px 0 18px;
 }
 .nl-image-slot{position:relative;margin:0 0 18px;}
 .nl-image-slot img{
@@ -2505,6 +2510,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <h2 class="nl-section-h">Camps and Day Trips</h2>
       <div id="nl-camps" class="nl-msg" data-placeholder="Details about upcoming camps and day trips..."></div>
+
+      <hr class="nl-divider">
 
       <div id="nl-footer-slot" class="nl-image-slot nl-hero" style="margin-top:32px;">
         <img id="nl-footer-img" alt="" onclick="nlMaybeLightbox(this)">

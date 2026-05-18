@@ -913,7 +913,7 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub h1{color:#1a2b4a;font-size:36px;font-weight:700;text-align:center;margin:8px 0 24px;letter-spacing:0.5px;}
   .nl-pub-hero{margin:0 0 28px;}
   .nl-pub-hero img{width:100%;display:block;border-radius:12px;}
-  .nl-pub h2{color:#c0642b;font-size:30px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;}
+  .nl-pub h2{color:#c0642b;font-size:38px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;letter-spacing:0.3px;}
   .nl-pub-principal-img{margin:0 0 14px;}
   .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
   .nl-pub-msg{font-size:15px;color:#333;line-height:1.3;}
@@ -952,7 +952,7 @@ app.get('/newsletter/:slug', (req, res) => {
   ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}
   ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg">${sapHtml}</div>` : ''}
   ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg">${campsHtml}</div>` : ''}
-  ${nlFooter ? `<div class="nl-pub-hero" style="margin-top:32px;"><img src="${nlFooter}" alt=""></div>` : ''}
+  ${nlFooter ? `<hr style="border:none;border-top:2px solid #c0642b;margin:32px 0 18px;"><div class="nl-pub-hero" style="margin-top:32px;"><img src="${nlFooter}" alt=""></div>` : ''}
   <div class="nl-pub-meta">Saved ${new Date(snap.updatedAt || snap.createdAt).toLocaleString()}</div>
 </div>
 <div id="lb" onclick="lbClose()">
