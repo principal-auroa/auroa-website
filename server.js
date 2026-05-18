@@ -699,44 +699,60 @@ app.post('/api/newsletter/save', (req, res) => {
   data.newsletter = draft;
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
 
+  // Auto-save ONLY persists the live draft. Snapshots (the shareable links
+  // shown in "Saved newsletters") are touched only by /api/newsletter/publish,
+  // i.e. the explicit Save Newsletter button. This prevents auto-save from
+  // creating or mutating snapshot copies as the admin types.
+  save(data, { label: 'Newsletter' });
+  res.json({ ok: true });
+});
+
+// Explicit publish — creates a new shareable snapshot (or updates the
+// matching one if the Term/Week label already exists), then returns its URL.
+app.post('/api/newsletter/publish', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
+  const draft = data.newsletter || {};
+  const termLabel = String(draft.termLabel || '').trim() || 'Newsletter';
   const now = Date.now();
-  // Update existing snapshot if same termLabel, else create new
-  let snap = data.newsletterSnapshots.find(s => s.termLabel === draft.termLabel);
+  let snap = data.newsletterSnapshots.find(s => s.termLabel === termLabel);
+  let isNew = false;
   if (snap) {
-    snap.headerImage          = draft.headerImage;
-    snap.principalImage       = draft.principalImage;
-    snap.principalMessage     = draft.principalMessage;
-    snap.importantDates       = draft.importantDates;
-    snap.studentsWeekImage    = draft.studentsWeekImage;
-    snap.studentsWeekMessage  = draft.studentsWeekMessage;
-    snap.campsDayTrips        = draft.campsDayTrips;
-    snap.schoolAccountsPayments = draft.schoolAccountsPayments;
-    snap.footerImage            = draft.footerImage;
-    snap.notices              = draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename }));
+    snap.headerImage          = draft.headerImage || null;
+    snap.principalImage       = draft.principalImage || null;
+    snap.principalMessage     = draft.principalMessage || '';
+    snap.importantDates       = draft.importantDates || '';
+    snap.studentsWeekImage    = draft.studentsWeekImage || null;
+    snap.studentsWeekMessage  = draft.studentsWeekMessage || '';
+    snap.campsDayTrips        = draft.campsDayTrips || '';
+    snap.schoolAccountsPayments = draft.schoolAccountsPayments || '';
+    snap.footerImage          = draft.footerImage || null;
+    snap.notices              = (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null }));
     snap.updatedAt            = now;
   } else {
-    const baseSlug = nlSlug(draft.termLabel);
+    isNew = true;
+    const baseSlug = nlSlug(termLabel);
     snap = {
       id: 'ns_' + now + '_' + Math.random().toString(36).slice(2, 8),
-      termLabel: draft.termLabel,
+      termLabel,
       slug: nlUniqueSlug(baseSlug, data.newsletterSnapshots),
-      headerImage: draft.headerImage,
-      principalImage: draft.principalImage,
-      principalMessage: draft.principalMessage,
-      importantDates: draft.importantDates,
-      studentsWeekImage: draft.studentsWeekImage,
-      studentsWeekMessage: draft.studentsWeekMessage,
-      campsDayTrips: draft.campsDayTrips,
-      schoolAccountsPayments: draft.schoolAccountsPayments,
-      footerImage: draft.footerImage,
-      notices: draft.notices.map(n => ({ id: n.id, caption: n.caption, filename: n.filename })),
+      headerImage: draft.headerImage || null,
+      principalImage: draft.principalImage || null,
+      principalMessage: draft.principalMessage || '',
+      importantDates: draft.importantDates || '',
+      studentsWeekImage: draft.studentsWeekImage || null,
+      studentsWeekMessage: draft.studentsWeekMessage || '',
+      campsDayTrips: draft.campsDayTrips || '',
+      schoolAccountsPayments: draft.schoolAccountsPayments || '',
+      footerImage: draft.footerImage || null,
+      notices: (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null })),
       createdAt: now,
       updatedAt: now
     };
     data.newsletterSnapshots.push(snap);
   }
-  save(data, { label: 'Newsletter' });
-  res.json({ ok: true, snapshot: snap });
+  save(data, { label: 'Newsletter published' });
+  res.json({ ok: true, snapshot: snap, isNew });
 });
 
 // Collect every image filename still referenced somewhere — used to decide

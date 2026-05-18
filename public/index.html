@@ -48,10 +48,20 @@ body{background:#fff;color:#222;min-height:100vh;}
 #save-msg.saving{color:#c0642b;}
 #save-msg.saved{color:#1d8a4f;}
 #save-msg.error{color:#c0392b;}
-/* Auto-save replaces manual buttons */
+/* Auto-save replaces the legacy header save button */
 #header-save-btn{display:none !important;}
 .nl-save-btn{display:none;}
 body.is-admin .nl-save-bar{display:none;}
+/* Save Newsletter button — header, admin only, only when viewing newsletter page */
+#header-save-nl-btn{
+  display:none;
+  background:#c0642b;border:none;color:#fff;
+  padding:4px 14px;border-radius:20px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:11px;font-weight:700;
+  transition:background 0.15s;
+}
+#header-save-nl-btn:hover{background:#a85325;}
+body.is-admin.on-pg-newsletter #header-save-nl-btn{display:inline-block;}
 /* Floating Undo button — bottom-left, admin only, only when history exists */
 #undo-btn{
   display:none;position:fixed;bottom:20px;left:20px;z-index:990;
@@ -1901,6 +1911,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   <div id="admin-badge">
     <span>ADMIN MODE</span>
     <button id="header-save-btn" onclick="savePage()">Save Page</button>
+    <button id="header-save-nl-btn" onclick="publishNewsletter()">Publish</button>
     <span id="save-msg"></span>
     <button id="logout-btn" onclick="doLogout()">Log out</button>
   </div>
@@ -2465,7 +2476,6 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       </div>
 
       <div class="nl-save-bar">
-        <button type="button" class="nl-save-btn" onclick="saveNewsletter()">💾 Save newsletter</button>
         <div id="nl-save-status" class="nl-save-status"></div>
       </div>
 
@@ -3191,6 +3201,9 @@ function showPage(id) {
   updateSidebarAudio(id);
   if (id === 'pg-lunch-orders' && typeof renderLunchAdmin === 'function') renderLunchAdmin();
   if (id === 'pg-newsletter' && typeof renderNewsletter === 'function') renderNewsletter();
+  // Toggle a per-page body class so admin-only header buttons can show/hide
+  document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
+  document.body.classList.add('on-' + id);
 }
 function bubbleGo(event, pageId) {
   if (event) {
@@ -7196,33 +7209,51 @@ function nlCopyUrl(url, btn) {
 }
 
 function nlDeleteSnapshot(id) {
-  var snap = newsletterSnapshots.find(function(s){ return s.id === id; });
-  if (!confirm('PERMANENTLY delete this newsletter?\n\n- The shareable link will stop working immediately.\n- Image files used only by this snapshot will be removed from the server.\n- If you were editing this newsletter, the editor will be cleared so auto-save doesn\'t re-create it.\n\nIf you just want to tidy your admin list while keeping the link working for parents, click "Hide from list" instead.')) return;
+  if (!confirm('PERMANENTLY delete this newsletter?\n\n- The shareable link will stop working.\n- Image files used only by this snapshot will be removed from the server.\n- Your editor content stays the same — it won\'t re-create the snapshot automatically (only the "Publish" button does that).\n\nIf you just want to tidy your admin list while keeping the link working for parents, click "Hide from list" instead.')) return;
   fetch('/api/newsletter-snapshot/' + encodeURIComponent(id), { method: 'DELETE' })
     .then(function(r){ return r.json(); })
     .then(function() {
       newsletterSnapshots = newsletterSnapshots.filter(function(s){ return s.id !== id; });
-      // If the editor's current draft is the same one we just deleted, clear it
-      // so the next auto-save can't silently re-create the snapshot.
-      if (snap && newsletterData && newsletterData.termLabel === snap.termLabel) {
-        newsletterData = {
-          termLabel: '', headerImage: null, principalImage: null,
-          principalMessage: '', importantDates: '',
-          studentsWeekImage: null, studentsWeekMessage: '',
-          campsDayTrips: '', schoolAccountsPayments: '',
-          footerImage: null,
-          notices: [
-            { id: 'nt_1', caption: '', filename: null },
-            { id: 'nt_2', caption: '', filename: null },
-            { id: 'nt_3', caption: '', filename: null }
-          ]
-        };
-        renderNewsletter();
-        // Persist the cleared draft so the server forgets the deleted state too
-        if (typeof saveNewsletter === 'function') saveNewsletter();
-      }
       renderNewsletterSnapshots();
     });
+}
+
+// Explicit publish action — creates (or updates) a shareable snapshot for the current draft.
+function publishNewsletter() {
+  var label = (newsletterData && newsletterData.termLabel || '').trim();
+  if (!label) {
+    alert('Please type a Term/Week title at the top of the newsletter before publishing.');
+    return;
+  }
+  var existing = newsletterSnapshots.find(function(s) { return s.termLabel === label; });
+  var msg = existing
+    ? 'Update the existing "' + label + '" newsletter snapshot?\n\nThe shareable link stays the same; the saved content will be replaced with the current editor.'
+    : 'Publish "' + label + '" as a shareable newsletter?\n\nA new public URL will be created. Parents will be able to view it at that link.';
+  if (!confirm(msg)) return;
+  fetch('/api/newsletter/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  })
+  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    if (!res.ok || !res.body || !res.body.snapshot) {
+      alert('Publish failed: ' + ((res.body && res.body.error) || 'unknown'));
+      return;
+    }
+    var snap = res.body.snapshot;
+    var i = newsletterSnapshots.findIndex(function(s) { return s.id === snap.id; });
+    if (i >= 0) newsletterSnapshots[i] = snap; else newsletterSnapshots.push(snap);
+    renderNewsletterSnapshots();
+    var status = el('nl-save-status');
+    if (status) {
+      status.innerHTML = (res.body.isNew ? 'Published as new newsletter &middot; ' : 'Updated &middot; ')
+        + '<a href="/newsletter/' + snap.slug + '" target="_blank">'
+        + window.location.origin + '/newsletter/' + snap.slug + '</a>';
+      status.className = 'nl-save-status ok';
+    }
+  })
+  .catch(function() { alert('Network error publishing newsletter.'); });
 }
 </script>
 
