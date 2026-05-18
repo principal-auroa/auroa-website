@@ -7052,6 +7052,7 @@ function buildNoticeCard(notice) {
   var sp = document.createElement('span'); sp.textContent = 'Upload'; lbl.appendChild(sp);
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
+  inp.multiple = true;
   inp.onchange = function(e) { nlUploadNoticeImage(e, notice.id); };
   lbl.appendChild(inp);
   tools.appendChild(lbl);
@@ -7202,20 +7203,41 @@ function nlRemoveNotice(noticeId) {
 }
 
 function nlUploadNoticeImage(event, noticeId) {
-  var file = event.target.files && event.target.files[0];
-  if (!file) return;
+  var files = event.target.files;
+  if (!files || !files.length) return;
   nlCollectAllTextEdits();
-  var fd = new FormData();
-  fd.append('image', file);
-  fetch('/api/upload/newsletter', { method: 'POST', body: fd })
-    .then(function(r){ return r.json(); })
-    .then(function(res) {
-      if (!res || !res.filename) return;
-      var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
-      if (n) n.filename = res.filename;
-      renderNlNotices();
-      nlAutoSave();
-    });
+
+  var first = files[0];
+  var extras = Array.prototype.slice.call(files, 1);
+
+  function uploadOne(file) {
+    var fd = new FormData();
+    fd.append('image', file);
+    return fetch('/api/upload/newsletter', { method: 'POST', body: fd })
+      .then(function(r){ return r.json(); });
+  }
+
+  uploadOne(first).then(function(res) {
+    if (!res || !res.filename) return;
+    var n = (newsletterData.notices || []).find(function(x){ return x.id === noticeId; });
+    if (n) n.filename = res.filename;
+    // Each extra file becomes a brand-new notice card so admins can
+    // multi-select and add several at once without losing what's there.
+    return Promise.all(extras.map(function(file) {
+      return uploadOne(file).then(function(r2) {
+        if (!r2 || !r2.filename) return;
+        if (!newsletterData.notices) newsletterData.notices = [];
+        newsletterData.notices.push({
+          id: 'nt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          caption: '',
+          filename: r2.filename
+        });
+      });
+    }));
+  }).then(function() {
+    renderNlNotices();
+    nlAutoSave();
+  });
   event.target.value = '';
 }
 
@@ -7228,8 +7250,10 @@ function nlRemoveNoticeImage(noticeId) {
 }
 
 function nlMaybeLightbox(img) {
+  // Open any loaded newsletter image (header, principal, students-of-week,
+  // notice, footer) in the site's existing lightbox. Works for everyone —
+  // admins still have Upload/Remove buttons as separate controls.
   if (!img || !img.classList.contains('loaded') || !img.src) return;
-  if (isAdmin) return;
   if (typeof openLightbox === 'function') openLightbox(img.src);
 }
 
