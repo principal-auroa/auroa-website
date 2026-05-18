@@ -1677,10 +1677,15 @@ body.is-admin .nl-image-tools{display:flex;}
 body:not(.is-admin) .nl-principal:not(:has(img.loaded)),
 body:not(.is-admin) .nl-hero:not(:has(img.loaded)){display:none;}
 .nl-msg{
-  font-size:15px;color:#333;line-height:1.6;
+  font-size:15px;color:#333;line-height:1.3;
   padding:8px 4px;min-height:28px;outline:none;border-radius:6px;
   white-space:pre-wrap;
 }
+/* Each paragraph from contenteditable Enter sits tight under the previous;
+   blank lines are achieved by pressing Enter twice (the empty block keeps
+   a one-line height for the spacer). */
+.nl-msg p,.nl-msg div{margin:0;}
+.nl-msg p:empty,.nl-msg div:empty{min-height:1em;}
 .nl-msg:empty::before{content:attr(data-placeholder);color:#bbb;}
 body.is-admin .nl-msg{
   border:1.5px dashed transparent;cursor:text;padding:10px 12px;

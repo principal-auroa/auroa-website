@@ -898,10 +898,13 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub h2{color:#1a2b4a;font-size:22px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;}
   .nl-pub-principal-img{margin:0 0 14px;}
   .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
-  .nl-pub-msg{font-size:15px;color:#333;}
-  .nl-pub-msg p{margin-bottom:10px;}
-  .nl-pub-msg ul,.nl-pub-msg ol{padding-left:2em;margin:0.4em 0 0.8em 1.5em;}
-  .nl-pub-msg li{margin-bottom:0.25em;padding-left:0.25em;}
+  .nl-pub-msg{font-size:15px;color:#333;line-height:1.3;}
+  .nl-pub-msg p,.nl-pub-msg div{margin:0;}
+  /* Empty paragraphs / divs (from pressing Enter twice for a blank line)
+     get a small height so they show as a visible spacer line. */
+  .nl-pub-msg p:empty,.nl-pub-msg div:empty{height:1em;}
+  .nl-pub-msg ul,.nl-pub-msg ol{padding-left:2em;margin:0.3em 0 0.6em 1.5em;}
+  .nl-pub-msg li{margin:0;padding-left:0.25em;line-height:1.3;}
   .nl-pub-notices{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px;}
   .nl-pub-notice{display:flex;flex-direction:column;gap:8px;}
   .nl-pub-notice figcaption{font-weight:600;color:#1a2b4a;font-size:14px;}
