@@ -2985,10 +2985,16 @@ function exitAdmin() {
   if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
   if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
   // 2. Also force-save the active page even if nothing was queued — covers
-  //    cases like image uploads that may have changed state without firing input.
+  //    cases like image uploads that may have changed state without firing
+  //    input, AND cases where the debounce already fired (so no timer is
+  //    queued but the user kept typing right up until logout).
   try {
     if (typeof window.autoSavePage === 'function') window.autoSavePage();
     if (typeof saveNewsletter === 'function' && el('nl-term-label')) saveNewsletter();
+    // Sport detail page: cells live in a dedicated save path
+    if (document.querySelector('#pg-sport.active') && typeof sdSave === 'function') sdSave();
+    // Event detail page: ditto
+    if (document.querySelector('#pg-event.active') && typeof evSave === 'function') evSave();
   } catch (e) {}
   if (el('save-msg')) el('save-msg').textContent = 'Saving on logout…';
 
