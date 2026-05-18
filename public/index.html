@@ -1768,8 +1768,10 @@ body.is-admin .nl-notice-img-wrap .nl-notice-tools{display:flex;}
   display:none;
 }
 body.is-admin .nl-notice-del{display:block;}
-.nl-add-row{display:none;margin-bottom:20px;}
-body.is-admin .nl-add-row{display:block;}
+.nl-add-row{display:none;margin-bottom:20px;align-items:center;gap:10px;flex-wrap:wrap;}
+body.is-admin .nl-add-row{display:flex;}
+.nl-add-images-btn{cursor:pointer;}
+.nl-add-hint{color:#666;font-size:12px;font-style:italic;}
 .nl-add-btn{
   background:#27ae60;color:#fff;border:none;border-radius:8px;
   padding:8px 16px;font-family:'Quicksand',sans-serif;
@@ -2519,6 +2521,12 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div id="nl-notices" class="nl-notices-grid"></div>
       <div class="nl-add-row">
         <button type="button" class="nl-add-btn" onclick="nlAddNotice()">+ Add notice</button>
+        <label class="nl-add-btn nl-add-images-btn" style="background:#1a2b4a;">
+          + Add images
+          <input type="file" accept="image/*" multiple style="display:none"
+                 onchange="nlAddImagesAsNotices(event)">
+        </label>
+        <span class="nl-add-hint">Tip: in the file picker, hold Shift or Cmd to select more than one image at a time.</span>
       </div>
 
       <h2 class="nl-section-h">School Accounts and Payments</h2>
@@ -7251,6 +7259,33 @@ function nlUploadNoticeImage(event, noticeId) {
       });
     }));
   }).then(function() {
+    renderNlNotices();
+    nlAutoSave();
+  });
+  event.target.value = '';
+}
+
+// Bulk-add: each selected image becomes its own notice card.
+function nlAddImagesAsNotices(event) {
+  var files = event.target.files;
+  if (!files || !files.length) return;
+  nlCollectAllTextEdits();
+  var uploads = Array.prototype.slice.call(files).map(function(file) {
+    var fd = new FormData();
+    fd.append('image', file);
+    return fetch('/api/upload/newsletter', { method: 'POST', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(res) {
+        if (!res || !res.filename) return;
+        if (!newsletterData.notices) newsletterData.notices = [];
+        newsletterData.notices.push({
+          id: 'nt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          caption: '',
+          filename: res.filename
+        });
+      });
+  });
+  Promise.all(uploads).then(function() {
     renderNlNotices();
     nlAutoSave();
   });
