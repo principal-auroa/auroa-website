@@ -895,7 +895,7 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub h1{color:#1a2b4a;font-size:36px;font-weight:700;text-align:center;margin:8px 0 24px;letter-spacing:0.5px;}
   .nl-pub-hero{margin:0 0 28px;}
   .nl-pub-hero img{width:100%;display:block;border-radius:12px;}
-  .nl-pub h2{color:#1a2b4a;font-size:22px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;}
+  .nl-pub h2{color:#c0642b;font-size:30px;font-weight:700;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:32px 0 14px;}
   .nl-pub-principal-img{margin:0 0 14px;}
   .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
   .nl-pub-msg{font-size:15px;color:#333;line-height:1.3;}
@@ -916,7 +916,7 @@ app.get('/newsletter/:slug', (req, res) => {
   #lb-close{position:fixed;top:14px;right:18px;background:#fff;border:none;color:#1a2b4a;font-size:22px;width:38px;height:38px;border-radius:50%;cursor:pointer;}
   @media (max-width:768px){
     .nl-pub h1{font-size:26px;}
-    .nl-pub h2{font-size:18px;}
+    .nl-pub h2{font-size:24px;}
     .nl-pub-notices{grid-template-columns:1fr;}
   }
 </style>
