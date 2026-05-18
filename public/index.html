@@ -1891,6 +1891,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   .staff-grid{grid-template-columns:1fr;gap:14px;}
   #hit-grid{grid-template-columns:1fr;max-height:none;}
   .hit-text-cell{border-right:none;border-bottom:1.5px solid #ddd;}
+  /* Image cells use absolute-positioned images, so they have no natural
+     height when the grid stacks to a single column. Give them an explicit
+     aspect ratio (with a min-height fallback) so the image is visible. */
+  .hit-img-cell{aspect-ratio:16/9;min-height:200px;border-right:none;}
   .bus-grid{grid-template-columns:1fr;}
 
   /* Reduce dense button grids from 4 cols to 2 */
