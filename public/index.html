@@ -1641,11 +1641,11 @@ body.is-admin .nl-term-label:focus{border-color:#1a2b4a;border-style:solid;backg
 .pg-body h2.nl-section-h,
 h2.nl-section-h{
   color:#c0642b !important;
-  font-size:38px !important;
+  font-size:26px !important;
   font-weight:700 !important;
   border-bottom:2px solid #c0642b;
   padding-bottom:6px;
-  margin:32px 0 14px;
+  margin:28px 0 12px;
   letter-spacing:0.3px;
 }
 .nl-divider{
@@ -1706,8 +1706,11 @@ body.is-admin .nl-msg:hover{border-color:#d0d6e0;}
 body.is-admin .nl-msg:focus{border-color:#1a2b4a;border-style:solid;background:#fffdf0;}
 body:not(.is-admin) .nl-msg:empty{display:none;}
 .nl-notices-grid{
-  display:grid;grid-template-columns:repeat(3,1fr);
+  display:grid;grid-template-columns:repeat(2,1fr);
   gap:18px;margin-bottom:14px;
+}
+@media (max-width:600px){
+  .nl-notices-grid{grid-template-columns:1fr;}
 }
 .nl-notice-card{
   display:flex;flex-direction:column;gap:8px;
@@ -1729,10 +1732,16 @@ body:not(.is-admin) .nl-notice-caption:empty{display:none;}
 .nl-notice-img-wrap{
   position:relative;border-radius:10px;overflow:hidden;
   background:#f5f6f8;border:1.5px dashed #d0d6e0;
-  aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+  min-height:160px;
+  display:flex;align-items:center;justify-content:center;
+}
+/* Once the image loads, drop the dashed placeholder chrome so the wrap
+   sits flush around the image at its natural aspect ratio. */
+.nl-notice-img-wrap:has(img.loaded){
+  background:transparent;border:none;min-height:0;display:block;
 }
 .nl-notice-img-wrap img{
-  width:100%;height:100%;display:none;object-fit:cover;cursor:zoom-in;
+  width:100%;height:auto;display:none;cursor:zoom-in;border-radius:10px;
 }
 .nl-notice-img-wrap img.loaded{display:block;}
 .nl-notice-img-wrap img.loaded ~ .nl-notice-empty{display:none;}
