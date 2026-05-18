@@ -2979,10 +2979,18 @@ function enterAdmin() {
   if (typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 function exitAdmin() {
-  // Flush any in-progress edits FIRST — re-rendering or clearing classes
-  // below would otherwise wipe text typed in the last debounce window.
+  // Force a comprehensive save of the current page BEFORE tearing down admin UI.
+  // 1. Flush any queued debounced saves (covers the typical "typed and then
+  //    clicked logout within the 1.5s debounce window" case).
   if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
   if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
+  // 2. Also force-save the active page even if nothing was queued — covers
+  //    cases like image uploads that may have changed state without firing input.
+  try {
+    if (typeof window.autoSavePage === 'function') window.autoSavePage();
+    if (typeof saveNewsletter === 'function' && el('nl-term-label')) saveNewsletter();
+  } catch (e) {}
+  if (el('save-msg')) el('save-msg').textContent = 'Saving on logout…';
 
   document.body.classList.remove('is-admin');
   el('login-btn').style.display = 'block';
@@ -6969,7 +6977,11 @@ function nlSetEditableState(canEdit) {
 }
 
 window.addEventListener('beforeunload', function() {
+  // Best-effort: fire any pending saves before the tab unloads. Browsers
+  // may cancel in-flight fetches when the tab actually closes, but the
+  // common case (refresh, navigate away) usually lets them complete.
   if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
+  if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
 });
 
 function nlUploadImage(event, slot) {
@@ -7447,6 +7459,7 @@ function publishNewsletter() {
   }
 
   // Batched page save — uses /api/save-batch so the whole page is ONE history entry
+  window.autoSavePage = autoSavePage;
   function autoSavePage() {
     var active = document.querySelector('.page.active');
     if (!active) return Promise.resolve();
