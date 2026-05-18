@@ -7369,7 +7369,10 @@ function saveNewsletter() {
   })
   .then(function(b) {
     if (!b || b.ok !== true) throw new Error('save failed');
-    newsletterData = draft;
+    // DO NOT reassign newsletterData = draft here. The draft is a snapshot
+    // taken when the save was built; any notices/images added during the
+    // network round-trip would otherwise be silently wiped on the response.
+    // The DOM and per-upload handlers keep newsletterData up to date as-is.
     return b;
   });
 }
