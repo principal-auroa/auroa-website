@@ -149,6 +149,7 @@ function load() {
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
+  if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -1012,6 +1013,136 @@ app.post('/api/save-batch', (req, res) => {
   // use the first item's label so the banner says something specific.
   save(data, { label: saveLabelForKey(items[0] && items[0].key) });
   res.json({ ok: true });
+});
+
+// ---- Hall bookings ----
+// Pricing rule: up to 1 hour = $40; >1 to 2 hours = $80; >2 hours = $250.
+function calcHallCost(startTime, endTime) {
+  if (!startTime || !endTime) return 0;
+  const toMin = (t) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(t));
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  };
+  const s = toMin(startTime); const e = toMin(endTime);
+  if (s == null || e == null || e <= s) return 0;
+  const hours = (e - s) / 60;
+  if (hours <= 1) return 40;
+  if (hours <= 2) return 80;
+  return 250;
+}
+
+// Lazy nodemailer transporter — set SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM
+// env vars to enable confirmation emails. Without them, emails are skipped
+// and the booking still confirms normally.
+let _mailTransport = null;
+function getMailTransport() {
+  if (_mailTransport) return _mailTransport;
+  if (!process.env.SMTP_USER && !process.env.SMTP_HOST) return null;
+  try {
+    const nm = require('nodemailer');
+    _mailTransport = nm.createTransport({
+      host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+      port:   parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    return _mailTransport;
+  } catch (e) {
+    console.warn('[hall] nodemailer not available:', e.message);
+    return null;
+  }
+}
+
+app.post('/api/hall-bookings', (req, res) => {
+  const b = req.body || {};
+  const email = String(b.email || '').trim();
+  const name  = String(b.name  || '').trim();
+  const phone = String(b.phone || '').trim();
+  const date  = String(b.date  || '').trim();
+  const start = String(b.startTime || '').trim();
+  const end   = String(b.endTime   || '').trim();
+  const desc  = String(b.description || '').trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email address is required.' });
+  if (!name)  return res.status(400).json({ error: 'Contact name is required.' });
+  if (!phone) return res.status(400).json({ error: 'Contact phone is required.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date for the booking.' });
+  if (!/^\d{1,2}:\d{2}$/.test(start) || !/^\d{1,2}:\d{2}$/.test(end)) return res.status(400).json({ error: 'Pick a start and end time.' });
+  const cost = calcHallCost(start, end);
+  if (!cost) return res.status(400).json({ error: 'End time must be after start time.' });
+
+  const data = load();
+  if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
+  const now = Date.now();
+  const booking = {
+    id: 'hb_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    email: email.slice(0, 200),
+    name: name.slice(0, 120),
+    phone: phone.slice(0, 60),
+    date,
+    startTime: start,
+    endTime: end,
+    description: desc.slice(0, 2000),
+    cost,
+    status: 'pending',
+    createdAt: now,
+    confirmedAt: null
+  };
+  data.hallBookings.push(booking);
+  save(data, { label: 'Hall booking' });
+  res.json({ ok: true, booking });
+});
+
+app.post('/api/hall-bookings/:id/confirm', async (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
+  const booking = data.hallBookings.find(b => b.id === req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (booking.status === 'confirmed') return res.json({ ok: true, booking, emailed: false, alreadyConfirmed: true });
+  booking.status = 'confirmed';
+  booking.confirmedAt = Date.now();
+  save(data, { silent: true });
+
+  let emailed = false; let emailError = null;
+  const transport = getMailTransport();
+  if (transport && booking.email) {
+    try {
+      await transport.sendMail({
+        from:    process.env.SMTP_FROM || process.env.SMTP_USER,
+        to:      booking.email,
+        subject: 'Hall booking confirmed — Auroa School',
+        text:
+`Kia ora ${booking.name},
+
+Your hall booking has been confirmed:
+
+  Date:        ${booking.date}
+  Time:        ${booking.startTime} – ${booking.endTime}
+  Description: ${booking.description || '(none)'}
+  Cost:        $${booking.cost}
+
+Please contact the school office if you need to change or cancel this booking.
+
+Ngā mihi,
+Auroa School`
+      });
+      emailed = true;
+    } catch (e) {
+      emailError = e.message || 'send failed';
+      console.warn('[hall] email send failed:', emailError);
+    }
+  }
+  res.json({ ok: true, booking, emailed, emailError });
+});
+
+app.delete('/api/hall-bookings/:id', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
+  const before = data.hallBookings.length;
+  data.hallBookings = data.hallBookings.filter(b => b.id !== req.params.id);
+  save(data, { silent: true });
+  res.json({ ok: true, removed: before - data.hallBookings.length });
 });
 
 app.post('/api/save', (req, res) => {
