@@ -231,6 +231,8 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   transition:background 0.15s;
 }
 .sidebar-btn.parent-portal:hover{background:#0e7a64;color:#fff;}
+/* Register-for-messages button is admin-only — hide for visitors */
+body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 /* Grouped colour buttons in the sidebar */
 .sidebar-btn.group-blue,
 .sidebar-btn.group-red,
