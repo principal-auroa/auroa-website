@@ -7065,9 +7065,10 @@ function collectNoticeEdits() {
   });
 }
 
+// Auto-save the newsletter draft. Returns a Promise that resolves on
+// successful server save (so the auto-save status indicator reflects the
+// real outcome). Snapshots are never created here — only by publishNewsletter().
 function saveNewsletter() {
-  var status = el('nl-save-status');
-  var btn = document.querySelector('.nl-save-btn');
   collectNoticeEdits();
   var datesEl = el('nl-important-dates');
   var sotwMsgEl = el('nl-sotw-msg');
@@ -7088,34 +7089,19 @@ function saveNewsletter() {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
     })
   };
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-  if (status) { status.textContent = ''; status.className = 'nl-save-status'; }
-  fetch('/api/newsletter/save', {
+  return fetch('/api/newsletter/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(draft)
   })
-  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
-  .then(function(res) {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Save newsletter'; }
-    if (!res.ok || !res.body || !res.body.snapshot) {
-      if (status) { status.textContent = (res.body && res.body.error) || 'Save failed.'; status.className = 'nl-save-status err'; }
-      return;
-    }
-    var snap = res.body.snapshot;
-    newsletterData = draft;
-    var existing = newsletterSnapshots.findIndex(function(s){ return s.id === snap.id; });
-    if (existing >= 0) newsletterSnapshots[existing] = snap;
-    else newsletterSnapshots.push(snap);
-    if (status) {
-      status.innerHTML = 'Saved &middot; <a href="/newsletter/' + snap.slug + '" target="_blank">' + window.location.origin + '/newsletter/' + snap.slug + '</a>';
-      status.className = 'nl-save-status ok';
-    }
-    renderNewsletterSnapshots();
+  .then(function(r) {
+    if (!r.ok) throw new Error('save failed (' + r.status + ')');
+    return r.json();
   })
-  .catch(function() {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Save newsletter'; }
-    if (status) { status.textContent = 'Network error.'; status.className = 'nl-save-status err'; }
+  .then(function(b) {
+    if (!b || b.ok !== true) throw new Error('save failed');
+    newsletterData = draft;
+    return b;
   });
 }
 
@@ -7443,9 +7429,12 @@ function publishNewsletter() {
       }
     };
     if (kind === 'newsletter' && typeof saveNewsletter === 'function') {
-      saveNewsletter();
-      // saveNewsletter doesn't return a promise; assume success and bump
-      setTimeout(function() { done(true); }, 200);
+      var p = saveNewsletter();
+      if (p && typeof p.then === 'function') {
+        p.then(function() { done(true); }, function() { done(false); });
+      } else {
+        done(true);
+      }
     } else if (kind === 'page') {
       autoSavePage().then(function() { done(true); }, function() { done(false); });
     } else if (kind === 'sport' && typeof sdSave === 'function') {
