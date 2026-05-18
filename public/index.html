@@ -2995,6 +2995,10 @@ function exitAdmin() {
     if (document.querySelector('#pg-sport.active') && typeof sdSave === 'function') sdSave();
     // Event detail page: ditto
     if (document.querySelector('#pg-event.active') && typeof evSave === 'function') evSave();
+    // Belt-and-braces: also fire the unload-safe sendBeacon save for
+    // newsletter so the server has the latest state even if the admin
+    // switches browsers / closes the tab right after clicking Log out.
+    if (typeof nlBeaconSave === 'function') nlBeaconSave();
   } catch (e) {}
   if (el('save-msg')) el('save-msg').textContent = 'Saving on logout…';
 
@@ -6983,11 +6987,17 @@ function nlSetEditableState(canEdit) {
 }
 
 window.addEventListener('beforeunload', function() {
-  // Best-effort: fire any pending saves before the tab unloads. Browsers
-  // may cancel in-flight fetches when the tab actually closes, but the
-  // common case (refresh, navigate away) usually lets them complete.
+  // Best-effort: fire any pending saves before the tab unloads. Regular
+  // fetch() requests can get aborted on unload, so the newsletter save
+  // also goes via navigator.sendBeacon as a guaranteed-completion path.
   if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
   if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
+  if (typeof nlBeaconSave === 'function') nlBeaconSave();
+});
+
+// pagehide fires more reliably than beforeunload (especially on mobile)
+window.addEventListener('pagehide', function() {
+  if (typeof nlBeaconSave === 'function') nlBeaconSave();
 });
 
 function nlUploadImage(event, slot) {
@@ -7083,16 +7093,15 @@ function collectNoticeEdits() {
   });
 }
 
-// Auto-save the newsletter draft. Returns a Promise that resolves on
-// successful server save (so the auto-save status indicator reflects the
-// real outcome). Snapshots are never created here — only by publishNewsletter().
-function saveNewsletter() {
+// Capture the current newsletter editor state into a draft object.
+// Used by both saveNewsletter (fetch) and nlBeaconSave (sendBeacon).
+function nlBuildDraft() {
   collectNoticeEdits();
-  var datesEl = el('nl-important-dates');
+  var datesEl   = el('nl-important-dates');
   var sotwMsgEl = el('nl-sotw-msg');
   var campsEdEl = el('nl-camps');
-  var sapEdEl = el('nl-school-accounts');
-  var draft = {
+  var sapEdEl   = el('nl-school-accounts');
+  return {
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
     principalImage: newsletterData.principalImage || null,
@@ -7107,6 +7116,12 @@ function saveNewsletter() {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
     })
   };
+}
+
+// Normal auto-save via fetch — returns a Promise so the status indicator
+// reflects the real outcome. Snapshots are never created here.
+function saveNewsletter() {
+  var draft = nlBuildDraft();
   return fetch('/api/newsletter/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -7121,6 +7136,20 @@ function saveNewsletter() {
     newsletterData = draft;
     return b;
   });
+}
+
+// Unload-safe save via sendBeacon. Regular fetch() requests get aborted
+// when the page unloads (tab close, switching browsers), which would
+// leave the server with stale content. sendBeacon queues the POST at
+// the browser level so it completes after the page is gone.
+function nlBeaconSave() {
+  if (!window.isAdmin || !el('nl-term-label')) return;
+  if (!navigator.sendBeacon) return;
+  try {
+    var draft = nlBuildDraft();
+    var blob = new Blob([JSON.stringify(draft)], { type: 'application/json' });
+    navigator.sendBeacon('/api/newsletter/save', blob);
+  } catch (e) {}
 }
 
 var nlShowHidden = false;
