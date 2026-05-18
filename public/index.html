@@ -4913,10 +4913,25 @@ function restoreSel() {
   return true;
 }
 
+// After any format-toolbar action, dispatch a synthetic 'input' event on
+// the editable container so the auto-save listener picks it up.
+// execCommand and direct DOM tweaks don't fire input events on their own,
+// which is why colour/size/bold/bullet weren't surviving a refresh.
+function fmtNotifyChange() {
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  var node = sel.anchorNode;
+  while (node && node.nodeType !== 1) node = node.parentNode;
+  if (!node || !node.closest) return;
+  var ce = node.closest('[contenteditable="true"]') || node.closest('.editable.editing');
+  if (ce) ce.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function fmtBold() {
   restoreSel();
   document.execCommand('bold');
   fmtSavedRange = window.getSelection().getRangeAt(0).cloneRange();
+  fmtNotifyChange();
 }
 
 function fmtColor(color) {
@@ -4924,6 +4939,7 @@ function fmtColor(color) {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('foreColor', false, color);
   fmtSavedRange = window.getSelection().getRangeAt(0).cloneRange();
+  fmtNotifyChange();
 }
 
 function fmtSize(px) {
@@ -4942,6 +4958,7 @@ function fmtSize(px) {
   newRange.selectNodeContents(span);
   sel.addRange(newRange);
   fmtSavedRange = newRange.cloneRange();
+  fmtNotifyChange();
 }
 
 function fmtBullet() {
@@ -4949,6 +4966,7 @@ function fmtBullet() {
   document.execCommand('insertUnorderedList');
   var sel = window.getSelection();
   if (sel && !sel.isCollapsed) fmtSavedRange = sel.getRangeAt(0).cloneRange();
+  fmtNotifyChange();
 }
 
 function fmtClearStyles() {
