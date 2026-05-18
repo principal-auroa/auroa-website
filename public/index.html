@@ -2979,6 +2979,11 @@ function enterAdmin() {
   if (typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 function exitAdmin() {
+  // Flush any in-progress edits FIRST — re-rendering or clearing classes
+  // below would otherwise wipe text typed in the last debounce window.
+  if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
+  if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
+
   document.body.classList.remove('is-admin');
   el('login-btn').style.display = 'block';
   el('admin-badge').style.display = 'none';
@@ -2997,7 +3002,9 @@ function exitAdmin() {
   renderPrideBtnLabels();
   renderY78Boxes();
   renderSidebarPages();
-  if (typeof renderNewsletter === 'function') renderNewsletter();
+  // Just flip contentEditable on newsletter fields — DON'T re-render content
+  // (re-render reads from newsletterData and would wipe in-progress typing).
+  if (typeof nlSetEditableState === 'function') nlSetEditableState(false);
   if (typeof renderLunchAdmin === 'function') renderLunchAdmin();
 }
 
@@ -6939,6 +6946,32 @@ function nlAutoSave() {
   if (typeof scheduleAutoSave === 'function') scheduleAutoSave('newsletter');
 }
 
+// Capture current DOM edits into newsletterData and force any pending
+// auto-save to fire immediately. Called from exitAdmin and beforeunload
+// so that the last 1.5 seconds of typing doesn't get wiped/lost.
+function nlFlushPendingSave() {
+  if (!el('nl-term-label')) return; // newsletter not in DOM
+  try { nlCollectAllTextEdits(); } catch (e) {}
+  if (typeof window.flushAutoSave === 'function') window.flushAutoSave('newsletter');
+}
+
+// Flip contentEditable on every newsletter field without re-rendering the
+// content (re-render would wipe whatever the admin had just typed).
+function nlSetEditableState(canEdit) {
+  ['nl-term-label','nl-principal-msg','nl-important-dates',
+   'nl-sotw-msg','nl-camps','nl-school-accounts'].forEach(function(id) {
+    var node = el(id);
+    if (node) node.contentEditable = canEdit ? 'true' : 'false';
+  });
+  document.querySelectorAll('#nl-notices .nl-notice-caption').forEach(function(node) {
+    node.contentEditable = canEdit ? 'true' : 'false';
+  });
+}
+
+window.addEventListener('beforeunload', function() {
+  if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
+});
+
 function nlUploadImage(event, slot) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -7370,6 +7403,26 @@ function publishNewsletter() {
     setSaveStatus('saving', '<span class="spinner"></span>Editing…');
     clearTimeout(_autoTimers[kind]);
     _autoTimers[kind] = setTimeout(function() { runAutoSave(kind); }, DEBOUNCE_MS);
+  };
+
+  // Cancel a pending debounce and fire its save immediately — used on logout
+  // and tab close so the last 1.5s of typing doesn't vanish.
+  window.flushAutoSave = function(kind) {
+    if (kind) {
+      if (_autoTimers[kind]) {
+        clearTimeout(_autoTimers[kind]);
+        _autoTimers[kind] = null;
+        runAutoSave(kind);
+      }
+      return;
+    }
+    Object.keys(_autoTimers).forEach(function(k) {
+      if (_autoTimers[k]) {
+        clearTimeout(_autoTimers[k]);
+        _autoTimers[k] = null;
+        runAutoSave(k);
+      }
+    });
   };
 
   function runAutoSave(kind) {
