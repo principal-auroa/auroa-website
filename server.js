@@ -145,6 +145,8 @@ function load() {
     if (typeof data.newsletter.campsDayTrips !== 'string') data.newsletter.campsDayTrips = '';
     if (typeof data.newsletter.schoolAccountsPayments !== 'string') data.newsletter.schoolAccountsPayments = '';
     if (typeof data.newsletter.footerImage === 'undefined') data.newsletter.footerImage = null;
+    if (typeof data.newsletter.uniformPortraitImage === 'undefined') data.newsletter.uniformPortraitImage = null;
+    if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
@@ -696,6 +698,8 @@ app.post('/api/newsletter/save', (req, res) => {
     studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 100000),
     campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 100000),
     schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
+    uniformPortraitImage: b.uniformPortraitImage || null,
+    uniformLandscapeImage: b.uniformLandscapeImage || null,
     footerImage: b.footerImage || null,
     notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
@@ -727,17 +731,19 @@ app.post('/api/newsletter/publish', (req, res) => {
   let snap = data.newsletterSnapshots.find(s => s.termLabel === termLabel);
   let isNew = false;
   if (snap) {
-    snap.headerImage          = draft.headerImage || null;
-    snap.principalImage       = draft.principalImage || null;
-    snap.principalMessage     = draft.principalMessage || '';
-    snap.importantDates       = draft.importantDates || '';
-    snap.studentsWeekImage    = draft.studentsWeekImage || null;
-    snap.studentsWeekMessage  = draft.studentsWeekMessage || '';
-    snap.campsDayTrips        = draft.campsDayTrips || '';
+    snap.headerImage           = draft.headerImage || null;
+    snap.principalImage        = draft.principalImage || null;
+    snap.principalMessage      = draft.principalMessage || '';
+    snap.importantDates        = draft.importantDates || '';
+    snap.studentsWeekImage     = draft.studentsWeekImage || null;
+    snap.studentsWeekMessage   = draft.studentsWeekMessage || '';
+    snap.campsDayTrips         = draft.campsDayTrips || '';
     snap.schoolAccountsPayments = draft.schoolAccountsPayments || '';
-    snap.footerImage          = draft.footerImage || null;
-    snap.notices              = (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null }));
-    snap.updatedAt            = now;
+    snap.footerImage           = draft.footerImage || null;
+    snap.uniformPortraitImage  = draft.uniformPortraitImage || null;
+    snap.uniformLandscapeImage = draft.uniformLandscapeImage || null;
+    snap.notices               = (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null }));
+    snap.updatedAt             = now;
   } else {
     isNew = true;
     const baseSlug = nlSlug(termLabel);
@@ -754,6 +760,8 @@ app.post('/api/newsletter/publish', (req, res) => {
       campsDayTrips: draft.campsDayTrips || '',
       schoolAccountsPayments: draft.schoolAccountsPayments || '',
       footerImage: draft.footerImage || null,
+      uniformPortraitImage: draft.uniformPortraitImage || null,
+      uniformLandscapeImage: draft.uniformLandscapeImage || null,
       notices: (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null })),
       createdAt: now,
       updatedAt: now
@@ -774,6 +782,8 @@ function collectReferencedFiles(data) {
     add(data.newsletter.principalImage);
     add(data.newsletter.studentsWeekImage);
     add(data.newsletter.footerImage);
+    add(data.newsletter.uniformPortraitImage);
+    add(data.newsletter.uniformLandscapeImage);
     (data.newsletter.notices || []).forEach(n => add(n && n.filename));
   }
   (data.newsletterSnapshots || []).forEach(s => {
@@ -781,6 +791,8 @@ function collectReferencedFiles(data) {
     add(s.principalImage);
     add(s.studentsWeekImage);
     add(s.footerImage);
+    add(s.uniformPortraitImage);
+    add(s.uniformLandscapeImage);
     (s.notices || []).forEach(n => add(n && n.filename));
   });
   return refs;
@@ -800,6 +812,8 @@ app.delete('/api/newsletter-snapshot/:id', (req, res) => {
   add(target.principalImage);
   add(target.studentsWeekImage);
   add(target.footerImage);
+  add(target.uniformPortraitImage);
+  add(target.uniformLandscapeImage);
   (target.notices || []).forEach(n => add(n && n.filename));
 
   // Drop the snapshot first so we can compute "still referenced" correctly
@@ -888,6 +902,8 @@ app.get('/newsletter/:slug', (req, res) => {
   const campsHtml = richField(snap.campsDayTrips);
   const sapHtml   = richField(snap.schoolAccountsPayments);
   const nlFooter = snap.footerImage ? '/uploads/' + nlEscape(snap.footerImage) : null;
+  const nlUniP = snap.uniformPortraitImage ? '/uploads/' + nlEscape(snap.uniformPortraitImage) : null;
+  const nlUniL = snap.uniformLandscapeImage ? '/uploads/' + nlEscape(snap.uniformLandscapeImage) : null;
   const noticesHtml = (snap.notices || []).filter(n => n.filename).map(n => {
     const url = '/uploads/' + nlEscape(n.filename);
     return `<figure class="nl-pub-notice">
@@ -927,6 +943,10 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub-notice{display:flex;flex-direction:column;gap:8px;}
   .nl-pub-notice figcaption{font-weight:600;color:#1a2b4a;font-size:14px;}
   .nl-pub-notice img{width:100%;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
+  .nl-pub-uni-portrait{display:flex;justify-content:center;margin:8px 0 16px;}
+  .nl-pub-uni-portrait img{max-width:320px;width:auto;height:auto;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
+  .nl-pub-uni-landscape{margin:8px 0 16px;}
+  .nl-pub-uni-landscape img{width:100%;height:auto;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
   .nl-pub-meta{color:#888;font-size:12px;text-align:center;margin-top:40px;}
   #lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;justify-content:center;align-items:center;padding:20px;cursor:zoom-out;}
   #lb.open{display:flex;}
@@ -952,6 +972,9 @@ app.get('/newsletter/:slug', (req, res) => {
   ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg">${sapHtml}</div>` : ''}
   ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg">${campsHtml}</div>` : ''}
   ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}
+  ${(nlUniP || nlUniL) ? `<h2>School Uniform</h2>
+    ${nlUniP ? `<div class="nl-pub-uni-portrait" onclick="lbOpen('${nlUniP}')"><img src="${nlUniP}" alt=""></div>` : ''}
+    ${nlUniL ? `<div class="nl-pub-uni-landscape" onclick="lbOpen('${nlUniL}')"><img src="${nlUniL}" alt=""></div>` : ''}` : ''}
   ${nlFooter ? `<hr style="border:none;border-top:2px solid #c0642b;margin:32px 0 18px;"><div class="nl-pub-hero" style="margin-top:32px;"><img src="${nlFooter}" alt=""></div>` : ''}
   <div class="nl-pub-meta">Saved ${new Date(snap.updatedAt || snap.createdAt).toLocaleString()}</div>
 </div>

@@ -1665,6 +1665,9 @@ h2.nl-section-h{
 .nl-image-slot img.loaded ~ .nl-image-placeholder{display:none;}
 body:not(.is-admin) .nl-image-placeholder{display:none;}
 .nl-principal img.loaded{max-width:280px;}
+.nl-uni-portrait img.loaded{max-width:320px;margin:0 auto;}
+.nl-uni-portrait{text-align:center;}
+.nl-uni-landscape{margin-top:8px;}
 .nl-image-tools{
   display:none;
   position:absolute;top:8px;right:8px;
@@ -2537,6 +2540,30 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
                  onchange="nlAddImagesAsNotices(event)">
         </label>
         <span class="nl-add-hint">Tip: in the file picker, hold Shift or Cmd to select more than one image at a time.</span>
+      </div>
+
+      <h2 class="nl-section-h">School Uniform</h2>
+      <div id="nl-uni-portrait-slot" class="nl-image-slot nl-uni-portrait">
+        <img id="nl-uni-portrait-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No portrait image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'uniformPortrait')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('uniformPortrait')">Remove</button>
+        </div>
+      </div>
+      <div id="nl-uni-landscape-slot" class="nl-image-slot nl-uni-landscape">
+        <img id="nl-uni-landscape-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No landscape image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'uniformLandscape')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('uniformLandscape')">Remove</button>
+        </div>
       </div>
 
       <hr class="nl-divider">
@@ -6981,6 +7008,8 @@ var newsletterData = {
   campsDayTrips: '',
   schoolAccountsPayments: '',
   footerImage: null,
+  uniformPortraitImage: null,
+  uniformLandscapeImage: null,
   notices: [
     { id: 'nt_1', caption: '', filename: null },
     { id: 'nt_2', caption: '', filename: null },
@@ -7045,6 +7074,11 @@ function renderNewsletter() {
 
   var footerImg = el('nl-footer-img');
   if (footerImg) nlSetImage(el('nl-footer-slot'), footerImg, newsletterData.footerImage);
+
+  var uniPImg = el('nl-uni-portrait-img');
+  if (uniPImg) nlSetImage(el('nl-uni-portrait-slot'), uniPImg, newsletterData.uniformPortraitImage);
+  var uniLImg = el('nl-uni-landscape-img');
+  if (uniLImg) nlSetImage(el('nl-uni-landscape-slot'), uniLImg, newsletterData.uniformLandscapeImage);
 
   renderNlNotices();
   renderNewsletterSnapshots();
@@ -7214,6 +7248,8 @@ function nlUploadImage(event, slot) {
       else if (slot === 'principal') newsletterData.principalImage = res.filename;
       else if (slot === 'sotw') newsletterData.studentsWeekImage = res.filename;
       else if (slot === 'footer') newsletterData.footerImage = res.filename;
+      else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = res.filename;
+      else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = res.filename;
       renderNewsletter();
       nlAutoSave();
     });
@@ -7226,6 +7262,8 @@ function nlRemoveImage(slot) {
   else if (slot === 'principal') newsletterData.principalImage = null;
   else if (slot === 'sotw') newsletterData.studentsWeekImage = null;
   else if (slot === 'footer') newsletterData.footerImage = null;
+  else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = null;
+  else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = null;
   renderNewsletter();
   nlAutoSave();
 }
@@ -7369,6 +7407,8 @@ function nlBuildDraft() {
     campsDayTrips: campsEdEl ? (campsEdEl.innerHTML || '') : '',
     schoolAccountsPayments: sapEdEl ? (sapEdEl.innerHTML || '') : '',
     footerImage: newsletterData.footerImage || null,
+    uniformPortraitImage: newsletterData.uniformPortraitImage || null,
+    uniformLandscapeImage: newsletterData.uniformLandscapeImage || null,
     principalMessage: (el('nl-principal-msg').innerHTML || '').replace(/ /g, ' '),
     notices: (newsletterData.notices || []).map(function(n) {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
