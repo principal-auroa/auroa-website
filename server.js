@@ -150,6 +150,7 @@ function load() {
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -1143,6 +1144,42 @@ app.delete('/api/hall-bookings/:id', (req, res) => {
   data.hallBookings = data.hallBookings.filter(b => b.id !== req.params.id);
   save(data, { silent: true });
   res.json({ ok: true, removed: before - data.hallBookings.length });
+});
+
+// ---- Upcoming events (calendar) ----
+app.post('/api/upcoming-events', (req, res) => {
+  const b = req.body || {};
+  const date = String(b.date || '').trim();
+  const time = String(b.time || '').trim();
+  const name = String(b.name || '').trim();
+  const details = String(b.details || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
+  if (!/^\d{1,2}:\d{2}$/.test(time))    return res.status(400).json({ error: 'Pick a time.' });
+  if (!name)                            return res.status(400).json({ error: 'Event name is required.' });
+
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  const now = Date.now();
+  const event = {
+    id: 'ue_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    date,
+    time,
+    name: name.slice(0, 200),
+    details: details.slice(0, 4000),
+    createdAt: now
+  };
+  data.upcomingEvents.push(event);
+  save(data, { label: 'Upcoming Events' });
+  res.json({ ok: true, event });
+});
+
+app.delete('/api/upcoming-events/:id', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  const before = data.upcomingEvents.length;
+  data.upcomingEvents = data.upcomingEvents.filter(e => e.id !== req.params.id);
+  save(data, { silent: true });
+  res.json({ ok: true, removed: before - data.upcomingEvents.length });
 });
 
 app.post('/api/save', (req, res) => {
