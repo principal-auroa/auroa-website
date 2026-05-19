@@ -2942,11 +2942,15 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="hb-row">
           <div class="hb-field">
             <label class="hb-label" for="hb-start">Start time <span class="hb-required">*</span></label>
-            <input id="hb-start" class="hb-input" type="time" required step="1800" min="00:00" max="23:30" onchange="updateHallCost()" />
+            <select id="hb-start" class="hb-input" required onchange="updateHallCost()">
+              <option value="">Select…</option>
+            </select>
           </div>
           <div class="hb-field">
             <label class="hb-label" for="hb-end">End time <span class="hb-required">*</span></label>
-            <input id="hb-end" class="hb-input" type="time" required step="1800" min="00:30" max="23:30" onchange="updateHallCost()" />
+            <select id="hb-end" class="hb-input" required onchange="updateHallCost()">
+              <option value="">Select…</option>
+            </select>
           </div>
         </div>
 
@@ -8268,6 +8272,37 @@ function updateHallCost() {
   var c = hbCalcCost(el('hb-start').value, el('hb-end').value);
   var box = el('hb-cost-amount');
   if (box) box.textContent = '$' + c;
+}
+
+// Populate the start/end time dropdowns with HH:00 and HH:30 only.
+function hbPopulateTimeSelects() {
+  var startSel = el('hb-start');
+  var endSel   = el('hb-end');
+  if (!startSel || !endSel) return;
+  // Don't repopulate if already filled (e.g. on showPage re-entry).
+  if (startSel.options.length > 1) return;
+
+  function fmt(h, m) {
+    var period = h >= 12 ? 'pm' : 'am';
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + (m === 0 ? '' : (':' + String(m).padStart(2, '0'))) + period;
+  }
+  for (var h = 0; h < 24; h++) {
+    for (var m = 0; m < 60; m += 30) {
+      var val = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      var label = fmt(h, m);
+      var optS = document.createElement('option'); optS.value = val; optS.textContent = label;
+      startSel.appendChild(optS);
+      var optE = document.createElement('option'); optE.value = val; optE.textContent = label;
+      endSel.appendChild(optE);
+    }
+  }
+}
+// Run on first page load.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', hbPopulateTimeSelects);
+} else {
+  hbPopulateTimeSelects();
 }
 
 function submitHallBooking() {
