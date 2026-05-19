@@ -1047,7 +1047,12 @@ function getMailTransport() {
   const user = envClean('SMTP_USER');
   const host = envClean('SMTP_HOST') || 'smtp.gmail.com';
   const pass = envClean('SMTP_PASS');
-  if (!user && !process.env.SMTP_HOST) return null;
+  // Require at least a user (auth) and a non-default host setup so we don't
+  // silently try Gmail without credentials.
+  if (!user || !pass) {
+    console.warn('[hall] SMTP not configured — missing SMTP_USER or SMTP_PASS');
+    return null;
+  }
   try {
     const nm = require('nodemailer');
     _mailTransport = nm.createTransport({

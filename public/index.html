@@ -8433,10 +8433,12 @@ function hbConfirmBooking(id, btn) {
     .then(function(b) {
       var bk = hallBookings.find(function(x) { return x.id === id; });
       if (bk && b && b.booking) { bk.status = b.booking.status; bk.confirmedAt = b.booking.confirmedAt; }
-      if (b && b.emailed === false && b.booking && b.booking.email) {
+      if (b && b.emailError) {
+        // SMTP attempt happened but failed — surface the actual error so it's debuggable.
+        alert('Booking confirmed but the email failed:\n\n' + b.emailError +
+              '\n\nCheck the Railway logs for the [hall] line, and verify SMTP_HOST / SMTP_USER / SMTP_PASS values have no extra whitespace.');
+      } else if (b && b.emailed === false && b.booking && b.booking.email) {
         alert('Booking confirmed. Email NOT sent — SMTP env vars are not set on the server.\n\nSet SMTP_HOST, SMTP_USER, SMTP_PASS and SMTP_FROM in Railway to enable confirmation emails.');
-      } else if (b && b.emailError) {
-        alert('Booking confirmed but the email failed: ' + b.emailError);
       }
       renderHbCalendar();
       renderHbAdmin();
