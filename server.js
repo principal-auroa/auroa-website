@@ -1082,7 +1082,7 @@ app.post('/api/hall-bookings', (req, res) => {
   if (!name)  return res.status(400).json({ error: 'Contact name is required.' });
   if (!phone) return res.status(400).json({ error: 'Contact phone is required.' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date for the booking.' });
-  if (!/^\d{1,2}:00$/.test(start) || !/^\d{1,2}:00$/.test(end)) return res.status(400).json({ error: 'Times must be on the hour (e.g. 18:00).' });
+  if (!/^\d{1,2}:(00|30)$/.test(start) || !/^\d{1,2}:(00|30)$/.test(end)) return res.status(400).json({ error: 'Times must be on the hour or half-hour (e.g. 18:00 or 18:30).' });
   const cost = calcHallCost(start, end);
   if (!cost) return res.status(400).json({ error: 'End time must be after start time.' });
 
