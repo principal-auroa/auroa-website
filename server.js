@@ -1037,16 +1037,24 @@ function calcHallCost(startTime, endTime) {
 // env vars to enable confirmation emails. Without them, emails are skipped
 // and the booking still confirms normally.
 let _mailTransport = null;
+function envClean(name) {
+  // Trim whitespace + strip any stray quotes that copy-paste through
+  // Railway's UI sometimes adds. Returns '' if not set.
+  return String(process.env[name] || '').trim().replace(/^["']|["']$/g, '').trim();
+}
 function getMailTransport() {
   if (_mailTransport) return _mailTransport;
-  if (!process.env.SMTP_USER && !process.env.SMTP_HOST) return null;
+  const user = envClean('SMTP_USER');
+  const host = envClean('SMTP_HOST') || 'smtp.gmail.com';
+  const pass = envClean('SMTP_PASS');
+  if (!user && !process.env.SMTP_HOST) return null;
   try {
     const nm = require('nodemailer');
     _mailTransport = nm.createTransport({
-      host:   process.env.SMTP_HOST || 'smtp.gmail.com',
-      port:   parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      host,
+      port:   parseInt(envClean('SMTP_PORT') || '587', 10),
+      secure: envClean('SMTP_SECURE').toLowerCase() === 'true',
+      auth: { user, pass }
     });
     return _mailTransport;
   } catch (e) {
@@ -1110,7 +1118,7 @@ app.post('/api/hall-bookings/:id/confirm', async (req, res) => {
   if (transport && booking.email) {
     try {
       await transport.sendMail({
-        from:    process.env.SMTP_FROM || process.env.SMTP_USER,
+        from:    envClean('SMTP_FROM') || envClean('SMTP_USER'),
         to:      booking.email,
         subject: 'Hall booking confirmed — Auroa School',
         text:
