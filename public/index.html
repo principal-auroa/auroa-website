@@ -2053,15 +2053,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 #mobile-menu-btn{
   display:none;
   position:fixed;top:8px;left:10px;z-index:1000;
-  width:42px;height:42px;
-  border:none;border-radius:8px;
+  height:36px;min-width:42px;
+  border:none;border-radius:18px;
   background:#1a2b4a;color:#fff;
-  font-size:20px;line-height:1;
+  font-family:'Quicksand',sans-serif;
+  font-size:12px;font-weight:700;letter-spacing:0.3px;
+  line-height:1;
   cursor:pointer;
   box-shadow:0 2px 8px rgba(0,0,0,0.18);
   align-items:center;justify-content:center;
-  padding:0;
+  padding:0 14px;white-space:nowrap;
 }
+#mobile-menu-btn.is-open{padding:0;width:36px;min-width:0;font-size:22px;}
 #mobile-menu-btn:hover{background:#243d6a;}
 #sidebar-backdrop{
   display:none;position:fixed;inset:0;
@@ -2099,6 +2102,11 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
      height when the grid stacks to a single column. Give them an explicit
      aspect ratio (with a min-height fallback) so the image is visible. */
   .hit-img-cell{aspect-ratio:16/9;min-height:200px;border-right:none;}
+
+  /* The home page .container is fixed at 65% width on desktop — way too
+     narrow for a phone, and child elements (info table) get cropped.
+     Expand to full viewport width with comfortable padding on mobile. */
+  .container{width:auto;padding:18px 14px 40px;}
   .bus-grid{grid-template-columns:1fr;}
 
   /* Reduce dense button grids from 4 cols to 2 */
@@ -2175,7 +2183,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 </div>
 
 <!-- MOBILE MENU TOGGLE -->
-<button id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-controls="home-sidebar" aria-expanded="false">&#9776;</button>
+<button id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-controls="home-sidebar" aria-expanded="false">…more pages</button>
 <div id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
 <!-- SITE HEADER -->
@@ -6794,8 +6802,8 @@ function toggleMobileSidebar(){
   bd.classList.toggle('open', open);
   if (btn) {
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.innerHTML = open ? '&times;' : '&#9776;';
-    btn.style.fontSize = open ? '26px' : '20px';
+    btn.classList.toggle('is-open', open);
+    btn.innerHTML = open ? '&times;' : '…more pages';
   }
 }
 function closeMobileSidebar(){
@@ -6806,8 +6814,8 @@ function closeMobileSidebar(){
   bd.classList.remove('open');
   if (btn) {
     btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = '&#9776;';
-    btn.style.fontSize = '20px';
+    btn.classList.remove('is-open');
+    btn.innerHTML = '…more pages';
   }
 }
 // Auto-close drawer when a nav button is tapped (non-admin only — admin uses
