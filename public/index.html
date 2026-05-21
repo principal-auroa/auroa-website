@@ -1659,9 +1659,13 @@ body.is-admin .lunch-admin{display:block;}
 .pm-subscribe-btn:disabled{opacity:0.5;cursor:not-allowed;}
 .pm-subscribe-btn.is-on{background:#16a34a;}
 .pm-subscribe-btn.is-on:hover{background:#15803d;}
-.pm-subscribe-status{font-size:12px;color:#78350f;margin-top:8px;min-height:16px;}
+.pm-subscribe-status{font-size:12px;color:#78350f;margin-top:8px;min-height:16px;line-height:1.5;}
 .pm-subscribe-status.ok{color:#16a34a;}
 .pm-subscribe-status.err{color:#c0392b;}
+.pm-subscribe-status.info{color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;padding:10px 12px;border-radius:8px;margin-top:10px;}
+.pm-subscribe-status.info ol{margin:6px 0 0 18px;padding:0;}
+.pm-subscribe-status.info li{margin:3px 0;}
+.pm-subscribe-status.info strong{color:#1e3a8a;}
 .pm-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:18px;margin-bottom:18px;}
 body.is-admin .pm-admin{display:block;}
 .pm-admin-h{color:#1a2b4a;font-size:15px;font-weight:700;margin-bottom:10px;}
@@ -8202,16 +8206,45 @@ function pmUpdateSubscribeButton() {
   }
 }
 
-function pmStatus(text, kind) {
+function pmStatus(text, kind, isHtml) {
   var s = el('pm-subscribe-status');
   if (!s) return;
-  s.textContent = text || '';
+  if (isHtml) s.innerHTML = text || '';
+  else s.textContent = text || '';
   s.className = 'pm-subscribe-status' + (kind ? ' ' + kind : '');
 }
 
+function pmIsIOS() {
+  var ua = navigator.userAgent || '';
+  // iPhone / iPad / iPod, plus iPadOS 13+ which reports as Mac with touch.
+  return /iPad|iPhone|iPod/.test(ua) ||
+         (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+function pmIsStandalone() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+         window.navigator.standalone === true;
+}
+
 async function pmSubscribe() {
+  // iPhone/iPad: Safari only allows push from an installed PWA on iOS 16.4+.
+  // Catch this before requestPermission so the user gets an actionable message
+  // instead of a silent failure or a generic "browser doesn't support" error.
+  if (pmIsIOS() && !pmIsStandalone()) {
+    pmStatus(
+      '<strong>One extra step on iPhone:</strong> Apple only allows notifications after you add this site to your Home Screen.' +
+      '<ol>' +
+        '<li>Tap the <strong>Share</strong> button at the bottom of Safari (square with an arrow).</li>' +
+        '<li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>' +
+        '<li>Open the new <strong>Auroa</strong> icon from your Home Screen.</li>' +
+        '<li>Come back to this Messages page and tap <strong>Get notifications</strong> again.</li>' +
+      '</ol>' +
+      'In the meantime you can enter your email above and we will send copies that way.',
+      'info', true
+    );
+    return;
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    pmStatus("This browser doesn't support push notifications.", 'err');
+    pmStatus("This browser doesn't support push notifications. Try Chrome, Edge, or Firefox on desktop, or Chrome on Android.", 'err');
     return;
   }
   var emailInput = el('pm-email');
