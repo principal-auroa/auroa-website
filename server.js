@@ -147,6 +147,7 @@ function load() {
     if (typeof data.newsletter.footerImage === 'undefined') data.newsletter.footerImage = null;
     if (typeof data.newsletter.uniformPortraitImage === 'undefined') data.newsletter.uniformPortraitImage = null;
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
+    if (typeof data.newsletter.importantDatesImage === 'undefined') data.newsletter.importantDatesImage = null;
   }
   // Published version visitors see, distinct from the draft that admins edit.
   // On first deploy, seed it from the current draft so the public page
@@ -710,6 +711,7 @@ app.post('/api/newsletter/save', (req, res) => {
     schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
     uniformPortraitImage: b.uniformPortraitImage || null,
     uniformLandscapeImage: b.uniformLandscapeImage || null,
+    importantDatesImage: b.importantDatesImage || null,
     footerImage: b.footerImage || null,
     notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
@@ -752,6 +754,7 @@ app.post('/api/newsletter/publish', (req, res) => {
     snap.footerImage           = draft.footerImage || null;
     snap.uniformPortraitImage  = draft.uniformPortraitImage || null;
     snap.uniformLandscapeImage = draft.uniformLandscapeImage || null;
+    snap.importantDatesImage   = draft.importantDatesImage || null;
     snap.notices               = (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null }));
     snap.updatedAt             = now;
   } else {
@@ -772,6 +775,7 @@ app.post('/api/newsletter/publish', (req, res) => {
       footerImage: draft.footerImage || null,
       uniformPortraitImage: draft.uniformPortraitImage || null,
       uniformLandscapeImage: draft.uniformLandscapeImage || null,
+      importantDatesImage: draft.importantDatesImage || null,
       notices: (draft.notices || []).map(n => ({ id: n.id, caption: n.caption || '', filename: n.filename || null })),
       createdAt: now,
       updatedAt: now
@@ -797,6 +801,7 @@ function collectReferencedFiles(data) {
     add(data.newsletter.footerImage);
     add(data.newsletter.uniformPortraitImage);
     add(data.newsletter.uniformLandscapeImage);
+    add(data.newsletter.importantDatesImage);
     (data.newsletter.notices || []).forEach(n => add(n && n.filename));
   }
   (data.newsletterSnapshots || []).forEach(s => {
@@ -806,6 +811,7 @@ function collectReferencedFiles(data) {
     add(s.footerImage);
     add(s.uniformPortraitImage);
     add(s.uniformLandscapeImage);
+    add(s.importantDatesImage);
     (s.notices || []).forEach(n => add(n && n.filename));
   });
   return refs;
@@ -827,6 +833,7 @@ app.delete('/api/newsletter-snapshot/:id', (req, res) => {
   add(target.footerImage);
   add(target.uniformPortraitImage);
   add(target.uniformLandscapeImage);
+  add(target.importantDatesImage);
   (target.notices || []).forEach(n => add(n && n.filename));
 
   // Drop the snapshot first so we can compute "still referenced" correctly
@@ -917,6 +924,7 @@ app.get('/newsletter/:slug', (req, res) => {
   const nlFooter = snap.footerImage ? '/uploads/' + nlEscape(snap.footerImage) : null;
   const nlUniP = snap.uniformPortraitImage ? '/uploads/' + nlEscape(snap.uniformPortraitImage) : null;
   const nlUniL = snap.uniformLandscapeImage ? '/uploads/' + nlEscape(snap.uniformLandscapeImage) : null;
+  const nlDatesImg = snap.importantDatesImage ? '/uploads/' + nlEscape(snap.importantDatesImage) : null;
   const noticesHtml = (snap.notices || []).filter(n => n.filename).map(n => {
     const url = '/uploads/' + nlEscape(n.filename);
     return `<figure class="nl-pub-notice">
@@ -981,7 +989,7 @@ app.get('/newsletter/:slug', (req, res) => {
   ${nlPrincipal ? `<div class="nl-pub-principal-img"><img src="${nlPrincipal}" alt=""></div>` : ''}
   <div class="nl-pub-msg">${msgHtml || ''}</div>
   ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg">${sotwHtml}</div>` : ''}` : ''}
-  ${datesHtml ? `<h2>Important Dates</h2><div class="nl-pub-msg">${datesHtml}</div>` : ''}
+  ${(datesHtml || nlDatesImg) ? `<h2>Important Dates</h2>${datesHtml ? `<div class="nl-pub-msg">${datesHtml}</div>` : ''}${nlDatesImg ? `<div class="nl-pub-hero" style="margin-top:14px;" onclick="lbOpen('${nlDatesImg}')"><img src="${nlDatesImg}" alt=""></div>` : ''}` : ''}
   ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg">${sapHtml}</div>` : ''}
   ${campsHtml ? `<h2>Camps and Day Trips</h2><div class="nl-pub-msg">${campsHtml}</div>` : ''}
   ${noticesHtml ? `<h2>Notices</h2><div class="nl-pub-notices">${noticesHtml}</div>` : ''}

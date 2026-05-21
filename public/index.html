@@ -2773,6 +2773,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <h2 class="nl-section-h">Important Dates</h2>
       <div id="nl-important-dates" class="nl-msg" data-placeholder="Add upcoming dates, one per line..."></div>
 
+      <div id="nl-dates-slot" class="nl-image-slot nl-hero" style="margin-top:12px;">
+        <img id="nl-dates-img" alt="" onclick="nlMaybeLightbox(this)">
+        <div class="nl-image-placeholder">No image yet</div>
+        <div class="nl-image-tools">
+          <label class="nl-upload-label">
+            <span>Upload image</span>
+            <input type="file" accept="image/*" onchange="nlUploadImage(event, 'importantDates')">
+          </label>
+          <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('importantDates')">Remove</button>
+        </div>
+      </div>
+
       <h2 class="nl-section-h">School Accounts and Payments</h2>
       <div id="nl-school-accounts" class="nl-msg" data-placeholder="Reminders, payment options, due dates..."></div>
 
@@ -7375,6 +7387,7 @@ var newsletterData = {
   footerImage: null,
   uniformPortraitImage: null,
   uniformLandscapeImage: null,
+  importantDatesImage: null,
   notices: [
     { id: 'nt_1', caption: '', filename: null },
     { id: 'nt_2', caption: '', filename: null },
@@ -7423,6 +7436,9 @@ function renderNewsletter() {
     datesEl.innerHTML = nlContentToHtml(src.importantDates);
     datesEl.contentEditable = isAdmin ? 'true' : 'false';
   }
+
+  var datesImg = el('nl-dates-img');
+  if (datesImg) nlSetImage(el('nl-dates-slot'), datesImg, src.importantDatesImage);
 
   var sotwImg = el('nl-sotw-img');
   if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, src.studentsWeekImage);
@@ -7628,6 +7644,7 @@ function nlUploadImage(event, slot) {
       else if (slot === 'footer') newsletterData.footerImage = res.filename;
       else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = res.filename;
       else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = res.filename;
+      else if (slot === 'importantDates') newsletterData.importantDatesImage = res.filename;
       renderNewsletter();
       nlAutoSave();
     });
@@ -7642,6 +7659,7 @@ function nlRemoveImage(slot) {
   else if (slot === 'footer') newsletterData.footerImage = null;
   else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = null;
   else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = null;
+  else if (slot === 'importantDates') newsletterData.importantDatesImage = null;
   renderNewsletter();
   nlAutoSave();
 }
@@ -7787,6 +7805,7 @@ function nlBuildDraft() {
     footerImage: newsletterData.footerImage || null,
     uniformPortraitImage: newsletterData.uniformPortraitImage || null,
     uniformLandscapeImage: newsletterData.uniformLandscapeImage || null,
+    importantDatesImage: newsletterData.importantDatesImage || null,
     principalMessage: (el('nl-principal-msg').innerHTML || '').replace(/ /g, ' '),
     notices: (newsletterData.notices || []).map(function(n) {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
