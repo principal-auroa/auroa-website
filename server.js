@@ -290,12 +290,14 @@ app.get('/api/state', (req, res) => {
     editHistory = [],
     vapidPrivateKey, vapidPublicKey,        // server-only
     pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
+    parentMessages = [],                    // filter to admin-composed only
     ...rest
   } = data;
   const recent = editHistory.slice(-5).reverse().map(h => ({
     id: h.id, savedAt: h.savedAt, label: h.label || ''
   }));
   res.json(Object.assign({}, rest, {
+    parentMessages: parentMessages.filter(m => m.source === 'admin'),
     editHistoryCount: editHistory.length,
     editHistoryRecent: recent,
     pushSubscriberCount: Array.isArray(data.pushSubscriptions) ? data.pushSubscriptions.length : 0,
@@ -1337,9 +1339,12 @@ app.post('/api/push/unsubscribe', (req, res) => {
 });
 
 // Public: list messages so the page can render them.
+// Only admin-composed messages appear here — newsletter / event push triggers
+// still send notifications, but they don't show up as messages on the page.
 app.get('/api/parent-messages', (req, res) => {
   const data = load();
-  res.json({ messages: data.parentMessages || [] });
+  const all = data.parentMessages || [];
+  res.json({ messages: all.filter(m => m.source === 'admin') });
 });
 
 // Admin manual send. Calls notifyAll which appends + pushes + emails.
@@ -1361,9 +1366,10 @@ app.delete('/api/parent-messages/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Append a message + fan-out push notifications + email. Returns the saved
-// message record (with id). Idempotent on the server side — used both by
-// the admin endpoint and by other triggers (newsletter publish, etc.).
+// Fan-out push notifications + email to all subscribers. Admin-composed
+// messages are also persisted to data.parentMessages so they render on the
+// Messages page; auto triggers (newsletter publish, new event, etc.) only
+// send notifications and do not appear in the Messages list.
 async function notifyAll({ title, body, url, source }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
@@ -1379,18 +1385,25 @@ async function notifyAll({ title, body, url, source }) {
     source:  String(source || 'auto'),
     createdAt: now
   };
-  data.parentMessages.push(msg);
-  save(data, { label: 'Messages' });
+  const isAdmin = msg.source === 'admin';
+  if (isAdmin) {
+    data.parentMessages.push(msg);
+    save(data, { label: 'Messages' });
+  }
 
-  // Push fan-out
+  // Push fan-out. Only admin sends bump the app-icon badge; auto triggers
+  // route the user to their own page (newsletter / event) so a Messages-page
+  // badge would be misleading.
   const wp = getWebPush();
   if (wp && data.pushSubscriptions.length) {
-    const payload = JSON.stringify({
+    const adminCount = data.parentMessages.filter(m => m.source === 'admin').length;
+    const payloadObj = {
       title: msg.title,
       body:  msg.body,
-      url:   msg.url,
-      count: data.parentMessages.length
-    });
+      url:   msg.url
+    };
+    if (isAdmin) payloadObj.count = adminCount;
+    const payload = JSON.stringify(payloadObj);
     const results = await Promise.allSettled(
       data.pushSubscriptions.map(s => wp.sendNotification(s, payload))
     );
