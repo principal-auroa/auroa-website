@@ -944,7 +944,7 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub-hero img{width:100%;display:block;border-radius:12px;}
   .nl-pub h2{color:#c0642b;font-size:26px;font-weight:400;border-bottom:2px solid #c0642b;padding-bottom:6px;margin:28px 0 12px;letter-spacing:0.3px;}
   .nl-pub-principal-img{margin:0 0 14px;}
-  .nl-pub-principal-img img{max-width:280px;display:block;border-radius:10px;}
+  .nl-pub-principal-img img{width:100%;height:auto;display:block;border-radius:10px;}
   .nl-pub-msg{font-size:15px;color:#333;line-height:1.3;}
   .nl-pub-msg p,.nl-pub-msg div{margin:0;}
   /* Empty paragraphs / divs (from pressing Enter twice for a blank line)
