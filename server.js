@@ -161,6 +161,9 @@ function load() {
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
   if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
+  if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
+  if (!Array.isArray(data.emailSubscribers)) data.emailSubscribers = [];
+  if (!Array.isArray(data.parentMessages)) data.parentMessages = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -283,13 +286,20 @@ app.use('/uploads', express.static(UPLOADS));
 // and replaces them with a lightweight count + recent metadata for the Undo UI.
 app.get('/api/state', (req, res) => {
   const data = load();
-  const { editHistory = [], ...rest } = data;
+  const {
+    editHistory = [],
+    vapidPrivateKey, vapidPublicKey,        // server-only
+    pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
+    ...rest
+  } = data;
   const recent = editHistory.slice(-5).reverse().map(h => ({
     id: h.id, savedAt: h.savedAt, label: h.label || ''
   }));
   res.json(Object.assign({}, rest, {
     editHistoryCount: editHistory.length,
-    editHistoryRecent: recent
+    editHistoryRecent: recent,
+    pushSubscriberCount: Array.isArray(data.pushSubscriptions) ? data.pushSubscriptions.length : 0,
+    emailSubscriberCount: Array.isArray(data.emailSubscribers) ? data.emailSubscribers.length : 0
   }));
 });
 
@@ -787,6 +797,13 @@ app.post('/api/newsletter/publish', (req, res) => {
   // from this; admins continue editing data.newsletter without it leaking.
   data.newsletterPublished = JSON.parse(JSON.stringify(data.newsletter || {}));
   save(data, { label: 'Newsletter published' });
+  // Fire-and-forget notification to all subscribers.
+  notifyAll({
+    title: 'Newsletter published: ' + termLabel,
+    body:  'A new school newsletter is ready to read. Tap to open.',
+    url:   '/newsletter/' + snap.slug,
+    source: 'newsletter'
+  }).catch(e => console.warn('[notify] newsletter trigger failed:', e.message));
   res.json({ ok: true, snapshot: snap, isNew });
 });
 
@@ -870,6 +887,17 @@ app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
     fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8', (err, html) => {
       if (err) return res.status(500).send('Error loading page');
       const inject = '<script>window.__autoPage="pg-lunch-orders";</script>';
+      res.set('Content-Type', 'text/html; charset=utf-8')
+         .send(html.replace('</head>', inject + '</head>'));
+    });
+  });
+});
+
+['/messages'].forEach(p => {
+  app.get(p, (req, res) => {
+    fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8', (err, html) => {
+      if (err) return res.status(500).send('Error loading page');
+      const inject = '<script>window.__autoPage="pg-messages";</script>';
       res.set('Content-Type', 'text/html; charset=utf-8')
          .send(html.replace('</head>', inject + '</head>'));
     });
@@ -1203,6 +1231,13 @@ app.post('/api/upcoming-events', (req, res) => {
   };
   data.upcomingEvents.push(event);
   save(data, { label: 'Upcoming Events' });
+  // Notify subscribers of the new event.
+  notifyAll({
+    title: 'New event: ' + event.name,
+    body:  event.date + ' at ' + event.time + (event.details ? '\n\n' + event.details : ''),
+    url:   '/',
+    source: 'event'
+  }).catch(e => console.warn('[notify] event trigger failed:', e.message));
   res.json({ ok: true, event });
 });
 
@@ -1234,6 +1269,170 @@ app.delete('/api/upcoming-events/image/:filename', (req, res) => {
   save(data, { silent: true });
   res.json({ ok: true, images: data.upcomingEventImages });
 });
+
+// ---- PUSH + EMAIL NOTIFICATIONS (anonymous device subscriptions) ----
+//
+// On first call, VAPID keys are generated and stored in data.json. The
+// public half is shipped to the browser on subscribe; the private half
+// stays on the server.
+
+let _webpush = null;
+function getWebPush() {
+  if (_webpush) return _webpush;
+  try {
+    _webpush = require('web-push');
+    const data = load();
+    if (!data.vapidPublicKey || !data.vapidPrivateKey) {
+      const keys = _webpush.generateVAPIDKeys();
+      data.vapidPublicKey = keys.publicKey;
+      data.vapidPrivateKey = keys.privateKey;
+      save(data, { silent: true });
+    }
+    _webpush.setVapidDetails(
+      'mailto:' + (envClean('SMTP_FROM').match(/<([^>]+)>/) || [])[1] ||
+        envClean('SMTP_USER') || 'mailto:admin@auroa.school.nz',
+      data.vapidPublicKey,
+      data.vapidPrivateKey
+    );
+    return _webpush;
+  } catch (e) {
+    console.warn('[push] web-push not available:', e.message);
+    return null;
+  }
+}
+
+app.get('/api/push/vapid-public-key', (req, res) => {
+  getWebPush(); // ensures keys exist
+  const data = load();
+  res.json({ key: data.vapidPublicKey || null });
+});
+
+app.post('/api/push/subscribe', (req, res) => {
+  const b = req.body || {};
+  const sub = b.subscription;
+  const email = String(b.email || '').trim();
+  if (!sub || !sub.endpoint) return res.status(400).json({ error: 'Missing subscription' });
+  const data = load();
+  if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
+  if (!Array.isArray(data.emailSubscribers)) data.emailSubscribers = [];
+  // Dedupe by endpoint
+  data.pushSubscriptions = data.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
+  data.pushSubscriptions.push(sub);
+  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && data.emailSubscribers.indexOf(email) === -1) {
+    data.emailSubscribers.push(email);
+  }
+  save(data, { silent: true });
+  res.json({ ok: true });
+});
+
+app.post('/api/push/unsubscribe', (req, res) => {
+  const endpoint = (req.body && req.body.endpoint) || '';
+  if (!endpoint) return res.json({ ok: true });
+  const data = load();
+  if (Array.isArray(data.pushSubscriptions)) {
+    data.pushSubscriptions = data.pushSubscriptions.filter(s => s.endpoint !== endpoint);
+    save(data, { silent: true });
+  }
+  res.json({ ok: true });
+});
+
+// Public: list messages so the page can render them.
+app.get('/api/parent-messages', (req, res) => {
+  const data = load();
+  res.json({ messages: data.parentMessages || [] });
+});
+
+// Admin manual send. Calls notifyAll which appends + pushes + emails.
+app.post('/api/parent-messages', async (req, res) => {
+  const b = req.body || {};
+  const title = String(b.title || '').trim();
+  const body  = String(b.body || '').trim();
+  const url   = String(b.url || '/').trim() || '/';
+  if (!title) return res.status(400).json({ error: 'Title required' });
+  const msg = await notifyAll({ title, body, url, source: 'admin' });
+  res.json({ ok: true, message: msg });
+});
+
+app.delete('/api/parent-messages/:id', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.parentMessages)) data.parentMessages = [];
+  data.parentMessages = data.parentMessages.filter(m => m.id !== req.params.id);
+  save(data, { silent: true });
+  res.json({ ok: true });
+});
+
+// Append a message + fan-out push notifications + email. Returns the saved
+// message record (with id). Idempotent on the server side — used both by
+// the admin endpoint and by other triggers (newsletter publish, etc.).
+async function notifyAll({ title, body, url, source }) {
+  const data = load();
+  if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
+  if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
+  if (!Array.isArray(data.emailSubscribers))  data.emailSubscribers  = [];
+
+  const now = Date.now();
+  const msg = {
+    id: 'pm_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    title:   String(title || '').slice(0, 200),
+    body:    String(body  || '').slice(0, 4000),
+    url:     String(url   || '/').slice(0, 400),
+    source:  String(source || 'auto'),
+    createdAt: now
+  };
+  data.parentMessages.push(msg);
+  save(data, { label: 'Messages' });
+
+  // Push fan-out
+  const wp = getWebPush();
+  if (wp && data.pushSubscriptions.length) {
+    const payload = JSON.stringify({
+      title: msg.title,
+      body:  msg.body,
+      url:   msg.url,
+      count: data.parentMessages.length
+    });
+    const results = await Promise.allSettled(
+      data.pushSubscriptions.map(s => wp.sendNotification(s, payload))
+    );
+    // Clean up dead subscriptions (410 Gone / 404 Not Found)
+    const survivors = data.pushSubscriptions.filter((s, i) => {
+      const r = results[i];
+      if (r.status === 'rejected') {
+        const code = r.reason && r.reason.statusCode;
+        if (code === 410 || code === 404) return false;
+        console.warn('[push] failed', code || '', r.reason && r.reason.message);
+      }
+      return true;
+    });
+    if (survivors.length !== data.pushSubscriptions.length) {
+      const d2 = load();
+      d2.pushSubscriptions = survivors;
+      save(d2, { silent: true });
+    }
+  }
+
+  // Email fan-out (best-effort, fire and forget)
+  const transport = getMailTransport();
+  if (transport && data.emailSubscribers.length) {
+    const appUrl = envClean('APP_URL') || '';
+    for (const to of data.emailSubscribers) {
+      transport.sendMail({
+        from:    envClean('SMTP_FROM') || envClean('SMTP_USER'),
+        to,
+        subject: msg.title,
+        text:
+`${msg.body}
+
+${appUrl ? appUrl + msg.url : ''}
+
+You're receiving this because you subscribed to Auroa School notifications.
+To stop, open the school website and tap "Turn off notifications".`
+      }).catch(e => console.warn('[email] send failed for', to, e.message));
+    }
+  }
+
+  return msg;
+}
 
 app.post('/api/save', (req, res) => {
   const { key, value } = req.body;

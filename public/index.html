@@ -233,6 +233,13 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 .sidebar-btn.parent-portal:hover{background:#0e7a64;color:#fff;}
 /* Register-for-messages button is admin-only — hide for visitors */
 body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
+.sidebar-msg-badge{
+  display:none;background:#e74c3c;color:#fff;
+  font-size:10px;font-weight:800;
+  padding:2px 7px;border-radius:10px;margin-left:8px;
+  vertical-align:middle;line-height:1;
+}
+.sidebar-msg-badge.show{display:inline-block;}
 /* Grouped colour buttons in the sidebar */
 .sidebar-btn.group-blue,
 .sidebar-btn.group-red,
@@ -1622,6 +1629,62 @@ body.is-admin .lunch-admin{display:block;}
 }
 .lunch-reset-btn:hover{background:#a85325;}
 
+/* ---- MESSAGES PAGE ---- */
+.pm-body{max-width:760px;margin:0 auto;padding:24px;}
+.pm-section-h{
+  color:#1a2b4a;font-size:18px;font-weight:600;
+  margin:28px 0 12px;letter-spacing:0.3px;
+}
+.pm-subscribe{
+  background:#fff7ed;border:1.5px solid #f59e0b;border-radius:12px;
+  padding:18px 20px;margin:18px 0 24px;
+}
+.pm-subscribe-text strong{color:#78350f;font-size:15px;display:block;margin-bottom:4px;}
+.pm-subscribe-text p{color:#78350f;font-size:13px;margin:0 0 14px;line-height:1.5;}
+.pm-subscribe-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.pm-email-input{
+  flex:1;min-width:200px;padding:10px 12px;
+  border:1.5px solid #e0e0e0;border-radius:8px;
+  font-family:'Quicksand',sans-serif;font-size:14px;
+  background:#fff;outline:none;
+}
+.pm-email-input:focus{border-color:#c0642b;}
+.pm-subscribe-btn{
+  background:#c0642b;color:#fff;border:none;border-radius:8px;
+  padding:10px 18px;font-family:'Quicksand',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;
+  transition:background 0.15s;
+}
+.pm-subscribe-btn:hover{background:#a85325;}
+.pm-subscribe-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.pm-subscribe-btn.is-on{background:#16a34a;}
+.pm-subscribe-btn.is-on:hover{background:#15803d;}
+.pm-subscribe-status{font-size:12px;color:#78350f;margin-top:8px;min-height:16px;}
+.pm-subscribe-status.ok{color:#16a34a;}
+.pm-subscribe-status.err{color:#c0392b;}
+.pm-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:18px;margin-bottom:18px;}
+body.is-admin .pm-admin{display:block;}
+.pm-admin-h{color:#1a2b4a;font-size:15px;font-weight:700;margin-bottom:10px;}
+.pm-list{display:flex;flex-direction:column;gap:10px;}
+.pm-list:empty::before{content:'No messages yet.';color:#888;font-size:13px;}
+.pm-msg{
+  background:#fff;border:1px solid #e6e6e6;border-radius:10px;
+  padding:14px 16px;position:relative;
+}
+.pm-msg.is-unread{border-left:5px solid #f59e0b;background:#fffbeb;}
+.pm-msg h4{color:#1a2b4a;font-size:15px;font-weight:700;margin:0 0 4px;}
+.pm-msg-date{color:#888;font-size:11px;margin-bottom:6px;}
+.pm-msg-body{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
+.pm-msg-link{display:inline-block;margin-top:8px;color:#1a2b4a;font-size:13px;font-weight:600;}
+.pm-msg-del{
+  display:none;position:absolute;top:8px;right:8px;
+  background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:3px 9px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;cursor:pointer;
+}
+body.is-admin .pm-msg-del{display:inline-block;}
+.pm-msg-del:hover{background:#c0392b;color:#fff;}
+
 /* ---- HALL BOOKINGS PAGE ---- */
 .hb-body{max-width:760px;margin:0 auto;padding:24px;}
 .pg-body h2.hb-section-h,
@@ -2942,6 +3005,46 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== MESSAGES PAGE ======== -->
+  <div id="pg-messages" class="page">
+    <div class="pg-header" id="ph-messages"></div>
+    <div class="pg-body pm-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Messages</h1>
+      </div>
+
+      <div id="pm-subscribe" class="pm-subscribe">
+        <div class="pm-subscribe-text">
+          <strong>Get school notifications</strong>
+          <p>Turn on notifications to get an alert when there's a new newsletter, event, or other school news. Add your email too if you'd like a copy of each message in your inbox.</p>
+        </div>
+        <div class="pm-subscribe-row">
+          <input id="pm-email" type="email" placeholder="Email (optional)" class="pm-email-input">
+          <button type="button" id="pm-subscribe-btn" class="pm-subscribe-btn" onclick="pmToggleSubscribe()">Get notifications</button>
+        </div>
+        <div id="pm-subscribe-status" class="pm-subscribe-status"></div>
+      </div>
+
+      <div id="pm-admin" class="pm-admin">
+        <h3 class="pm-admin-h">Send a message</h3>
+        <form id="pm-admin-form" onsubmit="event.preventDefault(); pmSendMessage();">
+          <label class="hb-label" for="pm-title">Title <span class="hb-required">*</span></label>
+          <input id="pm-title" class="hb-input" type="text" required maxlength="200" placeholder="e.g. School closed Friday">
+          <label class="hb-label" for="pm-body">Body</label>
+          <textarea id="pm-body" class="hb-input" rows="4" maxlength="4000" placeholder="What do you want parents to see…"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+            <button id="pm-send-btn" type="submit" class="hb-submit-btn" style="flex:1;">📣 Send to all subscribers</button>
+            <span id="pm-send-status" class="hb-err"></span>
+          </div>
+        </form>
+      </div>
+
+      <h2 class="pm-section-h">All messages</h2>
+      <div id="pm-list" class="pm-list"></div>
+    </div>
+  </div>
+
   <!-- ======== HALL BOOKINGS PAGE ======== -->
   <div id="pg-hall-bookings" class="page">
     <div class="pg-header" id="ph-hall-bookings"></div>
@@ -3256,6 +3359,9 @@ function fetchState() {
       if (typeof renderUeAdminList === 'function') renderUeAdminList();
       upcomingEventImages = Array.isArray(data.upcomingEventImages) ? data.upcomingEventImages : [];
       if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
+      parentMessages = Array.isArray(data.parentMessages) ? data.parentMessages : [];
+      if (typeof pmRenderList === 'function') pmRenderList();
+      if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
       if (typeof refreshUndoFromState === 'function') refreshUndoFromState(data);
       // If this load was triggered by a deep-link URL like /lunch-orders,
       // jump to that page once state is available.
@@ -3592,7 +3698,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img src="' + src + '" alt="Header" />';
@@ -3750,6 +3856,12 @@ function showPage(id) {
     if (typeof renderUeCalendar === 'function') renderUeCalendar();
     if (typeof renderUeAdminList === 'function') renderUeAdminList();
     if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
+  }
+  if (id === 'pg-messages') {
+    if (typeof pmFetchMessages === 'function') {
+      pmFetchMessages().then(function(){ if (typeof pmMarkAllRead === 'function') pmMarkAllRead(); });
+    }
+    if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -6785,6 +6897,12 @@ document.addEventListener('click', function(e) {
     Hall Bookings
   </button>
 
+  <button class="sidebar-btn"
+          onclick="bubbleGo(event, 'pg-messages')">
+    Messages
+    <span id="sidebar-msg-badge" class="sidebar-msg-badge"></span>
+  </button>
+
   <button class="sidebar-btn parent-portal"
           onclick="window.open('https://auroa-students-production.up.railway.app/parent','_blank','noopener')">
     Register for Messages
@@ -8035,6 +8153,241 @@ function publishNewsletter() {
     }
   })
   .catch(function() { alert('Network error publishing newsletter.'); });
+}
+</script>
+
+<!-- PARENT MESSAGES + PUSH NOTIFICATIONS -->
+<script>
+var parentMessages = [];
+var _pmVapidKey = null;
+
+function pmIsSubscribed() {
+  try { return localStorage.getItem('pm_subscribed') === '1'; } catch (e) { return false; }
+}
+function pmSetSubscribed(v, endpoint) {
+  try {
+    localStorage.setItem('pm_subscribed', v ? '1' : '0');
+    if (endpoint) localStorage.setItem('pm_endpoint', endpoint);
+    else if (!v) localStorage.removeItem('pm_endpoint');
+  } catch (e) {}
+}
+function pmGetEndpoint() {
+  try { return localStorage.getItem('pm_endpoint') || null; } catch (e) { return null; }
+}
+function pmGetLastSeenId() {
+  try { return localStorage.getItem('pm_last_seen_id') || ''; } catch (e) { return ''; }
+}
+function pmSetLastSeenId(id) {
+  try { localStorage.setItem('pm_last_seen_id', id || ''); } catch (e) {}
+}
+
+function urlBase64ToUint8Array(b64) {
+  var padding = '='.repeat((4 - b64.length % 4) % 4);
+  var base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+function pmUpdateSubscribeButton() {
+  var btn = el('pm-subscribe-btn');
+  if (!btn) return;
+  if (pmIsSubscribed()) {
+    btn.textContent = '✓ Notifications on — tap to turn off';
+    btn.classList.add('is-on');
+  } else {
+    btn.textContent = 'Get notifications';
+    btn.classList.remove('is-on');
+  }
+}
+
+function pmStatus(text, kind) {
+  var s = el('pm-subscribe-status');
+  if (!s) return;
+  s.textContent = text || '';
+  s.className = 'pm-subscribe-status' + (kind ? ' ' + kind : '');
+}
+
+async function pmSubscribe() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    pmStatus("This browser doesn't support push notifications.", 'err');
+    return;
+  }
+  var emailInput = el('pm-email');
+  var email = emailInput ? emailInput.value.trim() : '';
+
+  pmStatus('Asking for permission…');
+  var perm = await Notification.requestPermission();
+  if (perm !== 'granted') { pmStatus('Permission denied. Enable notifications in your browser settings to try again.', 'err'); return; }
+
+  if (!_pmVapidKey) {
+    var r = await fetch('/api/push/vapid-public-key');
+    var b = await r.json();
+    _pmVapidKey = b && b.key;
+  }
+  if (!_pmVapidKey) { pmStatus("Server isn't ready to send notifications.", 'err'); return; }
+
+  var reg = await navigator.serviceWorker.ready;
+  var existing = await reg.pushManager.getSubscription();
+  if (existing) try { await existing.unsubscribe(); } catch (_) {}
+  var sub;
+  try {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(_pmVapidKey)
+    });
+  } catch (e) {
+    pmStatus('Could not subscribe: ' + (e.message || e), 'err');
+    return;
+  }
+  // POST subscription to server
+  var res = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription: sub.toJSON(), email: email })
+  });
+  if (!res.ok) { pmStatus('Server rejected the subscription.', 'err'); return; }
+  pmSetSubscribed(true, sub.endpoint);
+  pmUpdateSubscribeButton();
+  pmStatus('Notifications turned on for this device.' + (email ? ' Email copies will go to ' + email + '.' : ''), 'ok');
+}
+
+async function pmUnsubscribe() {
+  if (!('serviceWorker' in navigator)) return;
+  var reg = await navigator.serviceWorker.ready;
+  var existing = await reg.pushManager.getSubscription();
+  if (existing) {
+    var ep = existing.endpoint;
+    try { await existing.unsubscribe(); } catch (_) {}
+    try {
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: ep })
+      });
+    } catch (_) {}
+  }
+  pmSetSubscribed(false);
+  pmUpdateSubscribeButton();
+  pmStatus('Notifications turned off.', '');
+}
+
+function pmToggleSubscribe() {
+  if (pmIsSubscribed()) pmUnsubscribe();
+  else pmSubscribe();
+}
+
+function pmFmtDate(ms) {
+  var d = new Date(ms);
+  return d.toLocaleString();
+}
+
+function pmRenderList() {
+  var wrap = el('pm-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  var lastSeen = pmGetLastSeenId();
+  // Sort newest first
+  var sorted = parentMessages.slice().sort(function(a, b) { return b.createdAt - a.createdAt; });
+  // Determine unread: messages newer (by createdAt) than the last seen one.
+  var lastSeenMsg = parentMessages.find(function(m) { return m.id === lastSeen; });
+  var lastSeenTime = lastSeenMsg ? lastSeenMsg.createdAt : 0;
+  sorted.forEach(function(m) {
+    var card = document.createElement('div');
+    card.className = 'pm-msg' + (m.createdAt > lastSeenTime ? ' is-unread' : '');
+    card.innerHTML =
+      '<h4>' + lunchEsc(m.title) + '</h4>' +
+      '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
+      '<div class="pm-msg-body">' + lunchEsc(m.body) + '</div>' +
+      (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">View →</a>' : '');
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'pm-msg-del';
+    del.textContent = 'Delete';
+    del.onclick = function() { pmDeleteMessage(m.id); };
+    card.appendChild(del);
+    wrap.appendChild(card);
+  });
+  pmUpdateUnreadIndicators();
+}
+
+function pmUpdateUnreadIndicators() {
+  var lastSeen = pmGetLastSeenId();
+  var lastSeenMsg = parentMessages.find(function(m) { return m.id === lastSeen; });
+  var lastSeenTime = lastSeenMsg ? lastSeenMsg.createdAt : 0;
+  var unread = parentMessages.filter(function(m) { return m.createdAt > lastSeenTime; }).length;
+  // Sidebar badge
+  var badge = el('sidebar-msg-badge');
+  if (badge) {
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.classList.toggle('show', unread > 0);
+  }
+  // App icon badge (PWA)
+  if (navigator.setAppBadge) {
+    if (unread > 0) navigator.setAppBadge(unread).catch(function(){});
+    else navigator.clearAppBadge && navigator.clearAppBadge().catch(function(){});
+  }
+}
+
+function pmMarkAllRead() {
+  if (!parentMessages.length) return;
+  // Mark the newest message id as the last-seen anchor.
+  var newest = parentMessages.reduce(function(a, b) { return (a && a.createdAt > b.createdAt) ? a : b; });
+  if (newest) pmSetLastSeenId(newest.id);
+  pmUpdateUnreadIndicators();
+  // Also refresh the list so the orange unread bars disappear.
+  pmRenderList();
+}
+
+function pmFetchMessages() {
+  return fetch('/api/parent-messages')
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      parentMessages = (b && b.messages) || [];
+      pmRenderList();
+    })
+    .catch(function(){});
+}
+
+function pmSendMessage() {
+  var title = el('pm-title').value.trim();
+  var body  = el('pm-body').value;
+  var status = el('pm-send-status');
+  var btn = el('pm-send-btn');
+  if (!title) { status.textContent = 'Title required.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/parent-messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title, body: body, url: '/messages' })
+  })
+  .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = '📣 Send to all subscribers';
+    if (!res.ok || !res.body || !res.body.message) {
+      status.textContent = (res.body && res.body.error) || 'Send failed.';
+      return;
+    }
+    el('pm-title').value = ''; el('pm-body').value = '';
+    status.textContent = 'Sent.';
+    setTimeout(function(){ status.textContent = ''; }, 1500);
+    parentMessages.push(res.body.message);
+    pmRenderList();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '📣 Send to all subscribers';
+    status.textContent = 'Network error.';
+  });
+}
+
+function pmDeleteMessage(id) {
+  if (!confirm('Delete this message?')) return;
+  fetch('/api/parent-messages/' + encodeURIComponent(id), { method: 'DELETE' })
+    .then(function() {
+      parentMessages = parentMessages.filter(function(m){ return m.id !== id; });
+      pmRenderList();
+    });
 }
 </script>
 
