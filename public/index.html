@@ -3222,6 +3222,7 @@ function fetchState() {
       lunchResetAt = Number(data.lunchResetAt) || 0;
       lunchTermArchives = Array.isArray(data.lunchTermArchives) ? data.lunchTermArchives : [];
       newsletterData = data.newsletter || newsletterData;
+      newsletterPublished = data.newsletterPublished || null;
       newsletterSnapshots = Array.isArray(data.newsletterSnapshots) ? data.newsletterSnapshots : [];
       if (typeof renderNewsletter === 'function') renderNewsletter();
       hallBookings = Array.isArray(data.hallBookings) ? data.hallBookings : [];
@@ -7381,6 +7382,7 @@ var newsletterData = {
   ]
 };
 var newsletterSnapshots = [];
+var newsletterPublished = null;
 
 function nlSetImage(slotEl, imgEl, filename) {
   if (filename) {
@@ -7396,53 +7398,60 @@ function renderNewsletter() {
   var termEl = el('nl-term-label');
   if (!termEl) return;
 
-  termEl.textContent = newsletterData.termLabel || '';
+  // Admins edit the draft (newsletterData). Everyone else sees the
+  // last-published version (newsletterPublished). Edits only become
+  // public when the admin clicks Publish in the header.
+  var src = isAdmin
+    ? newsletterData
+    : (newsletterPublished || newsletterData || {});
+
+  termEl.textContent = src.termLabel || '';
   termEl.contentEditable = isAdmin ? 'true' : 'false';
 
   var hdrImg = el('nl-header-img');
-  nlSetImage(el('nl-header-slot'), hdrImg, newsletterData.headerImage);
+  nlSetImage(el('nl-header-slot'), hdrImg, src.headerImage);
 
   var prImg = el('nl-principal-img');
-  nlSetImage(el('nl-principal-slot'), prImg, newsletterData.principalImage);
+  nlSetImage(el('nl-principal-slot'), prImg, src.principalImage);
 
   var msgEl = el('nl-principal-msg');
-  msgEl.innerHTML = nlContentToHtml(newsletterData.principalMessage);
+  msgEl.innerHTML = nlContentToHtml(src.principalMessage);
   msgEl.contentEditable = isAdmin ? 'true' : 'false';
 
   var datesEl = el('nl-important-dates');
   if (datesEl) {
-    datesEl.innerHTML = nlContentToHtml(newsletterData.importantDates);
+    datesEl.innerHTML = nlContentToHtml(src.importantDates);
     datesEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var sotwImg = el('nl-sotw-img');
-  if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, newsletterData.studentsWeekImage);
+  if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, src.studentsWeekImage);
 
   var sotwMsg = el('nl-sotw-msg');
   if (sotwMsg) {
-    sotwMsg.innerHTML = nlContentToHtml(newsletterData.studentsWeekMessage);
+    sotwMsg.innerHTML = nlContentToHtml(src.studentsWeekMessage);
     sotwMsg.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var campsEl = el('nl-camps');
   if (campsEl) {
-    campsEl.innerHTML = nlContentToHtml(newsletterData.campsDayTrips);
+    campsEl.innerHTML = nlContentToHtml(src.campsDayTrips);
     campsEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var sapEl = el('nl-school-accounts');
   if (sapEl) {
-    sapEl.innerHTML = nlContentToHtml(newsletterData.schoolAccountsPayments);
+    sapEl.innerHTML = nlContentToHtml(src.schoolAccountsPayments);
     sapEl.contentEditable = isAdmin ? 'true' : 'false';
   }
 
   var footerImg = el('nl-footer-img');
-  if (footerImg) nlSetImage(el('nl-footer-slot'), footerImg, newsletterData.footerImage);
+  if (footerImg) nlSetImage(el('nl-footer-slot'), footerImg, src.footerImage);
 
   var uniPImg = el('nl-uni-portrait-img');
-  if (uniPImg) nlSetImage(el('nl-uni-portrait-slot'), uniPImg, newsletterData.uniformPortraitImage);
+  if (uniPImg) nlSetImage(el('nl-uni-portrait-slot'), uniPImg, src.uniformPortraitImage);
   var uniLImg = el('nl-uni-landscape-img');
-  if (uniLImg) nlSetImage(el('nl-uni-landscape-slot'), uniLImg, newsletterData.uniformLandscapeImage);
+  if (uniLImg) nlSetImage(el('nl-uni-landscape-slot'), uniLImg, src.uniformLandscapeImage);
 
   renderNlNotices();
   renderNewsletterSnapshots();
@@ -7455,7 +7464,12 @@ function renderNlNotices() {
   var wrap = el('nl-notices');
   if (!wrap) return;
   wrap.innerHTML = '';
-  (newsletterData.notices || []).forEach(function(notice) {
+  // Same source rule as renderNewsletter — admins see the draft notices,
+  // everyone else sees the published ones.
+  var src = isAdmin
+    ? newsletterData
+    : (newsletterPublished || newsletterData || {});
+  (src.notices || []).forEach(function(notice) {
     wrap.appendChild(buildNoticeCard(notice));
   });
 }
@@ -7975,6 +7989,9 @@ function publishNewsletter() {
     var snap = res.body.snapshot;
     var i = newsletterSnapshots.findIndex(function(s) { return s.id === snap.id; });
     if (i >= 0) newsletterSnapshots[i] = snap; else newsletterSnapshots.push(snap);
+    // Mirror the published copy locally so logging out / refreshing
+    // immediately reflects the freshly-published version.
+    newsletterPublished = JSON.parse(JSON.stringify(newsletterData));
     renderNewsletterSnapshots();
     var status = el('nl-save-status');
     if (status) {

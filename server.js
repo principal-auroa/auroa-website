@@ -148,6 +148,14 @@ function load() {
     if (typeof data.newsletter.uniformPortraitImage === 'undefined') data.newsletter.uniformPortraitImage = null;
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
   }
+  // Published version visitors see, distinct from the draft that admins edit.
+  // On first deploy, seed it from the current draft so the public page
+  // doesn't suddenly go blank while we wait for the next Publish click.
+  if (typeof data.newsletterPublished === 'undefined') {
+    data.newsletterPublished = data.newsletter
+      ? JSON.parse(JSON.stringify(data.newsletter))
+      : null;
+  }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
@@ -770,6 +778,9 @@ app.post('/api/newsletter/publish', (req, res) => {
     };
     data.newsletterSnapshots.push(snap);
   }
+  // Mirror the current draft into the public-facing copy. Visitors render
+  // from this; admins continue editing data.newsletter without it leaking.
+  data.newsletterPublished = JSON.parse(JSON.stringify(data.newsletter || {}));
   save(data, { label: 'Newsletter published' });
   res.json({ ok: true, snapshot: snap, isNew });
 });
