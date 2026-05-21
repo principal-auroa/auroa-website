@@ -160,6 +160,7 @@ function load() {
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -1212,6 +1213,26 @@ app.delete('/api/upcoming-events/:id', (req, res) => {
   data.upcomingEvents = data.upcomingEvents.filter(e => e.id !== req.params.id);
   save(data, { silent: true });
   res.json({ ok: true, removed: before - data.upcomingEvents.length });
+});
+
+// Upload one or more event images
+app.post('/api/upcoming-events/image', uploader('ue').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
+  data.upcomingEventImages.push(req.file.filename);
+  save(data, { label: 'Upcoming Events' });
+  res.json({ ok: true, filename: req.file.filename, images: data.upcomingEventImages });
+});
+
+app.delete('/api/upcoming-events/image/:filename', (req, res) => {
+  const name = path.basename(req.params.filename);
+  const data = load();
+  if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
+  data.upcomingEventImages = data.upcomingEventImages.filter(f => f !== name);
+  deleteFile(name);
+  save(data, { silent: true });
+  res.json({ ok: true, images: data.upcomingEventImages });
 });
 
 app.post('/api/save', (req, res) => {

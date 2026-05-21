@@ -1796,6 +1796,35 @@ body.is-admin .ue-admin{display:block;}
   color:#1a2b4a;font-size:18px;font-weight:600;
   margin:28px 0 12px;letter-spacing:0.3px;
 }
+.ue-img-admin{display:none;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap;}
+body.is-admin .ue-img-admin{display:flex;}
+.ue-add-images-btn{
+  background:#1a2b4a;color:#fff;border:none;border-radius:8px;
+  padding:8px 16px;font-family:'Quicksand',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;display:inline-block;
+}
+.ue-add-images-btn:hover{background:#243d6a;}
+.ue-img-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:14px;margin-bottom:24px;
+}
+.ue-img-card{position:relative;}
+.ue-img-card img{
+  width:100%;height:auto;display:block;
+  border-radius:10px;cursor:zoom-in;
+  border:1px solid #e6e6e6;
+}
+.ue-img-del{
+  display:none;position:absolute;top:6px;right:6px;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(192,57,43,0.92);color:#fff;
+  border:none;cursor:pointer;font-size:14px;line-height:1;font-weight:700;
+}
+body.is-admin .ue-img-del{display:block;}
+.ue-img-del:hover{background:rgba(192,57,43,1);}
+@media (max-width:600px){
+  .ue-img-grid{grid-template-columns:1fr;}
+}
 /* Event details popup */
 .ue-modal{
   display:none;position:fixed;inset:0;
@@ -2620,33 +2649,15 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div id="ue-admin-list"></div>
       </div>
 
-      <h2 class="ue-section-h">Other calendars</h2>
-      <div class="cal-grid">
-        <!-- Calendar 1 -->
-        <div class="cal-slot">
-          <div class="editable" id="ec-events-0"><p></p></div>
-          <div class="cal-slot-label">
-            <span id="cal-title-0">Calendar 1</span>
-            <span class="cal-name" id="cal-name-0"></span>
-            <button class="abar-btn cal-set-btn" onclick="openCalEditor(0)">Set Calendar</button>
-          </div>
-          <div class="cal-frame-wrap" id="cal-wrap-0">
-            <div class="cal-empty" id="cal-empty-0">No calendar set</div>
-          </div>
-        </div>
-        <!-- Calendar 2 -->
-        <div class="cal-slot">
-          <div class="editable" id="ec-events-1"><p></p></div>
-          <div class="cal-slot-label">
-            <span id="cal-title-1">Calendar 2</span>
-            <span class="cal-name" id="cal-name-1"></span>
-            <button class="abar-btn cal-set-btn" onclick="openCalEditor(1)">Set Calendar</button>
-          </div>
-          <div class="cal-frame-wrap" id="cal-wrap-1">
-            <div class="cal-empty" id="cal-empty-1">No calendar set</div>
-          </div>
-        </div>
+      <h2 class="ue-section-h" style="margin-top:24px;">Images</h2>
+      <div id="ue-img-admin" class="ue-img-admin">
+        <label class="ue-add-images-btn">
+          + Add images
+          <input type="file" accept="image/*" multiple style="display:none" onchange="uploadUpcomingEventImages(event)">
+        </label>
+        <span class="nl-add-hint">Hold Shift or Cmd in the file picker to select more than one image.</span>
       </div>
+      <div id="ue-img-grid" class="ue-img-grid"></div>
     </div>
   </div>
 
@@ -3243,6 +3254,8 @@ function fetchState() {
       upcomingEvents = Array.isArray(data.upcomingEvents) ? data.upcomingEvents : [];
       if (typeof renderUeCalendar === 'function') renderUeCalendar();
       if (typeof renderUeAdminList === 'function') renderUeAdminList();
+      upcomingEventImages = Array.isArray(data.upcomingEventImages) ? data.upcomingEventImages : [];
+      if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
       if (typeof refreshUndoFromState === 'function') refreshUndoFromState(data);
       // If this load was triggered by a deep-link URL like /lunch-orders,
       // jump to that page once state is available.
@@ -3736,6 +3749,7 @@ function showPage(id) {
   if (id === 'pg-events') {
     if (typeof renderUeCalendar === 'function') renderUeCalendar();
     if (typeof renderUeAdminList === 'function') renderUeAdminList();
+    if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -8682,6 +8696,61 @@ function deleteUpcomingEvent(id) {
       renderUeCalendar();
       renderUeAdminList();
     });
+}
+
+// ---- Upcoming-event images (full list under the calendar) ----
+var upcomingEventImages = [];
+
+function renderUpcomingEventImages() {
+  var wrap = el('ue-img-grid');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  upcomingEventImages.forEach(function(filename) {
+    var card = document.createElement('div');
+    card.className = 'ue-img-card';
+    var img = document.createElement('img');
+    img.src = '/uploads/' + filename;
+    img.alt = '';
+    img.onclick = function() {
+      if (typeof openLightbox === 'function') openLightbox(img.src);
+    };
+    card.appendChild(img);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'ue-img-del';
+    del.title = 'Remove image';
+    del.textContent = '×';
+    del.onclick = function(e) {
+      e.stopPropagation();
+      if (!confirm('Remove this image?')) return;
+      fetch('/api/upcoming-events/image/' + encodeURIComponent(filename), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(b) {
+          if (b && b.images) {
+            upcomingEventImages = b.images;
+            renderUpcomingEventImages();
+          }
+        });
+    };
+    card.appendChild(del);
+    wrap.appendChild(card);
+  });
+}
+
+function uploadUpcomingEventImages(event) {
+  var files = event.target.files;
+  if (!files || !files.length) return;
+  var uploads = Array.prototype.slice.call(files).map(function(file) {
+    var fd = new FormData();
+    fd.append('image', file);
+    return fetch('/api/upcoming-events/image', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(b) {
+        if (b && b.images) upcomingEventImages = b.images;
+      });
+  });
+  Promise.all(uploads).then(renderUpcomingEventImages);
+  event.target.value = '';
 }
 </script>
 
