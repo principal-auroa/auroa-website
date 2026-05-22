@@ -164,6 +164,7 @@ function load() {
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
   if (!Array.isArray(data.emailSubscribers)) data.emailSubscribers = [];
   if (!Array.isArray(data.parentMessages)) data.parentMessages = [];
+  if (!Array.isArray(data.parentGroups)) data.parentGroups = [];
   // Migration: re-key any orders that were stored under the old Monday-based scheme
   data.lunchOrders.forEach(function(o) {
     if (o.submittedAt) {
@@ -291,13 +292,26 @@ app.get('/api/state', (req, res) => {
     vapidPrivateKey, vapidPublicKey,        // server-only
     pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
     parentMessages = [],                    // filter to messages-page sources only
+    parentGroups = [],                      // strip member emails / endpoints (PII)
     ...rest
   } = data;
   const recent = editHistory.slice(-5).reverse().map(h => ({
     id: h.id, savedAt: h.savedAt, label: h.label || ''
   }));
+  // Public-safe view of groups: name, description, color, member names + count.
+  // Emails and push endpoints stay server-side.
+  const publicGroups = parentGroups.map(g => ({
+    id: g.id,
+    name: g.name,
+    description: g.description,
+    color: g.color,
+    createdAt: g.createdAt,
+    memberCount: Array.isArray(g.members) ? g.members.length : 0,
+    memberNames: Array.isArray(g.members) ? g.members.map(m => m.name) : []
+  }));
   res.json(Object.assign({}, rest, {
     parentMessages: parentMessages.filter(m => showsOnMessagesPage(m.source)),
+    parentGroups: publicGroups,
     editHistoryCount: editHistory.length,
     editHistoryRecent: recent,
     pushSubscriberCount: Array.isArray(data.pushSubscriptions) ? data.pushSubscriptions.length : 0,
@@ -1356,13 +1370,20 @@ app.get('/api/parent-messages', (req, res) => {
 });
 
 // Admin manual send. Calls notifyAll which appends + pushes + emails.
+// Optional groupId targets only members of that group.
 app.post('/api/parent-messages', async (req, res) => {
   const b = req.body || {};
   const title = String(b.title || '').trim();
   const body  = String(b.body || '').trim();
   const url   = String(b.url || '/').trim() || '/';
+  const groupId = b.groupId ? String(b.groupId) : null;
   if (!title) return res.status(400).json({ error: 'Title required' });
-  const msg = await notifyAll({ title, body, url, source: 'admin' });
+  if (groupId) {
+    const data = load();
+    const g = (data.parentGroups || []).find(x => x.id === groupId);
+    if (!g) return res.status(400).json({ error: 'Unknown group' });
+  }
+  const msg = await notifyAll({ title, body, url, source: 'admin', groupId });
   res.json({ ok: true, message: msg });
 });
 
@@ -1374,15 +1395,136 @@ app.delete('/api/parent-messages/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Fan-out push notifications + email to all subscribers. Admin-composed
+// ===================== PARENT GROUPS =====================
+// Auto-assigned palette for new groups. Cycles when exhausted.
+const GROUP_COLORS = [
+  '#16a34a', '#7c3aed', '#ea580c', '#0891b2',
+  '#c026d3', '#65a30d', '#dc2626', '#0284c7'
+];
+
+// Admin creates a group. Auto-fires a join-invitation message to ALL
+// subscribers with a link to the join form.
+app.post('/api/parent-groups', async (req, res) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim();
+  const description = String(b.description || '').trim();
+  if (!name) return res.status(400).json({ error: 'Group name required' });
+  const data = load();
+  if (!Array.isArray(data.parentGroups)) data.parentGroups = [];
+  const now = Date.now();
+  const color = GROUP_COLORS[data.parentGroups.length % GROUP_COLORS.length];
+  const group = {
+    id: 'grp_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    name: name.slice(0, 200),
+    description: description.slice(0, 1000),
+    color,
+    createdAt: now,
+    members: []
+  };
+  data.parentGroups.push(group);
+  save(data, { label: 'Group created' });
+  // Invite-to-join push goes to EVERYONE — not restricted to the new group
+  // (since it would be empty). Source 'admin' so it appears on Messages page.
+  await notifyAll({
+    title: 'New group: ' + group.name,
+    body:  (group.description ? group.description + '\n\n' : '') +
+           'Tap below to join this group.',
+    url:   '/join-group/' + group.id,
+    source: 'admin'
+  });
+  res.json({ ok: true, group: {
+    id: group.id, name: group.name, description: group.description,
+    color: group.color, createdAt: group.createdAt, memberCount: 0, memberNames: []
+  }});
+});
+
+// Public: fetch one group's name + description (for the join-page header).
+app.get('/api/parent-groups/:id', (req, res) => {
+  const data = load();
+  const g = (data.parentGroups || []).find(x => x.id === req.params.id);
+  if (!g) return res.status(404).json({ error: 'Group not found' });
+  res.json({ group: {
+    id: g.id, name: g.name, description: g.description, color: g.color
+  }});
+});
+
+// Public: parent submits the join form. Saves name + email + optional push
+// endpoint to the group's members. Idempotent on email (no duplicates).
+app.post('/api/parent-groups/:id/join', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.parentGroups)) data.parentGroups = [];
+  const g = data.parentGroups.find(x => x.id === req.params.id);
+  if (!g) return res.status(404).json({ error: 'Group not found' });
+  const b = req.body || {};
+  const name  = String(b.name || '').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  const endpoint = b.endpoint ? String(b.endpoint) : null;
+  if (!name)  return res.status(400).json({ error: 'Name required' });
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  if (!Array.isArray(g.members)) g.members = [];
+  let member = g.members.find(m => m.email === email);
+  if (member) {
+    // Existing member — refresh name and add new endpoint if provided.
+    member.name = name.slice(0, 200);
+    if (endpoint && !(member.endpoints || []).includes(endpoint)) {
+      member.endpoints = (member.endpoints || []).concat(endpoint);
+    }
+  } else {
+    member = {
+      id: 'mem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      name:  name.slice(0, 200),
+      email: email.slice(0, 200),
+      joinedAt: Date.now(),
+      endpoints: endpoint ? [endpoint] : []
+    };
+    g.members.push(member);
+  }
+  save(data, { silent: true });
+  res.json({ ok: true, groupId: g.id, groupName: g.name, groupColor: g.color });
+});
+
+// Admin: delete a group.
+app.delete('/api/parent-groups/:id', (req, res) => {
+  const data = load();
+  if (!Array.isArray(data.parentGroups)) data.parentGroups = [];
+  data.parentGroups = data.parentGroups.filter(g => g.id !== req.params.id);
+  save(data, { silent: true });
+  res.json({ ok: true });
+});
+
+// Deep-link route so /join-group/<id> opens the SPA on the join page.
+app.get('/join-group/:id', (req, res) => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  const injected = indexHtml.replace(
+    '</head>',
+    '<script>window.__autoPage="pg-join-group";window.__autoJoinGroupId=' +
+      JSON.stringify(req.params.id) + ';</script></head>'
+  );
+  res.send(injected);
+});
+
+// Fan-out push notifications + email to subscribers. Admin-composed
 // messages are also persisted to data.parentMessages so they render on the
-// Messages page; auto triggers (newsletter publish, new event, etc.) only
-// send notifications and do not appear in the Messages list.
-async function notifyAll({ title, body, url, source }) {
+// Messages page; auto triggers (newsletter publish, etc.) only send.
+// If groupId is provided, push + email are restricted to that group's
+// members (matched by stored endpoint or email). The message record still
+// stores the groupId so the client can filter rendering by membership.
+async function notifyAll({ title, body, url, source, groupId }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
   if (!Array.isArray(data.emailSubscribers))  data.emailSubscribers  = [];
+  if (!Array.isArray(data.parentGroups))      data.parentGroups      = [];
+
+  const group = groupId ? data.parentGroups.find(g => g.id === groupId) : null;
+  // Collect group member endpoints + emails for targeted fan-out.
+  const groupEndpoints = group ? new Set(
+    (group.members || []).flatMap(m => m.endpoints || [])
+  ) : null;
+  const groupEmails = group ? new Set(
+    (group.members || []).map(m => (m.email || '').toLowerCase()).filter(Boolean)
+  ) : null;
+  const groupColor = group ? group.color : null;
 
   const now = Date.now();
   const msg = {
@@ -1391,6 +1533,8 @@ async function notifyAll({ title, body, url, source }) {
     body:    String(body  || '').slice(0, 4000),
     url:     String(url   || '/').slice(0, 400),
     source:  String(source || 'auto'),
+    groupId: group ? group.id : null,
+    groupColor: groupColor,
     createdAt: now
   };
   const showOnPage = showsOnMessagesPage(msg.source);
@@ -1402,7 +1546,12 @@ async function notifyAll({ title, body, url, source }) {
   // Push fan-out. Only sources that appear on the Messages page bump the
   // app-icon badge; the badge represents unread items on that page.
   const wp = getWebPush();
-  if (wp && data.pushSubscriptions.length) {
+  // For group sends, only push to subscriptions whose endpoint is registered
+  // to a member of that group. For all-subscriber sends, push to everyone.
+  const targetSubs = group
+    ? data.pushSubscriptions.filter(s => groupEndpoints.has(s.endpoint))
+    : data.pushSubscriptions;
+  if (wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
       title: msg.title,
@@ -1412,30 +1561,34 @@ async function notifyAll({ title, body, url, source }) {
     if (showOnPage) payloadObj.count = pageCount;
     const payload = JSON.stringify(payloadObj);
     const results = await Promise.allSettled(
-      data.pushSubscriptions.map(s => wp.sendNotification(s, payload))
+      targetSubs.map(s => wp.sendNotification(s, payload))
     );
-    // Clean up dead subscriptions (410 Gone / 404 Not Found)
-    const survivors = data.pushSubscriptions.filter((s, i) => {
+    // Clean up dead subscriptions (410 Gone / 404 Not Found).
+    // Filter the full subs list, not just targetSubs.
+    const deadEndpoints = new Set();
+    targetSubs.forEach((s, i) => {
       const r = results[i];
       if (r.status === 'rejected') {
         const code = r.reason && r.reason.statusCode;
-        if (code === 410 || code === 404) return false;
-        console.warn('[push] failed', code || '', r.reason && r.reason.message);
+        if (code === 410 || code === 404) deadEndpoints.add(s.endpoint);
+        else console.warn('[push] failed', code || '', r.reason && r.reason.message);
       }
-      return true;
     });
-    if (survivors.length !== data.pushSubscriptions.length) {
+    if (deadEndpoints.size) {
       const d2 = load();
-      d2.pushSubscriptions = survivors;
+      d2.pushSubscriptions = (d2.pushSubscriptions || []).filter(s => !deadEndpoints.has(s.endpoint));
       save(d2, { silent: true });
     }
   }
 
-  // Email fan-out (best-effort, fire and forget)
+  // Email fan-out (best-effort, fire and forget).
   const transport = getMailTransport();
-  if (transport && data.emailSubscribers.length) {
+  const targetEmails = group
+    ? data.emailSubscribers.filter(e => groupEmails.has((e || '').toLowerCase()))
+    : data.emailSubscribers;
+  if (transport && targetEmails.length) {
     const appUrl = envClean('APP_URL') || '';
-    for (const to of data.emailSubscribers) {
+    for (const to of targetEmails) {
       transport.sendMail({
         from:    envClean('SMTP_FROM') || envClean('SMTP_USER'),
         to,

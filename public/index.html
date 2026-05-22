@@ -1714,6 +1714,79 @@ body.is-admin .pm-admin{display:block;}
 body.is-admin .pm-msg-del{display:inline-block;}
 .pm-msg-del:hover{background:#c0392b;color:#fff;}
 
+/* Group-coloured messages: an accent border on the left edge using the
+   group's assigned colour. Unread highlight (amber) still wins on .is-unread. */
+.pm-msg.has-group{border-left:5px solid var(--group-color, #1a2b4a);}
+.pm-msg-group-tag{
+  display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.5px;padding:2px 8px;border-radius:10px;margin-bottom:6px;
+  background:var(--group-color, #1a2b4a);color:#fff;
+}
+
+/* ---- GROUPS ADMIN ---- */
+.pm-groups-admin{
+  display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;
+  padding:18px;margin-bottom:18px;
+}
+body.is-admin .pm-groups-admin{display:block;}
+.pm-groups-admin h3{color:#1e3a8a;font-size:15px;font-weight:700;margin:0 0 10px;}
+.pm-grp-list{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.pm-grp-list:empty::before{content:'No groups yet.';color:#888;font-size:12px;}
+.pm-grp-row{
+  display:flex;align-items:center;gap:10px;background:#fff;
+  border:1px solid #e6e6e6;border-radius:8px;padding:10px 12px;flex-wrap:wrap;
+}
+.pm-grp-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.pm-grp-info{flex:1;min-width:160px;}
+.pm-grp-name{color:#1a2b4a;font-size:14px;font-weight:700;}
+.pm-grp-desc{color:#555;font-size:12px;margin-top:2px;}
+.pm-grp-meta{color:#888;font-size:11px;margin-top:2px;}
+.pm-grp-del{
+  background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:4px 10px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;cursor:pointer;
+}
+.pm-grp-del:hover{background:#c0392b;color:#fff;}
+
+/* Group select dropdown above the admin send form */
+.pm-target-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.pm-target-row label{font-size:13px;font-weight:600;color:#1a2b4a;}
+.pm-target-select{
+  flex:1;min-width:180px;
+  background:#fff;border:1px solid #ccc;border-radius:8px;
+  padding:8px 10px;font-size:14px;font-family:'Quicksand',sans-serif;
+}
+
+/* ---- JOIN GROUP PAGE ---- */
+.jg-body{max-width:600px;margin:0 auto;padding:24px;}
+.jg-card{
+  background:#fff;border:1px solid #e6e6e6;border-radius:12px;
+  padding:24px;margin-top:18px;
+}
+.jg-color-bar{height:6px;border-radius:3px;background:#1a2b4a;margin-bottom:18px;}
+.jg-name{color:#1a2b4a;font-size:22px;font-weight:700;margin:0 0 8px;}
+.jg-desc{color:#333;font-size:15px;line-height:1.5;margin:0 0 22px;white-space:pre-wrap;}
+.jg-label{display:block;font-size:13px;font-weight:600;color:#1a2b4a;margin:14px 0 6px;}
+.jg-input{
+  width:100%;background:#fff;border:1px solid #ccc;border-radius:8px;
+  padding:10px 12px;font-size:15px;font-family:'Quicksand',sans-serif;box-sizing:border-box;
+}
+.jg-input:focus{border-color:#c0642b;outline:none;}
+.jg-submit{
+  width:100%;margin-top:18px;background:#c0642b;color:#fff;
+  border:none;font-size:15px;font-weight:700;padding:12px;border-radius:10px;
+  font-family:'Quicksand',sans-serif;cursor:pointer;
+}
+.jg-submit:hover{background:#a85325;}
+.jg-submit:disabled{opacity:0.5;cursor:not-allowed;}
+.jg-status{margin-top:12px;font-size:13px;min-height:18px;}
+.jg-status.ok{color:#16a34a;}
+.jg-status.err{color:#c0392b;}
+.jg-already{
+  background:#dcfce7;border:1px solid #86efac;color:#166534;
+  padding:14px;border-radius:10px;margin-top:14px;font-size:14px;
+}
+
 /* ---- HALL BOOKINGS PAGE ---- */
 .hb-body{max-width:760px;margin:0 auto;padding:24px;}
 .pg-body h2.hb-section-h,
@@ -3066,15 +3139,37 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div id="pm-subscribe-status" class="pm-subscribe-status"></div>
       </div>
 
+      <div id="pm-groups-admin" class="pm-groups-admin">
+        <h3>Create a group</h3>
+        <p style="font-size:12px;color:#555;margin:0 0 10px;">Creating a group sends an invitation message to every subscriber. Parents tap the message and fill in their name + email to join.</p>
+        <form id="pm-grp-form" onsubmit="event.preventDefault(); pmCreateGroup();">
+          <label class="hb-label" for="pm-grp-name">Group name <span class="hb-required">*</span></label>
+          <input id="pm-grp-name" class="hb-input" type="text" required maxlength="200" placeholder="e.g. Year 5 Camp 2026">
+          <label class="hb-label" for="pm-grp-desc">Description</label>
+          <textarea id="pm-grp-desc" class="hb-input" rows="2" maxlength="1000" placeholder="Who is this group for and what kind of updates will they get?"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+            <button id="pm-grp-btn" type="submit" class="hb-submit-btn" style="flex:1;">+ Create group &amp; send invite</button>
+            <span id="pm-grp-status" class="hb-err"></span>
+          </div>
+        </form>
+        <div id="pm-grp-list" class="pm-grp-list"></div>
+      </div>
+
       <div id="pm-admin" class="pm-admin">
         <h3 class="pm-admin-h">Send a message</h3>
         <form id="pm-admin-form" onsubmit="event.preventDefault(); pmSendMessage();">
+          <div class="pm-target-row">
+            <label for="pm-target">Send to:</label>
+            <select id="pm-target" class="pm-target-select">
+              <option value="">All subscribers</option>
+            </select>
+          </div>
           <label class="hb-label" for="pm-title">Title <span class="hb-required">*</span></label>
           <input id="pm-title" class="hb-input" type="text" required maxlength="200" placeholder="e.g. School closed Friday">
           <label class="hb-label" for="pm-body">Body</label>
           <textarea id="pm-body" class="hb-input" rows="4" maxlength="4000" placeholder="What do you want parents to see…"></textarea>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
-            <button id="pm-send-btn" type="submit" class="hb-submit-btn" style="flex:1;">📣 Send to all subscribers</button>
+            <button id="pm-send-btn" type="submit" class="hb-submit-btn" style="flex:1;">📣 Send</button>
             <span id="pm-send-status" class="hb-err"></span>
           </div>
         </form>
@@ -3082,6 +3177,31 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <h2 class="pm-section-h">All messages</h2>
       <div id="pm-list" class="pm-list"></div>
+    </div>
+  </div>
+
+  <!-- ======== JOIN GROUP PAGE ======== -->
+  <div id="pg-join-group" class="page">
+    <div class="pg-header" id="ph-join-group"></div>
+    <div class="pg-body jg-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Join group</h1>
+      </div>
+      <div id="jg-card" class="jg-card">
+        <div id="jg-color-bar" class="jg-color-bar"></div>
+        <h2 id="jg-name" class="jg-name">Loading…</h2>
+        <p id="jg-desc" class="jg-desc"></p>
+        <div id="jg-already" class="jg-already" hidden>You're already a member of this group on this device.</div>
+        <form id="jg-form" onsubmit="event.preventDefault(); joinGroupSubmit();">
+          <label class="jg-label" for="jg-name-input">Your name <span class="hb-required">*</span></label>
+          <input id="jg-name-input" class="jg-input" type="text" required maxlength="200" autocomplete="name" placeholder="e.g. Jane Doe">
+          <label class="jg-label" for="jg-email-input">Email <span class="hb-required">*</span></label>
+          <input id="jg-email-input" class="jg-input" type="email" required maxlength="200" autocomplete="email" placeholder="you@example.com">
+          <button id="jg-submit-btn" type="submit" class="jg-submit">Join group</button>
+          <div id="jg-status" class="jg-status"></div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -3400,7 +3520,10 @@ function fetchState() {
       upcomingEventImages = Array.isArray(data.upcomingEventImages) ? data.upcomingEventImages : [];
       if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
       parentMessages = Array.isArray(data.parentMessages) ? data.parentMessages : [];
+      parentGroups   = Array.isArray(data.parentGroups)   ? data.parentGroups   : [];
       if (typeof pmRenderList === 'function') pmRenderList();
+      if (typeof pmRenderGroupsAdmin === 'function') pmRenderGroupsAdmin();
+      if (typeof pmUpdateTargetSelect === 'function') pmUpdateTargetSelect();
       if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
       if (typeof refreshUndoFromState === 'function') refreshUndoFromState(data);
       // If this load was triggered by a deep-link URL like /lunch-orders,
@@ -3413,6 +3536,10 @@ function fetchState() {
       if (window.__autoSportId && typeof openSportDetail === 'function' && sportsData[window.__autoSportId]) {
         openSportDetail(window.__autoSportId);
         window.__autoSportId = null;
+      }
+      if (window.__autoJoinGroupId && typeof joinGroupShow === 'function') {
+        joinGroupShow(window.__autoJoinGroupId);
+        window.__autoJoinGroupId = null;
       }
       if (window.__autoEventId && typeof openEventDetail === 'function' && eventsData[window.__autoEventId]) {
         openEventDetail(window.__autoEventId);
@@ -3902,6 +4029,8 @@ function showPage(id) {
       pmFetchMessages().then(function(){ if (typeof pmMarkAllRead === 'function') pmMarkAllRead(); });
     }
     if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
+    if (typeof pmRenderGroupsAdmin === 'function') pmRenderGroupsAdmin();
+    if (typeof pmUpdateTargetSelect === 'function') pmUpdateTargetSelect();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -8199,7 +8328,25 @@ function publishNewsletter() {
 <!-- PARENT MESSAGES + PUSH NOTIFICATIONS -->
 <script>
 var parentMessages = [];
+var parentGroups = [];
 var _pmVapidKey = null;
+
+// Local record of which groups THIS device has joined. Used to filter
+// group-restricted messages on the Messages page.
+function pmGetJoinedGroups() {
+  try {
+    var raw = localStorage.getItem('pm_joined_groups');
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function pmAddJoinedGroup(id) {
+  if (!id) return;
+  var list = pmGetJoinedGroups();
+  if (list.indexOf(id) === -1) list.push(id);
+  try { localStorage.setItem('pm_joined_groups', JSON.stringify(list)); } catch (e) {}
+}
 
 function pmIsSubscribed() {
   try { return localStorage.getItem('pm_subscribed') === '1'; } catch (e) { return false; }
@@ -8352,24 +8499,48 @@ function pmFmtDate(ms) {
   return d.toLocaleString();
 }
 
+// Return messages visible to the current viewer. Admin sees everything;
+// parents see public messages plus group-restricted messages for groups
+// they've joined on this device.
+function pmVisibleMessages() {
+  var joined = pmGetJoinedGroups();
+  return parentMessages.filter(function(m) {
+    if (!m.groupId) return true;             // public
+    if (window.isAdmin) return true;         // admin sees all
+    return joined.indexOf(m.groupId) !== -1; // group member on this device
+  });
+}
+
 function pmRenderList() {
   var wrap = el('pm-list');
   if (!wrap) return;
   wrap.innerHTML = '';
+  var visible = pmVisibleMessages();
   var lastSeen = pmGetLastSeenId();
-  // Sort newest first
-  var sorted = parentMessages.slice().sort(function(a, b) { return b.createdAt - a.createdAt; });
-  // Determine unread: messages newer (by createdAt) than the last seen one.
-  var lastSeenMsg = parentMessages.find(function(m) { return m.id === lastSeen; });
+  var sorted = visible.slice().sort(function(a, b) { return b.createdAt - a.createdAt; });
+  var lastSeenMsg = visible.find(function(m) { return m.id === lastSeen; });
   var lastSeenTime = lastSeenMsg ? lastSeenMsg.createdAt : 0;
   sorted.forEach(function(m) {
     var card = document.createElement('div');
-    card.className = 'pm-msg' + (m.createdAt > lastSeenTime ? ' is-unread' : '');
+    var classes = 'pm-msg';
+    if (m.createdAt > lastSeenTime) classes += ' is-unread';
+    if (m.groupId && m.groupColor) classes += ' has-group';
+    card.className = classes;
+    if (m.groupColor) card.style.setProperty('--group-color', m.groupColor);
+    // Group name tag (looks up name from current groups; falls back blank).
+    var grp = m.groupId ? parentGroups.find(function(g){ return g.id === m.groupId; }) : null;
+    var tagHtml = (m.groupId && grp)
+      ? '<span class="pm-msg-group-tag" style="background:' + lunchEsc(m.groupColor || '#1a2b4a') + '">' + lunchEsc(grp.name) + '</span>'
+      : '';
+    var linkText = 'View →';
+    if (m.url && m.url.indexOf('/join-group/') === 0) linkText = 'Join group →';
+    else if (m.url && m.url.indexOf('/newsletter/') === 0) linkText = 'Read newsletter →';
     card.innerHTML =
+      tagHtml +
       '<h4>' + lunchEsc(m.title) + '</h4>' +
       '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
       '<div class="pm-msg-body">' + lunchEsc(m.body) + '</div>' +
-      (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">View →</a>' : '');
+      (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">' + linkText + '</a>' : '');
     var del = document.createElement('button');
     del.type = 'button';
     del.className = 'pm-msg-del';
@@ -8382,10 +8553,11 @@ function pmRenderList() {
 }
 
 function pmUpdateUnreadIndicators() {
+  var visible = pmVisibleMessages();
   var lastSeen = pmGetLastSeenId();
-  var lastSeenMsg = parentMessages.find(function(m) { return m.id === lastSeen; });
+  var lastSeenMsg = visible.find(function(m) { return m.id === lastSeen; });
   var lastSeenTime = lastSeenMsg ? lastSeenMsg.createdAt : 0;
-  var unread = parentMessages.filter(function(m) { return m.createdAt > lastSeenTime; }).length;
+  var unread = visible.filter(function(m) { return m.createdAt > lastSeenTime; }).length;
   // Sidebar badge
   var badge = el('sidebar-msg-badge');
   if (badge) {
@@ -8400,12 +8572,11 @@ function pmUpdateUnreadIndicators() {
 }
 
 function pmMarkAllRead() {
-  if (!parentMessages.length) return;
-  // Mark the newest message id as the last-seen anchor.
-  var newest = parentMessages.reduce(function(a, b) { return (a && a.createdAt > b.createdAt) ? a : b; });
+  var visible = pmVisibleMessages();
+  if (!visible.length) return;
+  var newest = visible.reduce(function(a, b) { return (a && a.createdAt > b.createdAt) ? a : b; });
   if (newest) pmSetLastSeenId(newest.id);
   pmUpdateUnreadIndicators();
-  // Also refresh the list so the orange unread bars disappear.
   pmRenderList();
 }
 
@@ -8422,18 +8593,22 @@ function pmFetchMessages() {
 function pmSendMessage() {
   var title = el('pm-title').value.trim();
   var body  = el('pm-body').value;
+  var targetSel = el('pm-target');
+  var groupId = targetSel ? targetSel.value : '';
   var status = el('pm-send-status');
   var btn = el('pm-send-btn');
   if (!title) { status.textContent = 'Title required.'; return; }
   btn.disabled = true; btn.textContent = 'Sending…';
+  var payload = { title: title, body: body, url: '/messages' };
+  if (groupId) payload.groupId = groupId;
   fetch('/api/parent-messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: title, body: body, url: '/messages' })
+    body: JSON.stringify(payload)
   })
   .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
   .then(function(res) {
-    btn.disabled = false; btn.textContent = '📣 Send to all subscribers';
+    btn.disabled = false; btn.textContent = '📣 Send';
     if (!res.ok || !res.body || !res.body.message) {
       status.textContent = (res.body && res.body.error) || 'Send failed.';
       return;
@@ -8445,7 +8620,7 @@ function pmSendMessage() {
     pmRenderList();
   })
   .catch(function() {
-    btn.disabled = false; btn.textContent = '📣 Send to all subscribers';
+    btn.disabled = false; btn.textContent = '📣 Send';
     status.textContent = 'Network error.';
   });
 }
@@ -8457,6 +8632,179 @@ function pmDeleteMessage(id) {
       parentMessages = parentMessages.filter(function(m){ return m.id !== id; });
       pmRenderList();
     });
+}
+
+// ===================== GROUPS =====================
+// Populate the "Send to" dropdown above the admin send form.
+function pmUpdateTargetSelect() {
+  var sel = el('pm-target');
+  if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All subscribers</option>';
+  parentGroups.forEach(function(g) {
+    var opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name + ' (' + (g.memberCount || 0) + ')';
+    sel.appendChild(opt);
+  });
+  if (current && parentGroups.some(function(g){ return g.id === current; })) sel.value = current;
+}
+
+// Render the admin's group list with member counts and delete buttons.
+function pmRenderGroupsAdmin() {
+  var wrap = el('pm-grp-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  parentGroups.forEach(function(g) {
+    var row = document.createElement('div');
+    row.className = 'pm-grp-row';
+    var memberPreview = (g.memberNames && g.memberNames.length)
+      ? ' — ' + g.memberNames.slice(0, 5).join(', ') + (g.memberNames.length > 5 ? ', …' : '')
+      : '';
+    row.innerHTML =
+      '<div class="pm-grp-dot" style="background:' + lunchEsc(g.color || '#1a2b4a') + '"></div>' +
+      '<div class="pm-grp-info">' +
+        '<div class="pm-grp-name">' + lunchEsc(g.name) + '</div>' +
+        (g.description ? '<div class="pm-grp-desc">' + lunchEsc(g.description) + '</div>' : '') +
+        '<div class="pm-grp-meta">' + (g.memberCount || 0) + ' member' + ((g.memberCount === 1) ? '' : 's') + lunchEsc(memberPreview) + '</div>' +
+      '</div>';
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'pm-grp-del';
+    del.textContent = 'Delete';
+    del.onclick = function() { pmDeleteGroup(g.id, g.name); };
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+
+function pmCreateGroup() {
+  var name = el('pm-grp-name').value.trim();
+  var desc = el('pm-grp-desc').value.trim();
+  var status = el('pm-grp-status');
+  var btn = el('pm-grp-btn');
+  if (!name) { status.textContent = 'Name required.'; return; }
+  btn.disabled = true; btn.textContent = 'Creating…';
+  fetch('/api/parent-groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, description: desc })
+  })
+  .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = '+ Create group & send invite';
+    if (!res.ok || !res.body || !res.body.group) {
+      status.textContent = (res.body && res.body.error) || 'Create failed.';
+      return;
+    }
+    el('pm-grp-name').value = ''; el('pm-grp-desc').value = '';
+    status.textContent = 'Group created and invitation sent.';
+    setTimeout(function(){ status.textContent = ''; }, 2000);
+    parentGroups.push(res.body.group);
+    pmRenderGroupsAdmin();
+    pmUpdateTargetSelect();
+    // Re-fetch messages so the new invitation card appears in the list.
+    pmFetchMessages();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '+ Create group & send invite';
+    status.textContent = 'Network error.';
+  });
+}
+
+function pmDeleteGroup(id, name) {
+  if (!confirm('Delete the group "' + name + '"?\n\nMembers will lose access to group-only messages. This does not delete past messages.')) return;
+  fetch('/api/parent-groups/' + encodeURIComponent(id), { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+      parentGroups = parentGroups.filter(function(g){ return g.id !== id; });
+      pmRenderGroupsAdmin();
+      pmUpdateTargetSelect();
+    });
+}
+
+// ===================== JOIN GROUP PAGE =====================
+var _jgGroupId = null;
+
+function joinGroupShow(id) {
+  _jgGroupId = id;
+  var nameEl = el('jg-name');
+  var descEl = el('jg-desc');
+  var barEl  = el('jg-color-bar');
+  var alreadyEl = el('jg-already');
+  var statusEl  = el('jg-status');
+  var formEl = el('jg-form');
+  if (statusEl) { statusEl.textContent = ''; statusEl.className = 'jg-status'; }
+  if (nameEl) nameEl.textContent = 'Loading…';
+  if (descEl) descEl.textContent = '';
+  if (alreadyEl) alreadyEl.hidden = true;
+  if (formEl) formEl.style.display = '';
+  fetch('/api/parent-groups/' + encodeURIComponent(id))
+    .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body || !res.body.group) {
+        if (nameEl) nameEl.textContent = 'Group not found';
+        if (descEl) descEl.textContent = 'This group may have been deleted.';
+        if (formEl) formEl.style.display = 'none';
+        return;
+      }
+      var g = res.body.group;
+      if (nameEl) nameEl.textContent = g.name;
+      if (descEl) descEl.textContent = g.description || '';
+      if (barEl)  barEl.style.background = g.color || '#1a2b4a';
+      // Already joined on this device?
+      if (pmGetJoinedGroups().indexOf(g.id) !== -1) {
+        if (alreadyEl) alreadyEl.hidden = false;
+      }
+    })
+    .catch(function() {
+      if (nameEl) nameEl.textContent = 'Could not load group';
+    });
+}
+
+function joinGroupSubmit() {
+  if (!_jgGroupId) return;
+  var name  = el('jg-name-input').value.trim();
+  var email = el('jg-email-input').value.trim();
+  var btn   = el('jg-submit-btn');
+  var status = el('jg-status');
+  if (!name)  { status.textContent = 'Name required.';  status.className = 'jg-status err'; return; }
+  if (!email) { status.textContent = 'Email required.'; status.className = 'jg-status err'; return; }
+  btn.disabled = true; btn.textContent = 'Joining…';
+  status.textContent = ''; status.className = 'jg-status';
+  // Best-effort: include this device's push endpoint so the server can fan
+  // out group push notifications to this device.
+  var endpointPromise = ('serviceWorker' in navigator && 'PushManager' in window)
+    ? navigator.serviceWorker.ready.then(function(reg) { return reg.pushManager.getSubscription(); }).then(function(s) { return s ? s.endpoint : null; }).catch(function(){ return null; })
+    : Promise.resolve(null);
+  endpointPromise.then(function(endpoint) {
+    return fetch('/api/parent-groups/' + encodeURIComponent(_jgGroupId) + '/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, email: email, endpoint: endpoint })
+    });
+  })
+  .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = 'Join group';
+    if (!res.ok) {
+      status.textContent = (res.body && res.body.error) || 'Join failed.';
+      status.className = 'jg-status err';
+      return;
+    }
+    pmAddJoinedGroup(_jgGroupId);
+    status.textContent = "You're in! Group messages will now appear on the Messages page.";
+    status.className = 'jg-status ok';
+    var alreadyEl = el('jg-already');
+    if (alreadyEl) alreadyEl.hidden = false;
+    // Refresh messages so any group-only messages become visible.
+    if (typeof pmFetchMessages === 'function') pmFetchMessages();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Join group';
+    status.textContent = 'Network error.';
+    status.className = 'jg-status err';
+  });
 }
 </script>
 
