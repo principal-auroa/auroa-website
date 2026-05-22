@@ -7976,7 +7976,11 @@ function nlUploadImage(event, slot) {
       else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = res.filename;
       else if (slot === 'importantDates') newsletterData.importantDatesImage = res.filename;
       renderNewsletter();
+      // Schedule a save AND flush it immediately so the new image filename
+      // hits disk right away — not 1.5s later — to avoid races with a
+      // refresh, navigation, or Publish press happening within that window.
       nlAutoSave();
+      if (typeof window.flushAutoSave === 'function') window.flushAutoSave('newsletter');
     });
   event.target.value = '';
 }
@@ -7992,6 +7996,7 @@ function nlRemoveImage(slot) {
   else if (slot === 'importantDates') newsletterData.importantDatesImage = null;
   renderNewsletter();
   nlAutoSave();
+  if (typeof window.flushAutoSave === 'function') window.flushAutoSave('newsletter');
 }
 
 function nlAddNotice() {
@@ -8324,10 +8329,16 @@ function publishNewsletter() {
     ? 'Update the existing "' + label + '" newsletter snapshot?\n\nThe shareable link stays the same; the saved content will be replaced with the current editor.'
     : 'Publish "' + label + '" as a shareable newsletter?\n\nA new public URL will be created. Parents will be able to view it at that link.';
   if (!confirm(msg)) return;
-  fetch('/api/newsletter/publish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({})
+  // Flush any pending auto-save before publish, otherwise an image uploaded
+  // within the last 1.5s won't have hit the server yet — publish would read
+  // a stale draft and the new image would be missing from the snapshot.
+  nlCollectAllTextEdits();
+  saveNewsletter().then(function() {
+    return fetch('/api/newsletter/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
   })
   .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
   .then(function(res) {
