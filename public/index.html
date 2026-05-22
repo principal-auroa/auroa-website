@@ -8809,10 +8809,11 @@ function joinGroupShow(id) {
       if (nameEl) nameEl.textContent = g.name;
       if (descEl) descEl.textContent = g.description || '';
       if (barEl)  barEl.style.background = g.color || '#1a2b4a';
-      // Already joined on this device?
-      if (pmGetJoinedGroups().indexOf(g.id) !== -1) {
-        if (alreadyEl) alreadyEl.hidden = false;
-      }
+      // Do not prefill an "already a member" banner. The server is idempotent
+      // on email — submitting again just refreshes the member's details. A
+      // pre-fill banner ended up false-flagging admins who'd never joined.
+      // The success status after a real submit ("You're in!") tells the user
+      // everything they need.
     })
     .catch(function() {
       if (nameEl) nameEl.textContent = 'Could not load group';
@@ -8852,8 +8853,6 @@ function joinGroupSubmit() {
     pmAddJoinedGroup(_jgGroupId);
     status.textContent = "You're in! Group messages will now appear on the Messages page.";
     status.className = 'jg-status ok';
-    var alreadyEl = el('jg-already');
-    if (alreadyEl) alreadyEl.hidden = false;
     // Refresh messages so any group-only messages become visible.
     if (typeof pmFetchMessages === 'function') pmFetchMessages();
   })
