@@ -359,6 +359,17 @@ app.post('/api/upload/educate', uploader('educate').single('image'), (req, res) 
   res.json({ filename: req.file.filename });
 });
 
+// Full-width image at the bottom of the home page (replaces the old
+// text + image info table).
+app.post('/api/upload/homefooter', uploader('homefooter').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.homeFooterImage);
+  data.homeFooterImage = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+
 app.post('/api/upload/carousel', uploader('carousel').single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();

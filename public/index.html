@@ -416,6 +416,24 @@ body.is-admin #sidebar-audio-none{display:block;}
 #hdr-box{
   width:100%;margin:28px 0 22px;
 }
+#hfoot-box{
+  width:100%;margin:18px 0 22px;
+}
+body.is-admin #hfoot-overlay{display:flex;}
+#hfoot-overlay{
+  inset:unset !important;top:6px;right:6px;
+  width:auto;height:auto;padding:4px 10px;border-radius:6px;
+  background:rgba(26,43,74,0.75) !important;font-size:11px;font-weight:600;cursor:pointer;
+}
+#hfoot-overlay span{background:none !important;padding:0 !important;font-size:11px;}
+#hfoot-upload-btn{
+  display:none;
+  background:#1a2b4a;color:#fff;
+  padding:8px 20px;border-radius:6px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
+  margin-bottom:14px;
+}
+body.is-admin #hfoot-upload-btn{display:inline-block;}
 .img-box img{width:100%;display:block;}
 #hdr-img{transform-origin:center center;pointer-events:none;user-select:none;-webkit-user-drag:none;}
 .img-box .placeholder{
@@ -2452,21 +2470,17 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <hr class="home-rule" />
 
-      <!-- Info table: text | image -->
-      <div id="hit-wrap">
-        <div id="hit-grid">
-          <div class="hit-cell hit-text-cell">
-            <div class="editable" id="ec-homeinfo"><p>Add some information here…</p></div>
-          </div>
-          <div class="hit-cell hit-img-cell" id="hit-c2">
-            <div class="hit-placeholder" id="hit-ph-2">No image</div>
-            <img id="hit-img-2" style="display:none;" alt="" />
-            <div class="hit-img-ov" id="hit-ov-2" onclick="el('hit-fin-2').click()">+</div>
-            <input class="file-in" id="hit-fin-2" type="file" accept="image/*" onchange="uploadHitImg('2',this)" />
-          </div>
-        </div>
-        <div class="hit-resize-handle" id="hit-rh0"></div>
+      <!-- Full-width image at the bottom of the home page -->
+      <div class="img-box" id="hfoot-box">
+        <div class="placeholder" id="hfoot-placeholder">No image — upload one as admin</div>
+        <img id="hfoot-img" style="display:none;" alt="" />
+        <label class="upload-overlay" id="hfoot-overlay" for="hfoot-file">
+          <span>Click to replace image</span>
+        </label>
+        <input class="file-in" id="hfoot-file" type="file" accept="image/*" onchange="uploadImg('homefooter',this)" />
+        <button class="img-link-btn" id="lb-hfoot-box" onclick="event.stopPropagation();openImgLinkEditor('hfoot-box',this)">🔗</button>
       </div>
+      <label id="hfoot-upload-btn" for="hfoot-file">&#8679; Upload Image</label>
 
       <div class="home-download-wrap">
         <button id="home-download-app-btn" type="button" onclick="window.auroaInstallApp && window.auroaInstallApp()">
@@ -3480,6 +3494,9 @@ window.addEventListener('DOMContentLoaded', function() {
     // Non-admin hdr-box link click
     if (!isAdmin && !e.target.closest('#hdr-overlay') && e.target.closest('#hdr-box') && imgLinks['hdr-box'])
       window.open(imgLinks['hdr-box'], '_blank');
+    // Non-admin hfoot-box link click
+    if (!isAdmin && !e.target.closest('#hfoot-overlay') && e.target.closest('#hfoot-box') && imgLinks['hfoot-box'])
+      window.open(imgLinks['hfoot-box'], '_blank');
     // Non-admin pride surround cell click → open popup
     if (!isAdmin) {
       var cell = e.target.closest('.pc-surround');
@@ -3559,6 +3576,7 @@ function fetchState() {
 
       if (data.headerImage)  applyHdrImg('/uploads/' + data.headerImage);
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
+      if (data.homeFooterImage) applyHomeFooterImg('/uploads/' + data.homeFooterImage);
       var et = data.educateImageTransform || {};
       eduImgTx = et.tx || 0; eduImgTy = et.ty || 0; eduImgScale = et.scale || 1;
       applyEduTransform();
@@ -3661,6 +3679,7 @@ function fetchState() {
       // Load saved image transforms + links for all clusters
       imgLinks = {};
       if (data['imgLink_hdr-box']) imgLinks['hdr-box'] = data['imgLink_hdr-box'];
+      if (data['imgLink_hfoot-box']) imgLinks['hfoot-box'] = data['imgLink_hfoot-box'];
       prideClusters.forEach(function(c){ c.loadData(data); });
       applyPrideYoutubeThumbs();
 
@@ -3837,6 +3856,8 @@ function uploadImg(type, input) {
       if (type === 'header') {
         applyHdrImg('/uploads/' + data.filename);
         applyHeaderToAllPages();
+      } else if (type === 'homefooter') {
+        applyHomeFooterImg('/uploads/' + data.filename);
       } else {
         applyEduImg('/uploads/' + data.filename);
       }
@@ -3844,6 +3865,14 @@ function uploadImg(type, input) {
     })
     .catch(function() { flashSave('Upload failed.'); });
   input.value = '';
+}
+
+function applyHomeFooterImg(src) {
+  var img = el('hfoot-img');
+  if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var ph = el('hfoot-placeholder'); if (ph) ph.style.display = 'none';
+  var box = el('hfoot-box'); if (box) box.style.border = 'none';
 }
 
 function applyHdrImg(src) {
