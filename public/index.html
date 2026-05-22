@@ -564,6 +564,31 @@ body.is-admin #carousel-empty{display:block;}
 }
 .home-rule{border:none;border-top:1.5px solid #222;margin:18px 0;}
 
+/* ---- DOWNLOAD APP BUTTON ---- */
+.home-download-wrap{
+  display:flex;
+  justify-content:center;
+  margin:30px 0 40px;
+}
+#home-download-app-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  background:#1a2b4a;
+  color:#fff;
+  border:none;
+  font-size:16px;
+  font-weight:700;
+  padding:14px 28px;
+  border-radius:12px;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(26,43,74,0.25);
+  transition:background 0.15s ease, transform 0.05s ease;
+}
+#home-download-app-btn:hover{background:#243a64;}
+#home-download-app-btn:active{transform:translateY(1px);}
+#home-download-app-btn svg{width:20px;height:20px;}
+
 /* ---- HOME INFO TABLE ---- */
 #hit-wrap{
   position:relative;
@@ -2368,6 +2393,17 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           </div>
         </div>
         <div class="hit-resize-handle" id="hit-rh0"></div>
+      </div>
+
+      <div class="home-download-wrap">
+        <button id="home-download-app-btn" type="button" onclick="window.auroaInstallApp && window.auroaInstallApp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12"></path>
+            <path d="M7 10l5 5 5-5"></path>
+            <path d="M5 21h14"></path>
+          </svg>
+          Download app
+        </button>
       </div>
 
       </div><!-- /home-lower -->
@@ -9244,16 +9280,15 @@ body.is-admin #install-popup{display:none;}
   var DISMISS_KEY = 'auroa_install_dismissed_v1';
   var THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-  // Already installed? Don't show.
   var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
                 || window.navigator.standalone === true;
-  if (standalone) return;
 
-  // Recently dismissed? Don't show.
-  try {
-    var d = localStorage.getItem(DISMISS_KEY);
-    if (d && (Date.now() - parseInt(d, 10) < THIRTY_DAYS)) return;
-  } catch (e) {}
+  function recentlyDismissed() {
+    try {
+      var d = localStorage.getItem(DISMISS_KEY);
+      return !!(d && (Date.now() - parseInt(d, 10) < THIRTY_DAYS));
+    } catch (e) { return false; }
+  }
 
   var ua = navigator.userAgent || '';
   var isIOS = /iPhone|iPad|iPod/.test(ua) && !window.MSStream;
@@ -9261,8 +9296,18 @@ body.is-admin #install-popup{display:none;}
   if (!isIOS && /Macintosh/.test(ua) && navigator.maxTouchPoints > 1) isIOS = true;
 
   var deferredPrompt = null;
-  var mode = 'prompt'; // 'prompt' | 'ios-steps'
+  var mode = 'prompt'; // 'prompt' | 'ios-steps' | 'generic-steps'
 
+  function resetPopupBody() {
+    if (text) {
+      text.hidden = false;
+      text.textContent = 'Get quick access from your home screen.';
+    }
+    if (iosSteps) iosSteps.hidden = true;
+    if (yesBtn) yesBtn.textContent = 'Yes, install';
+    if (noBtn)  noBtn.hidden = false;
+    mode = 'prompt';
+  }
   function show(){
     popup.classList.add('show');
     popup.setAttribute('aria-hidden', 'false');
@@ -9274,19 +9319,39 @@ body.is-admin #install-popup{display:none;}
       try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
     }
   }
+  function showIOSSteps() {
+    if (text) text.hidden = true;
+    if (iosSteps) iosSteps.hidden = false;
+    if (yesBtn) yesBtn.textContent = 'Got it';
+    if (noBtn) noBtn.hidden = true;
+    mode = 'ios-steps';
+    show();
+  }
+  function showGenericSteps() {
+    if (text) {
+      text.hidden = false;
+      text.textContent = 'To install, open your browser menu and choose "Install app" or "Add to Home Screen".';
+    }
+    if (iosSteps) iosSteps.hidden = true;
+    if (yesBtn) yesBtn.textContent = 'Got it';
+    if (noBtn) noBtn.hidden = true;
+    mode = 'generic-steps';
+    show();
+  }
 
   // Android / Chromium desktop: capture native install prompt.
   window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
     deferredPrompt = e;
-    setTimeout(show, 1500);
+    // Only auto-show the popup if we haven't already been dismissed/installed.
+    if (!standalone && !recentlyDismissed()) setTimeout(show, 1500);
   });
 
   // iOS Safari: no beforeinstallprompt, but we can show instructions.
-  if (isIOS) setTimeout(show, 1500);
+  if (isIOS && !standalone && !recentlyDismissed()) setTimeout(show, 1500);
 
-  yesBtn.addEventListener('click', function(){
-    if (mode === 'ios-steps') { hide(true); return; }
+  if (yesBtn) yesBtn.addEventListener('click', function(){
+    if (mode === 'ios-steps' || mode === 'generic-steps') { hide(true); return; }
 
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -9297,22 +9362,45 @@ body.is-admin #install-popup{display:none;}
       return;
     }
 
-    if (isIOS) {
-      text.hidden = true;
-      iosSteps.hidden = false;
-      yesBtn.textContent = 'Got it';
-      noBtn.hidden = true;
-      mode = 'ios-steps';
-      return;
-    }
+    if (isIOS) { showIOSSteps(); return; }
 
     hide(true);
   });
 
-  noBtn.addEventListener('click', function(){ hide(true); });
-  closeBtn.addEventListener('click', function(){ hide(true); });
+  if (noBtn)    noBtn.addEventListener('click', function(){ hide(true); });
+  if (closeBtn) closeBtn.addEventListener('click', function(){ hide(true); });
 
-  window.addEventListener('appinstalled', function(){ hide(false); });
+  window.addEventListener('appinstalled', function(){
+    hide(false);
+    deferredPrompt = null;
+    // Hide the Download app button once installed.
+    var btn = document.getElementById('home-download-app-btn');
+    if (btn) btn.style.display = 'none';
+  });
+
+  // Public: called by the "Download app" button on the home page.
+  window.auroaInstallApp = function(){
+    resetPopupBody();
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choice){
+        deferredPrompt = null;
+      }).catch(function(){});
+      return;
+    }
+    if (isIOS) { showIOSSteps(); return; }
+    // Desktop Safari, Firefox without manifest, or platforms where
+    // beforeinstallprompt didn't fire yet — show generic instructions.
+    showGenericSteps();
+  };
+
+  // Hide the home-page Download app button if already installed.
+  document.addEventListener('DOMContentLoaded', function(){
+    if (standalone) {
+      var btn = document.getElementById('home-download-app-btn');
+      if (btn) btn.style.display = 'none';
+    }
+  });
 })();
 </script>
 </body>
