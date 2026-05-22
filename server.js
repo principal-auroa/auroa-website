@@ -290,14 +290,14 @@ app.get('/api/state', (req, res) => {
     editHistory = [],
     vapidPrivateKey, vapidPublicKey,        // server-only
     pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
-    parentMessages = [],                    // filter to admin-composed only
+    parentMessages = [],                    // filter to messages-page sources only
     ...rest
   } = data;
   const recent = editHistory.slice(-5).reverse().map(h => ({
     id: h.id, savedAt: h.savedAt, label: h.label || ''
   }));
   res.json(Object.assign({}, rest, {
-    parentMessages: parentMessages.filter(m => m.source === 'admin'),
+    parentMessages: parentMessages.filter(m => showsOnMessagesPage(m.source)),
     editHistoryCount: editHistory.length,
     editHistoryRecent: recent,
     pushSubscriberCount: Array.isArray(data.pushSubscriptions) ? data.pushSubscriptions.length : 0,
@@ -799,10 +799,11 @@ app.post('/api/newsletter/publish', (req, res) => {
   // from this; admins continue editing data.newsletter without it leaking.
   data.newsletterPublished = JSON.parse(JSON.stringify(data.newsletter || {}));
   save(data, { label: 'Newsletter published' });
-  // Fire-and-forget notification to all subscribers.
+  // Fire-and-forget notification to all subscribers. Also persists a card
+  // on the Messages page (link points to the newly-published newsletter).
   notifyAll({
     title: 'Newsletter published: ' + termLabel,
-    body:  'A new school newsletter is ready to read. Tap to open.',
+    body:  'The latest school newsletter is now available.',
     url:   '/newsletter/' + snap.slug,
     source: 'newsletter'
   }).catch(e => console.warn('[notify] newsletter trigger failed:', e.message));
@@ -1338,13 +1339,20 @@ app.post('/api/push/unsubscribe', (req, res) => {
   res.json({ ok: true });
 });
 
+// Sources whose messages render on the public Messages page.
+// 'admin' = composed via the Messages-page admin form.
+// 'newsletter' = auto-created when the admin presses the newsletter Publish
+// button; the message links to the newly-published newsletter URL.
+// Other sources (e.g. 'event') still fire push + email but don't appear here.
+function showsOnMessagesPage(source) {
+  return source === 'admin' || source === 'newsletter';
+}
+
 // Public: list messages so the page can render them.
-// Only admin-composed messages appear here — newsletter / event push triggers
-// still send notifications, but they don't show up as messages on the page.
 app.get('/api/parent-messages', (req, res) => {
   const data = load();
   const all = data.parentMessages || [];
-  res.json({ messages: all.filter(m => m.source === 'admin') });
+  res.json({ messages: all.filter(m => showsOnMessagesPage(m.source)) });
 });
 
 // Admin manual send. Calls notifyAll which appends + pushes + emails.
@@ -1385,24 +1393,23 @@ async function notifyAll({ title, body, url, source }) {
     source:  String(source || 'auto'),
     createdAt: now
   };
-  const isAdmin = msg.source === 'admin';
-  if (isAdmin) {
+  const showOnPage = showsOnMessagesPage(msg.source);
+  if (showOnPage) {
     data.parentMessages.push(msg);
     save(data, { label: 'Messages' });
   }
 
-  // Push fan-out. Only admin sends bump the app-icon badge; auto triggers
-  // route the user to their own page (newsletter / event) so a Messages-page
-  // badge would be misleading.
+  // Push fan-out. Only sources that appear on the Messages page bump the
+  // app-icon badge; the badge represents unread items on that page.
   const wp = getWebPush();
   if (wp && data.pushSubscriptions.length) {
-    const adminCount = data.parentMessages.filter(m => m.source === 'admin').length;
+    const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
       title: msg.title,
       body:  msg.body,
       url:   msg.url
     };
-    if (isAdmin) payloadObj.count = adminCount;
+    if (showOnPage) payloadObj.count = pageCount;
     const payload = JSON.stringify(payloadObj);
     const results = await Promise.allSettled(
       data.pushSubscriptions.map(s => wp.sendNotification(s, payload))
