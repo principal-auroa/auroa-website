@@ -2224,6 +2224,12 @@ body.is-admin .nl-save-bar{display:flex;}
 }
 .nl-snapshot-title:hover{text-decoration:underline;color:#243d6a;}
 .nl-snapshot-info .nl-snapshot-date{color:#888;font-size:12px;margin-top:2px;}
+.nl-snapshot-url{
+  color:#1a2b4a;font-size:12px;margin-top:3px;word-break:break-all;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  text-decoration:none;display:block;
+}
+.nl-snapshot-url:hover{text-decoration:underline;}
 .nl-snapshot-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .nl-copy-btn{
   background:#1a2b4a;color:#fff;border:none;border-radius:8px;
@@ -8224,8 +8230,8 @@ function renderNewsletterSnapshots() {
 
     var info = document.createElement('div');
     info.className = 'nl-snapshot-info';
-    // The Term/Week label IS the link — opens the public page in a new tab.
-    // The actual URL is hidden from view but the Copy link button still copies it.
+    // The Term/Week label IS the clickable link; the full URL is shown
+    // below it in a small monospace style so admins can read/share it.
     var url = window.location.origin + '/newsletter/' + s.slug;
     var titleLink = document.createElement('a');
     titleLink.href = '/newsletter/' + s.slug;
@@ -8234,6 +8240,13 @@ function renderNewsletterSnapshots() {
     titleLink.className = 'nl-snapshot-title';
     titleLink.textContent = s.termLabel || 'Newsletter';
     info.appendChild(titleLink);
+    var urlLink = document.createElement('a');
+    urlLink.href = '/newsletter/' + s.slug;
+    urlLink.target = '_blank';
+    urlLink.rel = 'noopener';
+    urlLink.className = 'nl-snapshot-url';
+    urlLink.textContent = url;
+    info.appendChild(urlLink);
     var dt = document.createElement('div');
     dt.className = 'nl-snapshot-date';
     var when = new Date(s.updatedAt || s.createdAt || Date.now());
