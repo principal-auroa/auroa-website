@@ -3718,6 +3718,10 @@ function closeLogin() { el('login-modal').classList.remove('open'); }
 function tryLogin() {
   if (el('lu').value.trim() === 'admin' && el('lp').value === 'piri2010') {
     isAdmin = true; closeLogin(); enterAdmin();
+    // Pull the latest server state so any edits another admin made since
+    // this tab was opened become visible — otherwise we'd keep showing
+    // the stale snapshot loaded when the page first opened.
+    if (typeof fetchState === 'function') fetchState();
   } else {
     el('login-err').style.display = 'block';
   }
