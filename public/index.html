@@ -1741,6 +1741,14 @@ body.is-admin .pm-msg-del{display:inline-block;}
   background:var(--group-color, #1a2b4a);color:#fff;
 }
 
+/* Newsletter-source messages: orange accent so parents can spot them. */
+.pm-msg.is-newsletter{border-left:5px solid #c0642b;}
+.pm-msg-newsletter-tag{
+  display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.5px;padding:2px 8px;border-radius:10px;margin-bottom:6px;
+  background:#c0642b;color:#fff;
+}
+
 /* ---- GROUPS ADMIN ---- */
 .pm-groups-admin{
   display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;
@@ -8579,16 +8587,21 @@ function pmRenderList() {
   var lastSeenTime = lastSeenMsg ? lastSeenMsg.createdAt : 0;
   sorted.forEach(function(m) {
     var card = document.createElement('div');
+    var isNewsletter = (m.source === 'newsletter');
     var classes = 'pm-msg';
     if (m.createdAt > lastSeenTime) classes += ' is-unread';
     if (m.groupId && m.groupColor) classes += ' has-group';
+    if (isNewsletter && !m.groupId) classes += ' is-newsletter';
     card.className = classes;
     if (m.groupColor) card.style.setProperty('--group-color', m.groupColor);
-    // Group name tag (looks up name from current groups; falls back blank).
+    // Tag: group name (if a group message) or "Newsletter" (auto from publish).
     var grp = m.groupId ? parentGroups.find(function(g){ return g.id === m.groupId; }) : null;
-    var tagHtml = (m.groupId && grp)
-      ? '<span class="pm-msg-group-tag" style="background:' + lunchEsc(m.groupColor || '#1a2b4a') + '">' + lunchEsc(grp.name) + '</span>'
-      : '';
+    var tagHtml = '';
+    if (m.groupId && grp) {
+      tagHtml = '<span class="pm-msg-group-tag" style="background:' + lunchEsc(m.groupColor || '#1a2b4a') + '">' + lunchEsc(grp.name) + '</span>';
+    } else if (isNewsletter) {
+      tagHtml = '<span class="pm-msg-newsletter-tag">Newsletter</span>';
+    }
     var linkText = 'View →';
     if (m.url && m.url.indexOf('/join-group/') === 0) linkText = 'Join group →';
     else if (m.url && m.url.indexOf('/newsletter/') === 0) linkText = 'Read newsletter →';
