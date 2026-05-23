@@ -4395,11 +4395,15 @@ function renderImpDropdown() {
   if (!wrap) return;
   wrap.innerHTML = '';
   importantLinks.forEach(function(lnk) {
+    // Non-admins don't see hidden links at all.
+    if (lnk.hidden && !isAdmin) return;
+
     var item = document.createElement('div');
+    if (lnk.hidden) item.style.opacity = '0.5';
 
     var btn = document.createElement('button');
     btn.className = 'sidebar-btn';
-    btn.textContent = lnk.title;
+    btn.textContent = lnk.title + (lnk.hidden ? ' (hidden)' : '');
     btn.onclick = function(e) {
       btn.classList.add('popping');
       setTimeout(function() { btn.classList.remove('popping'); openLinkDetail(lnk.id); }, 280);
@@ -4422,6 +4426,16 @@ function renderImpDropdown() {
         }
       };
 
+      var hb = document.createElement('button');
+      hb.className = 'abar-btn';
+      hb.textContent = lnk.hidden ? '👁 Show' : '🙈 Hide';
+      hb.style.cssText = 'font-size:10px;padding:2px 8px;';
+      hb.onclick = function(ev) {
+        ev.stopPropagation();
+        lnk.hidden = !lnk.hidden;
+        apiSave('importantLinks', importantLinks, function() { renderImpDropdown(); });
+      };
+
       var db = document.createElement('button');
       db.className = 'abar-btn'; db.textContent = '🗑️';
       db.style.cssText = 'font-size:10px;padding:2px 8px;background:#c0392b;';
@@ -4434,6 +4448,7 @@ function renderImpDropdown() {
       };
 
       adminRow.appendChild(eb);
+      adminRow.appendChild(hb);
       adminRow.appendChild(db);
       item.appendChild(adminRow);
     }
