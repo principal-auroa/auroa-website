@@ -7801,11 +7801,11 @@ function renderNewsletter() {
   if (!termEl) return;
 
   // Admins edit the draft (newsletterData). Everyone else sees the
-  // last-published version (newsletterPublished). Edits only become
-  // public when the admin clicks Publish in the header.
+  // last-published version (newsletterPublished) ONLY. Never fall back
+  // to the draft for non-admins — that would leak edits before Publish.
   var src = isAdmin
     ? newsletterData
-    : (newsletterPublished || newsletterData || {});
+    : (newsletterPublished || {});
 
   termEl.textContent = src.termLabel || '';
   termEl.contentEditable = isAdmin ? 'true' : 'false';
@@ -7870,10 +7870,10 @@ function renderNlNotices() {
   if (!wrap) return;
   wrap.innerHTML = '';
   // Same source rule as renderNewsletter — admins see the draft notices,
-  // everyone else sees the published ones.
+  // everyone else sees the published ones (never the draft as a fallback).
   var src = isAdmin
     ? newsletterData
-    : (newsletterPublished || newsletterData || {});
+    : (newsletterPublished || {});
   (src.notices || []).forEach(function(notice) {
     wrap.appendChild(buildNoticeCard(notice));
   });
