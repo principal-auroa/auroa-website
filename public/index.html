@@ -3242,12 +3242,30 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <h1 class="pg-title">Hall Bookings</h1>
       </div>
 
-      <h2 class="hb-section-h">Hall Bookings</h2>
+<h2 class="hb-section-h">Hall Bookings</h2>
       <p class="hb-pricing">$250 per night, or $40 for an hour.</p>
 
       <p class="hb-account-line">All costs to be deposited into this account <strong>15-3950-0413208-00</strong></p>
       <p class="hb-account-sub">Please include your name, and <em>Hall Booking</em> in the reference and particulars</p>
 
+      <h2 class="hb-section-h" style="margin-top:24px;">Calendar</h2>
+      <div class="hb-cal-wrap">
+        <div class="hb-cal-tabs">
+          <button type="button" class="hb-cal-nav" onclick="hbChangeMonth(-1)" aria-label="Previous month">◀</button>
+          <div id="hb-cal-month-label" class="hb-cal-month"></div>
+          <button type="button" class="hb-cal-nav" onclick="hbChangeMonth(1)" aria-label="Next month">▶</button>
+        </div>
+        <div class="hb-cal-dow">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        <div id="hb-cal-grid" class="hb-cal-grid"></div>
+        <div class="hb-cal-legend">
+          <span><span class="hb-cal-swatch hb-pending"></span>Pending</span>
+          <span><span class="hb-cal-swatch hb-confirmed"></span>Confirmed</span>
+        </div>
+      </div>
+
+      <h2 class="hb-section-h" style="margin-top:36px;">Make a booking</h2>
       <form id="hb-form" onsubmit="event.preventDefault(); submitHallBooking();">
         <label class="hb-label" for="hb-email">Email <span class="hb-required">*</span></label>
         <input id="hb-email" class="hb-input" type="email" required placeholder="you@example.com" autocomplete="email" />
@@ -3291,25 +3309,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div id="hb-confirm" class="hb-confirm" hidden>
         <div class="hb-confirm-icon">&#10003;</div>
         <h3>Booking request submitted</h3>
-        <p>Your booking is showing as <strong>pending</strong> on the calendar below. The school will confirm by email once approved.</p>
+        <p>Your booking is showing as <strong>pending</strong> on the calendar above. The school will confirm by email once approved.</p>
         <button type="button" class="hb-new-btn" onclick="resetHallForm()">Make another booking</button>
-      </div>
-
-      <h2 class="hb-section-h" style="margin-top:36px;">Calendar</h2>
-      <div class="hb-cal-wrap">
-        <div class="hb-cal-tabs">
-          <button type="button" class="hb-cal-nav" onclick="hbChangeMonth(-1)" aria-label="Previous month">◀</button>
-          <div id="hb-cal-month-label" class="hb-cal-month"></div>
-          <button type="button" class="hb-cal-nav" onclick="hbChangeMonth(1)" aria-label="Next month">▶</button>
-        </div>
-        <div class="hb-cal-dow">
-          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-        </div>
-        <div id="hb-cal-grid" class="hb-cal-grid"></div>
-        <div class="hb-cal-legend">
-          <span><span class="hb-cal-swatch hb-pending"></span>Pending</span>
-          <span><span class="hb-cal-swatch hb-confirmed"></span>Confirmed</span>
-        </div>
       </div>
 
       <div id="hb-admin" class="hb-admin">
