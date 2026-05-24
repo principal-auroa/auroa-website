@@ -1712,6 +1712,16 @@ body.is-admin .lunch-admin{display:block;}
 .pm-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:18px;margin-bottom:18px;}
 body.is-admin .pm-admin{display:block;}
 .pm-admin-h{color:#1a2b4a;font-size:15px;font-weight:700;margin-bottom:10px;}
+
+/* Admin subscriber counts tile row */
+.pm-sub-counts{display:none;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+body.is-admin .pm-sub-counts{display:flex;}
+.pm-sub-count-tile{
+  flex:1;min-width:170px;background:#fff;border:1px solid #e6e6e6;border-radius:12px;
+  padding:14px 16px;
+}
+.pm-sub-count-num{color:#1a2b4a;font-size:28px;font-weight:700;line-height:1;}
+.pm-sub-count-label{color:#555;font-size:12px;margin-top:6px;}
 .pm-list{display:flex;flex-direction:column;gap:10px;}
 .pm-list:empty::before{content:'No messages yet.';color:#888;font-size:13px;}
 .pm-msg{
@@ -3167,6 +3177,17 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div id="pm-subscribe-status" class="pm-subscribe-status"></div>
       </div>
 
+      <div id="pm-sub-counts" class="pm-sub-counts">
+        <div class="pm-sub-count-tile">
+          <div class="pm-sub-count-num" id="pm-push-count">0</div>
+          <div class="pm-sub-count-label">📲 devices subscribed to push notifications</div>
+        </div>
+        <div class="pm-sub-count-tile">
+          <div class="pm-sub-count-num" id="pm-email-count">0</div>
+          <div class="pm-sub-count-label">📧 email subscribers</div>
+        </div>
+      </div>
+
       <div id="pm-groups-admin" class="pm-groups-admin">
         <h3>Create a group</h3>
         <p style="font-size:12px;color:#555;margin:0 0 10px;">Creating a group sends an invitation message to every subscriber. Parents tap the message and fill in their name + email to join.</p>
@@ -3557,6 +3578,10 @@ function fetchState() {
       if (typeof pmRenderGroupsAdmin === 'function') pmRenderGroupsAdmin();
       if (typeof pmUpdateTargetSelect === 'function') pmUpdateTargetSelect();
       if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
+      var pushEl = el('pm-push-count');
+      var emailEl = el('pm-email-count');
+      if (pushEl)  pushEl.textContent  = String(data.pushSubscriberCount  || 0);
+      if (emailEl) emailEl.textContent = String(data.emailSubscriberCount || 0);
       if (typeof refreshUndoFromState === 'function') refreshUndoFromState(data);
       // If this load was triggered by a deep-link URL like /lunch-orders,
       // jump to that page once state is available.
@@ -8574,6 +8599,40 @@ function pmToggleSubscribe() {
   if (pmIsSubscribed()) pmUnsubscribe();
   else pmSubscribe();
 }
+
+// In an installed PWA (standalone mode), automatically request notification
+// permission + subscribe on page load. Respects users who have explicitly
+// turned notifications off (they're not re-prompted) and silently no-ops
+// if push isn't supported or permission has been denied.
+async function pmTryAutoSubscribe() {
+  if (!pmIsStandalone()) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.Notification) return;
+  if (pmIsSubscribed()) return;
+  // Respect explicit opt-out — don't re-prompt after the user said no.
+  try { if (localStorage.getItem('pm_subscribed') === '0') return; } catch (e) {}
+  if (Notification.permission === 'denied') return;
+  try { await pmSubscribe(); } catch (e) {}
+}
+
+// Fire auto-subscribe shortly after the page loads, then again on the first
+// click if the page-load attempt didn't take (iOS PWA needs a user gesture
+// for Notification.requestPermission).
+(function() {
+  function tryNow(){ try { pmTryAutoSubscribe(); } catch (e) {} }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(tryNow, 800); });
+  } else {
+    setTimeout(tryNow, 800);
+  }
+  // Backup attempt on first user interaction (covers iOS gesture requirement).
+  function onFirstClick() {
+    document.removeEventListener('click',     onFirstClick, true);
+    document.removeEventListener('touchstart', onFirstClick, true);
+    tryNow();
+  }
+  document.addEventListener('click',      onFirstClick, true);
+  document.addEventListener('touchstart', onFirstClick, true);
+})();
 
 function pmFmtDate(ms) {
   var d = new Date(ms);
