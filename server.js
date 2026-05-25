@@ -150,12 +150,10 @@ function load() {
     if (typeof data.newsletter.importantDatesImage === 'undefined') data.newsletter.importantDatesImage = null;
   }
   // Published version visitors see, distinct from the draft that admins edit.
-  // On first deploy, seed it from the current draft so the public page
-  // doesn't suddenly go blank while we wait for the next Publish click.
+  // Only the Publish endpoint writes to this — no auto-seeding from the draft,
+  // so unpublished edits can never leak to the public view.
   if (typeof data.newsletterPublished === 'undefined') {
-    data.newsletterPublished = data.newsletter
-      ? JSON.parse(JSON.stringify(data.newsletter))
-      : null;
+    data.newsletterPublished = null;
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
