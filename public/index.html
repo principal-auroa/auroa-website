@@ -582,6 +582,42 @@ body.is-admin #carousel-empty{display:block;}
 }
 .home-rule{border:none;border-top:1.5px solid #222;margin:18px 0;}
 
+/* ---- DAILY QUOTE ---- */
+.home-quote{
+  text-align:center;
+  max-width:640px;
+  margin:24px auto;
+  padding:18px 20px;
+  position:relative;
+}
+.home-quote::before{
+  content:'\201C';
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:60px;
+  color:#c0642b;
+  line-height:1;
+  position:absolute;
+  top:-6px;
+  left:50%;
+  transform:translateX(-50%);
+  opacity:0.35;
+}
+.home-quote-text{
+  color:#1a2b4a;
+  font-size:18px;
+  font-style:italic;
+  line-height:1.55;
+  margin-top:18px;
+}
+.home-quote-author{
+  color:#555;
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:0.5px;
+  text-transform:uppercase;
+  margin-top:10px;
+}
+
 /* ---- DOWNLOAD APP BUTTON ---- */
 .home-download-wrap{
   display:flex;
@@ -2494,6 +2530,14 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <hr class="home-rule" />
 
+      <!-- Daily inspirational quote (rotates each day, same for all visitors) -->
+      <div id="home-quote" class="home-quote">
+        <div id="home-quote-text" class="home-quote-text"></div>
+        <div id="home-quote-author" class="home-quote-author"></div>
+      </div>
+
+      <hr class="home-rule" />
+
       <!-- Full-width image at the bottom of the home page -->
       <div class="img-box" id="hfoot-box">
         <div class="placeholder" id="hfoot-placeholder">No image — upload one as admin</div>
@@ -3478,9 +3522,59 @@ var SS_TOTAL = 15;
 
 function el(id) { return document.getElementById(id); }
 
+// ===================== DAILY QUOTE =====================
+// Same quote for every visitor on the same day; rotates to a new one
+// each calendar day by indexing into the list by days-since-epoch.
+var DAILY_QUOTES = [
+  { t: "Education is the most powerful weapon which you can use to change the world.", a: "Nelson Mandela" },
+  { t: "The beautiful thing about learning is that nobody can take it away from you.", a: "B.B. King" },
+  { t: "Tell me and I forget. Teach me and I remember. Involve me and I learn.", a: "Benjamin Franklin" },
+  { t: "An investment in knowledge pays the best interest.", a: "Benjamin Franklin" },
+  { t: "Live as if you were to die tomorrow. Learn as if you were to live forever.", a: "Mahatma Gandhi" },
+  { t: "Education is not the filling of a pail, but the lighting of a fire.", a: "W. B. Yeats" },
+  { t: "The roots of education are bitter, but the fruit is sweet.", a: "Aristotle" },
+  { t: "Develop a passion for learning. If you do, you will never cease to grow.", a: "Anthony J. D'Angelo" },
+  { t: "The mind is not a vessel to be filled, but a fire to be kindled.", a: "Plutarch" },
+  { t: "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.", a: "Malcolm X" },
+  { t: "I have never let my schooling interfere with my education.", a: "Mark Twain" },
+  { t: "The whole purpose of education is to turn mirrors into windows.", a: "Sydney J. Harris" },
+  { t: "Children are like wet cement. Whatever falls on them makes an impression.", a: "Haim Ginott" },
+  { t: "The aim of education is the knowledge not of facts, but of values.", a: "William S. Burroughs" },
+  { t: "It is the supreme art of the teacher to awaken joy in creative expression and knowledge.", a: "Albert Einstein" },
+  { t: "Try to learn something about everything and everything about something.", a: "Thomas Huxley" },
+  { t: "Education is what remains after one has forgotten what one has learned in school.", a: "Albert Einstein" },
+  { t: "A child miseducated is a child lost.", a: "John F. Kennedy" },
+  { t: "Wisdom is not a product of schooling but of the lifelong attempt to acquire it.", a: "Albert Einstein" },
+  { t: "The function of education is to teach one to think intensively and to think critically.", a: "Martin Luther King Jr." },
+  { t: "He who opens a school door, closes a prison.", a: "Victor Hugo" },
+  { t: "Learning never exhausts the mind.", a: "Leonardo da Vinci" },
+  { t: "Change is the end result of all true learning.", a: "Leo Buscaglia" },
+  { t: "Anyone who has never made a mistake has never tried anything new.", a: "Albert Einstein" },
+  { t: "You don't learn to walk by following rules. You learn by doing, and by falling over.", a: "Richard Branson" },
+  { t: "The expert in anything was once a beginner.", a: "Helen Hayes" },
+  { t: "Curiosity is the wick in the candle of learning.", a: "William Arthur Ward" },
+  { t: "The more that you read, the more things you will know. The more that you learn, the more places you'll go.", a: "Dr. Seuss" },
+  { t: "Knowing is not enough; we must apply. Willing is not enough; we must do.", a: "Johann Wolfgang von Goethe" },
+  { t: "Every child deserves a champion — an adult who will never give up on them.", a: "Rita Pierson" },
+  { t: "What we learn with pleasure we never forget.", a: "Alfred Mercier" },
+  { t: "I am still learning.", a: "Michelangelo, age 87" },
+  { t: "The capacity to learn is a gift; the ability to learn is a skill; the willingness to learn is a choice.", a: "Brian Herbert" }
+];
+
+function renderDailyQuote() {
+  var textEl = document.getElementById('home-quote-text');
+  var authEl = document.getElementById('home-quote-author');
+  if (!textEl || !authEl) return;
+  var dayIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  var q = DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
+  textEl.textContent = q.t;
+  authEl.textContent = '— ' + q.a;
+}
+
 // ===================== INIT =====================
 window.addEventListener('DOMContentLoaded', function() {
   fetchState();
+  renderDailyQuote();
   var lower = el('home-lower');
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
