@@ -419,6 +419,26 @@ body.is-admin #sidebar-audio-none{display:block;}
 #hfoot-box{
   width:100%;margin:18px 0 22px;
 }
+#edu-footer-imgs{margin-top:28px;}
+.edu-foot-box{
+  width:100%;margin:18px 0 8px;
+}
+body.is-admin .edu-foot-box .upload-overlay{
+  display:flex;inset:unset !important;top:6px;right:6px;
+  width:auto;height:auto;padding:4px 10px;border-radius:6px;
+  background:rgba(26,43,74,0.75) !important;font-size:11px;font-weight:600;cursor:pointer;
+}
+body.is-admin .edu-foot-box .upload-overlay span{
+  background:none !important;padding:0 !important;font-size:11px;
+}
+.edu-foot-upload-btn{
+  display:none;
+  background:#1a2b4a;color:#fff;
+  padding:8px 20px;border-radius:6px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
+  margin-bottom:16px;
+}
+body.is-admin .edu-foot-upload-btn{display:inline-block;}
 body.is-admin #hfoot-overlay{display:flex;}
 #hfoot-overlay{
   inset:unset !important;top:6px;right:6px;
@@ -2627,6 +2647,45 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
 
+      <!-- Four full-width image upload boxes at the bottom of About Us -->
+      <div id="edu-footer-imgs">
+        <div class="img-box edu-foot-box" id="edu-foot-box-1">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-1" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-1"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-1" type="file" accept="image/*" onchange="uploadEducateFooter('1', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-1',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-1">&#8679; Upload Image 1</label>
+
+        <div class="img-box edu-foot-box" id="edu-foot-box-2">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-2" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-2"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-2" type="file" accept="image/*" onchange="uploadEducateFooter('2', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-2',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-2">&#8679; Upload Image 2</label>
+
+        <div class="img-box edu-foot-box" id="edu-foot-box-3">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-3" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-3"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-3" type="file" accept="image/*" onchange="uploadEducateFooter('3', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-3',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-3">&#8679; Upload Image 3</label>
+
+        <div class="img-box edu-foot-box" id="edu-foot-box-4">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-4" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-4"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-4" type="file" accept="image/*" onchange="uploadEducateFooter('4', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-4',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-4">&#8679; Upload Image 4</label>
+      </div>
+
     </div>
   </div>
 
@@ -3653,6 +3712,16 @@ window.addEventListener('DOMContentLoaded', function() {
     // Non-admin hfoot-box link click
     if (!isAdmin && !e.target.closest('#hfoot-overlay') && e.target.closest('#hfoot-box') && imgLinks['hfoot-box'])
       window.open(imgLinks['hfoot-box'], '_blank');
+    // Non-admin edu-foot-box-N link click
+    if (!isAdmin && !e.target.closest('.upload-overlay')) {
+      for (var i = 1; i <= 4; i++) {
+        var bid = 'edu-foot-box-' + i;
+        if (e.target.closest('#' + bid) && imgLinks[bid]) {
+          window.open(imgLinks[bid], '_blank');
+          break;
+        }
+      }
+    }
     // Non-admin pride surround cell click → open popup
     if (!isAdmin) {
       var cell = e.target.closest('.pc-surround');
@@ -3737,6 +3806,10 @@ function fetchState() {
       if (data.headerImage)  applyHdrImg('/uploads/' + data.headerImage);
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
       if (data.homeFooterImage) applyHomeFooterImg('/uploads/' + data.homeFooterImage);
+      var eduFooterImgs = data.educateFooterImages || {};
+      ['1','2','3','4'].forEach(function(slot) {
+        if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
+      });
       var et = data.educateImageTransform || {};
       eduImgTx = et.tx || 0; eduImgTy = et.ty || 0; eduImgScale = et.scale || 1;
       applyEduTransform();
@@ -3840,6 +3913,9 @@ function fetchState() {
       imgLinks = {};
       if (data['imgLink_hdr-box']) imgLinks['hdr-box'] = data['imgLink_hdr-box'];
       if (data['imgLink_hfoot-box']) imgLinks['hfoot-box'] = data['imgLink_hfoot-box'];
+      ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4'].forEach(function(bid) {
+        if (data['imgLink_' + bid]) imgLinks[bid] = data['imgLink_' + bid];
+      });
       prideClusters.forEach(function(c){ c.loadData(data); });
       applyPrideYoutubeThumbs();
 
@@ -4037,6 +4113,33 @@ function applyHomeFooterImg(src) {
   img.src = src; img.style.display = 'block';
   var ph = el('hfoot-placeholder'); if (ph) ph.style.display = 'none';
   var box = el('hfoot-box'); if (box) box.style.border = 'none';
+}
+
+function applyEduFooterImg(slot, src) {
+  var img = el('edu-foot-img-' + slot);
+  if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var box = el('edu-foot-box-' + slot);
+  if (box) {
+    var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none';
+    box.style.border = 'none';
+  }
+}
+
+function uploadEducateFooter(slot, input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/educatefooter/' + encodeURIComponent(slot), { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data || !data.filename) { flashSave('Upload failed.'); return; }
+      applyEduFooterImg(slot, '/uploads/' + data.filename);
+      flashSave('Image saved!');
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
 }
 
 function applyHdrImg(src) {

@@ -423,6 +423,21 @@ app.delete('/api/pride-image/:slotId', (req, res) => {
   res.json({ ok: true });
 });
 
+// Upload an About Us footer image (slot '1'..'4', full-width boxes at the
+// bottom of the About Us page).
+app.post('/api/upload/educatefooter/:slot', uploader('educatefooter').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const slot = String(req.params.slot);
+  const data = load();
+  if (!data.educateFooterImages || typeof data.educateFooterImages !== 'object') {
+    data.educateFooterImages = {};
+  }
+  if (data.educateFooterImages[slot]) deleteFile(data.educateFooterImages[slot]);
+  data.educateFooterImages[slot] = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+
 // Upload a homeinfo image (slot '1' or '2')
 app.post('/api/upload/homeinfo/:slot', uploader('homeinfo').single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
