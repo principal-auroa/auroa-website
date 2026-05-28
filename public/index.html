@@ -424,6 +424,26 @@ body.is-admin #sidebar-audio-none{display:block;}
   color:#1a2b4a;font-size:22px;font-weight:700;
   margin:14px 0 6px;letter-spacing:0.3px;
 }
+
+/* Download PDF button on the About Us page */
+.edu-pdf-btn{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:8px;
+  background:#1a2b4a;color:#fff;border:none;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;
+  padding:8px 16px;border-radius:8px;cursor:pointer;
+}
+.edu-pdf-btn:hover{background:#243a64;}
+.edu-pdf-btn:disabled{opacity:0.6;cursor:wait;}
+.edu-pdf-btn svg{width:16px;height:16px;}
+.is-pdf-export .edu-pdf-btn,
+.is-pdf-export .back-btn,
+.is-pdf-export .upload-overlay,
+.is-pdf-export .img-link-btn,
+.is-pdf-export .box-lock-btn,
+.is-pdf-export .pc-upload-ov,
+.is-pdf-export .edu-foot-upload-btn,
+.is-pdf-export .placeholder{display:none !important;}
 .edu-foot-box{
   width:100%;margin:18px 0 8px;
 }
@@ -2459,6 +2479,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   }
 }
 </style>
+<!-- PDF export library for the About Us "Download as PDF" button -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
 </head>
 <body>
 
@@ -2596,6 +2618,14 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div class="pg-title-row">
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">About Us</h1>
+        <button id="edu-pdf-btn" class="edu-pdf-btn" type="button" onclick="downloadAboutUsPdf()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12"></path>
+            <path d="M7 10l5 5 5-5"></path>
+            <path d="M5 21h14"></path>
+          </svg>
+          Download as PDF
+        </button>
       </div>
 
       <div class="edu-text editable" id="ec-edu2"><p></p></div>
@@ -4131,6 +4161,40 @@ function applyEduFooterImg(slot, src) {
     var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none';
     box.style.border = 'none';
   }
+}
+
+function downloadAboutUsPdf() {
+  if (typeof html2pdf !== 'function') {
+    alert('PDF library is still loading — try again in a moment.');
+    return;
+  }
+  var page = el('pg-educate');
+  if (!page) return;
+  var btn = el('edu-pdf-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Building PDF…'; }
+  // Hide admin overlays + UI chrome while rendering.
+  document.body.classList.add('is-pdf-export');
+  // Keep grids/clusters/image boxes on one page each.
+  var opts = {
+    margin: [10, 10, 10, 10],
+    filename: 'Auroa-School-About-Us.pdf',
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { useCORS: true, scale: 2, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: {
+      mode: ['css', 'legacy'],
+      avoid: ['table', '.pride-cluster-el', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
+    }
+  };
+  function cleanup() {
+    document.body.classList.remove('is-pdf-export');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg> Download as PDF'; }
+  }
+  html2pdf().set(opts).from(page).save()
+    .then(cleanup, function(err) {
+      cleanup();
+      alert('Could not build PDF: ' + (err && err.message ? err.message : 'unknown error'));
+    });
 }
 
 function uploadEducateFooter(slot, input) {
