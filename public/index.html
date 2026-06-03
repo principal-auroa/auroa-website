@@ -1608,6 +1608,15 @@ body.is-admin #update-banner{display:none !important;}
   display:flex;align-items:center;gap:10px;
 }
 .lunch-notice::before{content:'\23F0';font-size:20px;}
+.lunch-payment{
+  background:#f0f7ff;border:1.5px solid #bfdbfe;color:#1a2b4a;
+  padding:14px 18px;border-radius:10px;
+  font-size:14px;line-height:1.6;margin:0 0 22px;
+}
+.lunch-payment p{margin:0 0 8px;}
+.lunch-payment-acct{font-weight:700;font-size:15px;}
+.lunch-payment ul{margin:0;padding-left:20px;}
+.lunch-payment li{margin-bottom:4px;}
 .lunch-field-label{
   display:block;color:#1a2b4a;font-weight:700;
   font-size:14px;margin-bottom:6px;letter-spacing:0.3px;
@@ -3226,6 +3235,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       </div>
 
       <div class="lunch-notice">All orders need to be in by Wednesday 8am</div>
+
+      <div class="lunch-payment">
+        <p>Please pay all accounts through internet banking. Our details are:</p>
+        <p class="lunch-payment-acct">Auroa School Board of Trustees: 15-3950-0413208-00</p>
+        <p>When you make a payment, please ensure:</p>
+        <ul>
+          <li>you put your child's name in the particulars</li>
+          <li>in the code or reference you put the reason for payment.</li>
+        </ul>
+      </div>
 
       <div id="lunch-form-wrap">
         <label class="lunch-field-label" for="lunch-student-name">Child's name</label>
