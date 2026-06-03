@@ -1821,6 +1821,7 @@ body.is-admin .pm-sub-counts{display:flex;}
 .pm-msg h4{color:#1a2b4a;font-size:15px;font-weight:700;margin:0 0 4px;}
 .pm-msg-date{color:#888;font-size:11px;margin-bottom:6px;}
 .pm-msg-body{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
+.pm-msg-img{display:block;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #e6e6e6;}
 .pm-msg-link{display:inline-block;margin-top:8px;color:#1a2b4a;font-size:13px;font-weight:600;}
 .pm-msg-del{
   display:none;position:absolute;top:8px;right:8px;
@@ -3376,6 +3377,15 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input id="pm-title" class="hb-input" type="text" required maxlength="200" placeholder="e.g. School closed Friday">
           <label class="hb-label" for="pm-body">Body</label>
           <textarea id="pm-body" class="hb-input" rows="4" maxlength="4000" placeholder="What do you want parents to see…"></textarea>
+          <label class="hb-label">Image <span style="font-weight:400;color:#888;">(optional)</span></label>
+          <input id="pm-image-file" type="file" accept="image/*" style="display:none;" onchange="pmPickImage(this)">
+          <div id="pm-image-row" style="margin-top:4px;">
+            <button type="button" class="hb-submit-btn" style="background:#5b6b8a;" onclick="el('pm-image-file').click()">🖼️ Add image</button>
+            <div id="pm-image-preview" style="display:none;margin-top:10px;position:relative;max-width:220px;">
+              <img id="pm-image-preview-img" alt="" style="width:100%;border-radius:8px;display:block;">
+              <button type="button" onclick="pmClearImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:15px;line-height:1;cursor:pointer;">×</button>
+            </div>
+          </div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
             <button id="pm-send-btn" type="submit" class="hb-submit-btn" style="flex:1;">📣 Send</button>
             <span id="pm-send-status" class="hb-err"></span>
@@ -8998,6 +9008,7 @@ function pmRenderList() {
       '<h4>' + lunchEsc(m.title) + '</h4>' +
       '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
       '<div class="pm-msg-body">' + lunchEsc(m.body) + '</div>' +
+      (m.image ? '<img class="pm-msg-img" src="/uploads/' + lunchEsc(m.image) + '" alt="" loading="lazy">' : '') +
       (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">' + linkText + '</a>' : '');
     var del = document.createElement('button');
     del.type = 'button';
@@ -9048,6 +9059,43 @@ function pmFetchMessages() {
     .catch(function(){});
 }
 
+// Holds the uploaded image filename for the message currently being composed.
+var pmPendingImage = null;
+
+// Admin picked an image file → upload it immediately and show a preview.
+function pmPickImage(input) {
+  if (!input.files || !input.files[0]) return;
+  var status = el('pm-send-status');
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  if (status) { status.className = 'hb-err'; status.textContent = 'Uploading image…'; }
+  fetch('/api/upload/message', { method: 'POST', body: fd })
+    .then(function(r) { return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body || !res.body.filename) {
+        if (status) status.textContent = (res.body && res.body.error) || 'Image upload failed.';
+        return;
+      }
+      pmPendingImage = res.body.filename;
+      var prev = el('pm-image-preview');
+      var img  = el('pm-image-preview-img');
+      if (img)  img.src = '/uploads/' + pmPendingImage;
+      if (prev) prev.style.display = 'block';
+      if (status) status.textContent = '';
+    })
+    .catch(function() { if (status) status.textContent = 'Image upload failed.'; });
+  input.value = '';
+}
+
+// Remove the staged image from the compose form.
+function pmClearImage() {
+  pmPendingImage = null;
+  var prev = el('pm-image-preview');
+  var img  = el('pm-image-preview-img');
+  if (img)  img.src = '';
+  if (prev) prev.style.display = 'none';
+}
+
 function pmSendMessage() {
   var title = el('pm-title').value.trim();
   var body  = el('pm-body').value;
@@ -9059,6 +9107,7 @@ function pmSendMessage() {
   btn.disabled = true; btn.textContent = 'Sending…';
   var payload = { title: title, body: body, url: '/messages' };
   if (groupId) payload.groupId = groupId;
+  if (pmPendingImage) payload.image = pmPendingImage;
   fetch('/api/parent-messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -9072,6 +9121,7 @@ function pmSendMessage() {
       return;
     }
     el('pm-title').value = ''; el('pm-body').value = '';
+    pmClearImage();
     status.textContent = 'Sent.';
     setTimeout(function(){ status.textContent = ''; }, 1500);
     parentMessages.push(res.body.message);

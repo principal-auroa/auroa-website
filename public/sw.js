@@ -10,7 +10,7 @@ self.addEventListener('fetch', (e) => {
 });
 
 // Incoming push from the server. Payload shape:
-//   { title, body, url, count }
+//   { title, body, url, count, image }
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_) {}
@@ -18,16 +18,20 @@ self.addEventListener('push', (event) => {
   const body  = data.body  || '';
   const url   = data.url   || '/';
   const count = typeof data.count === 'number' ? data.count : null;
+  const image = typeof data.image === 'string' ? data.image : null;
 
+  const opts = {
+    body,
+    icon:  '/icon.svg',
+    badge: '/icon.svg',
+    tag:   'auroa-message',
+    renotify: true,
+    data: { url }
+  };
+  // Large preview image (supported on Android/Chrome; ignored elsewhere).
+  if (image) opts.image = image;
   const tasks = [
-    self.registration.showNotification(title, {
-      body,
-      icon:  '/icon.svg',
-      badge: '/icon.svg',
-      tag:   'auroa-message',
-      renotify: true,
-      data: { url }
-    })
+    self.registration.showNotification(title, opts)
   ];
   // Bump the app icon badge (Chrome desktop/Android, Safari iOS 16.4+ PWA).
   if (count != null && self.navigator && typeof self.navigator.setAppBadge === 'function') {

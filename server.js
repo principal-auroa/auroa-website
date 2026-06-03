@@ -747,6 +747,13 @@ app.post('/api/upload/newsletter', uploader('nl').single('image'), (req, res) =>
   res.json({ filename: req.file.filename });
 });
 
+// Single image upload for an admin-composed Messages-page message.
+// Files persist forever so the message keeps rendering its image.
+app.post('/api/upload/message', uploader('msg').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  res.json({ filename: req.file.filename });
+});
+
 // Save (or update) the current newsletter draft + create/update a public snapshot.
 app.post('/api/newsletter/save', (req, res) => {
   const b = req.body || {};
@@ -1401,13 +1408,14 @@ app.post('/api/parent-messages', async (req, res) => {
   const body  = String(b.body || '').trim();
   const url   = String(b.url || '/').trim() || '/';
   const groupId = b.groupId ? String(b.groupId) : null;
+  const image = b.image ? String(b.image).trim() : null;
   if (!title) return res.status(400).json({ error: 'Title required' });
   if (groupId) {
     const data = load();
     const g = (data.parentGroups || []).find(x => x.id === groupId);
     if (!g) return res.status(400).json({ error: 'Unknown group' });
   }
-  const msg = await notifyAll({ title, body, url, source: 'admin', groupId });
+  const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image });
   res.json({ ok: true, message: msg });
 });
 
@@ -1533,7 +1541,7 @@ app.get('/join-group/:id', (req, res) => {
 // If groupId is provided, push + email are restricted to that group's
 // members (matched by stored endpoint or email). The message record still
 // stores the groupId so the client can filter rendering by membership.
-async function notifyAll({ title, body, url, source, groupId }) {
+async function notifyAll({ title, body, url, source, groupId, image }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
@@ -1557,6 +1565,7 @@ async function notifyAll({ title, body, url, source, groupId }) {
     body:    String(body  || '').slice(0, 4000),
     url:     String(url   || '/').slice(0, 400),
     source:  String(source || 'auto'),
+    image:   image ? String(image).slice(0, 400) : null,
     groupId: group ? group.id : null,
     groupColor: groupColor,
     createdAt: now
@@ -1582,6 +1591,7 @@ async function notifyAll({ title, body, url, source, groupId }) {
       body:  msg.body,
       url:   msg.url
     };
+    if (msg.image) payloadObj.image = '/uploads/' + msg.image;
     if (showOnPage) payloadObj.count = pageCount;
     const payload = JSON.stringify(payloadObj);
     const results = await Promise.allSettled(
@@ -1619,7 +1629,7 @@ async function notifyAll({ title, body, url, source, groupId }) {
         subject: msg.title,
         text:
 `${msg.body}
-
+${msg.image && appUrl ? '\n' + appUrl + '/uploads/' + msg.image + '\n' : ''}
 ${appUrl ? appUrl + msg.url : ''}
 
 You're receiving this because you subscribed to Auroa School notifications.
