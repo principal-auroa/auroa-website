@@ -3724,6 +3724,16 @@ function renderDailyQuote() {
 
 // ===================== INIT =====================
 window.addEventListener('DOMContentLoaded', function() {
+  // Render the navigation menu from defaults immediately, so the menu is
+  // always populated even if /api/state is slow, fails, or is served stale
+  // by a cached service worker (e.g. an offline installed PWA). fetchState()
+  // refines this with the live page config once it arrives.
+  if (!pageConfig.length) {
+    pageConfig = PAGE_CONFIG_DEFAULTS.map(function(p) {
+      return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
+    });
+    renderSidebarPages();
+  }
   fetchState();
   renderDailyQuote();
   var lower = el('home-lower');
@@ -4006,7 +4016,18 @@ function fetchState() {
       renderImpDropdown();
       applyHeaderToAllPages();
     })
-    .catch(function(e) { console.warn('Could not load state:', e); });
+    .catch(function(e) {
+      console.warn('Could not load state:', e);
+      // Live data failed to load (offline, server hiccup, or a stale cached
+      // service-worker response). Fall back to the default navigation so the
+      // menu still works and isn't left empty.
+      if (!pageConfig.length) {
+        pageConfig = PAGE_CONFIG_DEFAULTS.map(function(p) {
+          return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
+        });
+      }
+      renderSidebarPages();
+    });
 }
 
 // ===================== LOGIN =====================
