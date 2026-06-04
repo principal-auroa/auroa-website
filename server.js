@@ -205,11 +205,15 @@ function save(data, opts) {
       }
     }
   }
-  // `silent` writes (parent lunch orders, admin housekeeping) don't bump the
-  // visible version, so other parents don't get an "updates available" banner.
+  // `silent` writes (parent lunch orders, admin housekeeping, newsletter
+  // DRAFT edits) don't bump the visible version, so visitors don't get an
+  // "updates available" banner. `versionLabel` lets a save use a different
+  // label for the public banner than for the undo history (e.g. publish
+  // records "Newsletter published" in history but shows "Newsletter" to
+  // visitors so the banner reads "Newsletter updated").
   if (!opts.silent) {
     data.lastUpdate = now;
-    data.lastUpdateLabel = opts.label || '';
+    data.lastUpdateLabel = opts.versionLabel || opts.label || '';
   }
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
@@ -786,7 +790,12 @@ app.post('/api/newsletter/save', (req, res) => {
   // shown in "Saved newsletters") are touched only by /api/newsletter/publish,
   // i.e. the explicit Save Newsletter button. This prevents auto-save from
   // creating or mutating snapshot copies as the admin types.
-  save(data, { label: 'Newsletter' });
+  //
+  // `silent` so editing the draft does NOT bump the public version: visitors
+  // must only be told the newsletter changed when it is actually PUBLISHED,
+  // not on every keystroke while an admin edits the draft. (Undo history is
+  // still recorded — that's controlled by `skipHistory`, not `silent`.)
+  save(data, { label: 'Newsletter', silent: true });
   res.json({ ok: true });
 });
 
@@ -843,7 +852,10 @@ app.post('/api/newsletter/publish', (req, res) => {
   // Mirror the current draft into the public-facing copy. Visitors render
   // from this; admins continue editing data.newsletter without it leaking.
   data.newsletterPublished = JSON.parse(JSON.stringify(data.newsletter || {}));
-  save(data, { label: 'Newsletter published' });
+  // Publishing IS a public change — bump the version so visitors see the
+  // update banner. `versionLabel: 'Newsletter'` makes that banner read
+  // "Newsletter updated" while the undo history keeps "Newsletter published".
+  save(data, { label: 'Newsletter published', versionLabel: 'Newsletter' });
   // Fire-and-forget notification to all subscribers. Also persists a card
   // on the Messages page (link points to the newly-published newsletter).
   notifyAll({

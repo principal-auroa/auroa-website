@@ -5956,6 +5956,17 @@ savePage = function() {
   } else if (document.querySelector('#pg-event.active')) {
     flashSave('<span class="spinner"></span>Saving…');
     evSave(function() { flashSave('Saved!'); });
+  } else if (document.querySelector('#pg-newsletter.active')) {
+    // The newsletter page has no .editable blocks, so _origSavePage() saves
+    // nothing here. Collect the current DOM edits and persist the draft so
+    // "Save Page" actually saves the newsletter (it relies on autosave
+    // otherwise). This only saves the DRAFT — use Publish to make it public.
+    flashSave('<span class="spinner"></span>Saving…');
+    nlCollectAllTextEdits();
+    saveNewsletter().then(
+      function() { flashSave('Saved!'); },
+      function() { flashSave('Save failed.'); }
+    );
   } else {
     _origSavePage();
   }
