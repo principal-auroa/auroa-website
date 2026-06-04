@@ -903,7 +903,41 @@ body.is-admin .sidebar-imp-add{display:block;}
 }
 .edu-text.editing{padding:14px 16px;border-color:transparent;}
 
-/* ---- PRIDE CLUSTER ---- */
+/* ---- ABOUT US VALUE GRID (Pride / Innovation / Respect / Initiative) ---- */
+/* Two columns: orange value banners on rows 1 & 3, blue image boxes on
+   rows 2 & 4 (one blue box directly under each orange banner). */
+#pride-wrap.edu-values-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;
+  width:100%;margin:0 0 40px;align-items:start;
+}
+.edu-val{position:relative;border-radius:14px;}
+.edu-val .file-in{display:none;}
+/* Orange value banner: cream box + orange border (the word images are
+   transparent PNGs, so the box styling lives here, not in the image). */
+.edu-val-orange{
+  background:#f2ece2;border:3px solid #c0642b;border-radius:14px;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,0.6),
+             0 4px 12px rgba(192,100,43,0.18),0 2px 5px rgba(0,0,0,0.08);
+  display:flex;align-items:center;justify-content:center;
+  height:130px;padding:10px 16px;overflow:hidden;
+}
+/* Fixed box height + contain keeps all four banners uniform despite the
+   source images having slightly different aspect ratios. */
+.edu-val-orange img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;}
+.edu-val-blue{
+  background:#d6eaf8;border:2px solid #1a2b4a;border-radius:14px;
+  min-height:150px;overflow:hidden;
+}
+.edu-val-blue img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;
+}
+@media (max-width:768px){
+  #pride-wrap.edu-values-grid{gap:12px;}
+  .edu-val-orange{height:92px;padding:8px 12px;}
+  .edu-val-blue{min-height:110px;}
+}
+
+/* ---- PRIDE CLUSTER (legacy — kept for any other references) ---- */
 #pride-wrap{margin-bottom:40px;display:flex;flex-direction:column;align-items:center;}
 .pride-cluster-el{
   position:relative;display:block;
@@ -2640,54 +2674,57 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <div class="edu-text editable" id="ec-edu2"><p></p></div>
 
-      <div id="pride-wrap">
-        <div id="pride-cluster" class="pride-cluster-el">
-          <svg id="pride-svg" class="pride-svg-el" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div id="pride-grid" class="pride-grid-el">
-            <div class="pc-cell pc-surround pa-tl" id="pc-tl"><img id="pc-tl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-tl-fin').click()"><span>+</span></div><input class="file-in" id="pc-tl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-tl',this)"><button class="img-link-btn" id="lb-pc-tl" onclick="event.stopPropagation();openImgLinkEditor('pc-tl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tc" id="pc-tc"><img id="pc-tc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-tc-fin').click()"><span>+</span></div><input class="file-in" id="pc-tc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-tc',this)"><button class="img-link-btn" id="lb-pc-tc" onclick="event.stopPropagation();openImgLinkEditor('pc-tc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tr" id="pc-tr"><img id="pc-tr-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-tr-fin').click()"><span>+</span></div><input class="file-in" id="pc-tr-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-tr',this)"><button class="img-link-btn" id="lb-pc-tr" onclick="event.stopPropagation();openImgLinkEditor('pc-tr',this)">🔗</button></div>
-            <div class="pc-cell pc-pride pa-pp" id="pc-pride" onclick="togglePride('pc')"><img id="pc-pride-img" style="display:none;"><div class="pc-upload-ov" onclick="event.stopPropagation();el('pc-pride-fin').click()"><span>+</span></div><input class="file-in" id="pc-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-pride',this)"><button class="img-link-btn" id="lb-pc-pride" onclick="event.stopPropagation();openImgLinkEditor('pc-pride',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bl" id="pc-bl"><img id="pc-bl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-bl-fin').click()"><span>+</span></div><input class="file-in" id="pc-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bl',this)"><button class="img-link-btn" id="lb-pc-bl" onclick="event.stopPropagation();openImgLinkEditor('pc-bl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bc" id="pc-bc"><img id="pc-bc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-bc-fin').click()"><span>+</span></div><input class="file-in" id="pc-bc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bc',this)"><button class="img-link-btn" id="lb-pc-bc" onclick="event.stopPropagation();openImgLinkEditor('pc-bc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-br" id="pc-br"><img id="pc-br-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc-br-fin').click()"><span>+</span></div><input class="file-in" id="pc-br-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-br',this)"><button class="img-link-btn" id="lb-pc-br" onclick="event.stopPropagation();openImgLinkEditor('pc-br',this)">🔗</button></div>
-          </div>
+      <!-- About Us values: 2-column grid. Orange value banners with a
+           blue image box beneath each. IDs are reused from the old pride
+           cluster so existing uploaded images / links keep working. -->
+      <div id="pride-wrap" class="edu-values-grid">
+        <div class="edu-val edu-val-orange" id="pc-pride">
+          <img id="pc-pride-img" style="display:none;" alt="Pride">
+          <div class="pc-upload-ov" onclick="el('pc-pride-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-pride',this)">
+          <button class="img-link-btn" id="lb-pc-pride" onclick="event.stopPropagation();openImgLinkEditor('pc-pride',this)">🔗</button>
         </div>
-        <div id="pride-cluster-2" class="pride-cluster-el">
-          <svg id="pride-svg-2" class="pride-svg-el" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div id="pride-grid-2" class="pride-grid-el">
-            <div class="pc-cell pc-surround pa-tl" id="pc2-tl"><img id="pc2-tl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-tl-fin').click()"><span>+</span></div><input class="file-in" id="pc2-tl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-tl',this)"><button class="img-link-btn" id="lb-pc2-tl" onclick="event.stopPropagation();openImgLinkEditor('pc2-tl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tc" id="pc2-tc"><img id="pc2-tc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-tc-fin').click()"><span>+</span></div><input class="file-in" id="pc2-tc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-tc',this)"><button class="img-link-btn" id="lb-pc2-tc" onclick="event.stopPropagation();openImgLinkEditor('pc2-tc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tr" id="pc2-tr"><img id="pc2-tr-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-tr-fin').click()"><span>+</span></div><input class="file-in" id="pc2-tr-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-tr',this)"><button class="img-link-btn" id="lb-pc2-tr" onclick="event.stopPropagation();openImgLinkEditor('pc2-tr',this)">🔗</button></div>
-            <div class="pc-cell pc-pride pa-pp" id="pc2-pride" onclick="togglePride('pc2')"><img id="pc2-pride-img" style="display:none;"><div class="pc-upload-ov" onclick="event.stopPropagation();el('pc2-pride-fin').click()"><span>+</span></div><input class="file-in" id="pc2-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-pride',this)"><button class="img-link-btn" id="lb-pc2-pride" onclick="event.stopPropagation();openImgLinkEditor('pc2-pride',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bl" id="pc2-bl"><img id="pc2-bl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-bl-fin').click()"><span>+</span></div><input class="file-in" id="pc2-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bl',this)"><button class="img-link-btn" id="lb-pc2-bl" onclick="event.stopPropagation();openImgLinkEditor('pc2-bl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bc" id="pc2-bc"><img id="pc2-bc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-bc-fin').click()"><span>+</span></div><input class="file-in" id="pc2-bc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bc',this)"><button class="img-link-btn" id="lb-pc2-bc" onclick="event.stopPropagation();openImgLinkEditor('pc2-bc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-br" id="pc2-br"><img id="pc2-br-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc2-br-fin').click()"><span>+</span></div><input class="file-in" id="pc2-br-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-br',this)"><button class="img-link-btn" id="lb-pc2-br" onclick="event.stopPropagation();openImgLinkEditor('pc2-br',this)">🔗</button></div>
-          </div>
+        <div class="edu-val edu-val-orange" id="pc2-pride">
+          <img id="pc2-pride-img" style="display:none;" alt="Innovation">
+          <div class="pc-upload-ov" onclick="el('pc2-pride-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc2-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-pride',this)">
+          <button class="img-link-btn" id="lb-pc2-pride" onclick="event.stopPropagation();openImgLinkEditor('pc2-pride',this)">🔗</button>
         </div>
-        <div id="pride-cluster-3" class="pride-cluster-el">
-          <svg id="pride-svg-3" class="pride-svg-el" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div id="pride-grid-3" class="pride-grid-el">
-            <div class="pc-cell pc-surround pa-tl" id="pc3-tl"><img id="pc3-tl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-tl-fin').click()"><span>+</span></div><input class="file-in" id="pc3-tl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-tl',this)"><button class="img-link-btn" id="lb-pc3-tl" onclick="event.stopPropagation();openImgLinkEditor('pc3-tl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tc" id="pc3-tc"><img id="pc3-tc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-tc-fin').click()"><span>+</span></div><input class="file-in" id="pc3-tc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-tc',this)"><button class="img-link-btn" id="lb-pc3-tc" onclick="event.stopPropagation();openImgLinkEditor('pc3-tc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tr" id="pc3-tr"><img id="pc3-tr-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-tr-fin').click()"><span>+</span></div><input class="file-in" id="pc3-tr-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-tr',this)"><button class="img-link-btn" id="lb-pc3-tr" onclick="event.stopPropagation();openImgLinkEditor('pc3-tr',this)">🔗</button></div>
-            <div class="pc-cell pc-pride pa-pp" id="pc3-pride" onclick="togglePride('pc3')"><img id="pc3-pride-img" style="display:none;"><div class="pc-upload-ov" onclick="event.stopPropagation();el('pc3-pride-fin').click()"><span>+</span></div><input class="file-in" id="pc3-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-pride',this)"><button class="img-link-btn" id="lb-pc3-pride" onclick="event.stopPropagation();openImgLinkEditor('pc3-pride',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bl" id="pc3-bl"><img id="pc3-bl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-bl-fin').click()"><span>+</span></div><input class="file-in" id="pc3-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bl',this)"><button class="img-link-btn" id="lb-pc3-bl" onclick="event.stopPropagation();openImgLinkEditor('pc3-bl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bc" id="pc3-bc"><img id="pc3-bc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-bc-fin').click()"><span>+</span></div><input class="file-in" id="pc3-bc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bc',this)"><button class="img-link-btn" id="lb-pc3-bc" onclick="event.stopPropagation();openImgLinkEditor('pc3-bc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-br" id="pc3-br"><img id="pc3-br-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc3-br-fin').click()"><span>+</span></div><input class="file-in" id="pc3-br-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-br',this)"><button class="img-link-btn" id="lb-pc3-br" onclick="event.stopPropagation();openImgLinkEditor('pc3-br',this)">🔗</button></div>
-          </div>
+        <div class="edu-val edu-val-blue" id="pc-bl">
+          <img id="pc-bl-img" style="display:none;" alt="">
+          <div class="pc-upload-ov" onclick="el('pc-bl-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bl',this)">
+          <button class="img-link-btn" id="lb-pc-bl" onclick="event.stopPropagation();openImgLinkEditor('pc-bl',this)">🔗</button>
         </div>
-        <div id="pride-cluster-4" class="pride-cluster-el">
-          <svg id="pride-svg-4" class="pride-svg-el" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div id="pride-grid-4" class="pride-grid-el">
-            <div class="pc-cell pc-surround pa-tl" id="pc4-tl"><img id="pc4-tl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-tl-fin').click()"><span>+</span></div><input class="file-in" id="pc4-tl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-tl',this)"><button class="img-link-btn" id="lb-pc4-tl" onclick="event.stopPropagation();openImgLinkEditor('pc4-tl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tc" id="pc4-tc"><img id="pc4-tc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-tc-fin').click()"><span>+</span></div><input class="file-in" id="pc4-tc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-tc',this)"><button class="img-link-btn" id="lb-pc4-tc" onclick="event.stopPropagation();openImgLinkEditor('pc4-tc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-tr" id="pc4-tr"><img id="pc4-tr-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-tr-fin').click()"><span>+</span></div><input class="file-in" id="pc4-tr-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-tr',this)"><button class="img-link-btn" id="lb-pc4-tr" onclick="event.stopPropagation();openImgLinkEditor('pc4-tr',this)">🔗</button></div>
-            <div class="pc-cell pc-pride pa-pp" id="pc4-pride" onclick="togglePride('pc4')"><img id="pc4-pride-img" style="display:none;"><div class="pc-upload-ov" onclick="event.stopPropagation();el('pc4-pride-fin').click()"><span>+</span></div><input class="file-in" id="pc4-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-pride',this)"><button class="img-link-btn" id="lb-pc4-pride" onclick="event.stopPropagation();openImgLinkEditor('pc4-pride',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bl" id="pc4-bl"><img id="pc4-bl-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-bl-fin').click()"><span>+</span></div><input class="file-in" id="pc4-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bl',this)"><button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-bc" id="pc4-bc"><img id="pc4-bc-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-bc-fin').click()"><span>+</span></div><input class="file-in" id="pc4-bc-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bc',this)"><button class="img-link-btn" id="lb-pc4-bc" onclick="event.stopPropagation();openImgLinkEditor('pc4-bc',this)">🔗</button></div>
-            <div class="pc-cell pc-surround pa-br" id="pc4-br"><img id="pc4-br-img" style="display:none;"><div class="pc-upload-ov" onclick="el('pc4-br-fin').click()"><span>+</span></div><input class="file-in" id="pc4-br-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-br',this)"><button class="img-link-btn" id="lb-pc4-br" onclick="event.stopPropagation();openImgLinkEditor('pc4-br',this)">🔗</button></div>
-          </div>
+        <div class="edu-val edu-val-blue" id="pc2-bl">
+          <img id="pc2-bl-img" style="display:none;" alt="">
+          <div class="pc-upload-ov" onclick="el('pc2-bl-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc2-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bl',this)">
+          <button class="img-link-btn" id="lb-pc2-bl" onclick="event.stopPropagation();openImgLinkEditor('pc2-bl',this)">🔗</button>
+        </div>
+        <div class="edu-val edu-val-orange" id="pc3-pride">
+          <img id="pc3-pride-img" style="display:none;" alt="Respect">
+          <div class="pc-upload-ov" onclick="el('pc3-pride-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc3-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-pride',this)">
+          <button class="img-link-btn" id="lb-pc3-pride" onclick="event.stopPropagation();openImgLinkEditor('pc3-pride',this)">🔗</button>
+        </div>
+        <div class="edu-val edu-val-orange" id="pc4-pride">
+          <img id="pc4-pride-img" style="display:none;" alt="Initiative">
+          <div class="pc-upload-ov" onclick="el('pc4-pride-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc4-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-pride',this)">
+          <button class="img-link-btn" id="lb-pc4-pride" onclick="event.stopPropagation();openImgLinkEditor('pc4-pride',this)">🔗</button>
+        </div>
+        <div class="edu-val edu-val-blue" id="pc3-bl">
+          <img id="pc3-bl-img" style="display:none;" alt="">
+          <div class="pc-upload-ov" onclick="el('pc3-bl-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc3-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bl',this)">
+          <button class="img-link-btn" id="lb-pc3-bl" onclick="event.stopPropagation();openImgLinkEditor('pc3-bl',this)">🔗</button>
+        </div>
+        <div class="edu-val edu-val-blue" id="pc4-bl">
+          <img id="pc4-bl-img" style="display:none;" alt="">
+          <div class="pc-upload-ov" onclick="el('pc4-bl-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc4-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bl',this)">
+          <button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button>
         </div>
       </div>
 
@@ -3747,10 +3784,10 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // Initialise reposition/scale for header + all pride clusters
   hdrRepos = initImgReposition('hdr-box', 'hdr-img', 'imgTransform_hdr', false);
-  ['pc','pc2','pc3','pc4'].forEach(function(p) {
-    var c = makePrideCluster(p); c.init(); prideClusters.push(c);
-  });
-  ensurePrideSlots();
+  // The About Us values are now a static 2-column grid (Pride/Innovation/
+  // Respect/Initiative banners + blue image boxes), so the old interactive
+  // pride-cluster setup (expand/collapse, connecting lines, drag-reposition)
+  // is no longer initialised. Images still render via renderPrideImages().
 
   renderStaffPage();
   addBoxLockButtons();
@@ -3798,12 +3835,10 @@ window.addEventListener('DOMContentLoaded', function() {
         }
       }
     }
-    // Non-admin pride surround cell click → open popup
-    if (!isAdmin) {
-      var cell = e.target.closest('.pc-surround');
-      if (cell && cell.classList.contains('visible') && !e.target.closest('.pc-btn-label')) {
-        if (prideImages[cell.id] || imgLinks[cell.id]) openPridePopup(cell.id);
-      }
+    // Non-admin About Us value/blue box click → open its link if one is set
+    if (!isAdmin && !e.target.closest('.pc-upload-ov')) {
+      var valBox = e.target.closest('.edu-val');
+      if (valBox && imgLinks[valBox.id]) window.open(imgLinks[valBox.id], '_blank');
     }
   });
   document.addEventListener('keydown', function(e) {
@@ -3989,7 +4024,9 @@ function fetchState() {
       imgLinks = {};
       if (data['imgLink_hdr-box']) imgLinks['hdr-box'] = data['imgLink_hdr-box'];
       if (data['imgLink_hfoot-box']) imgLinks['hfoot-box'] = data['imgLink_hfoot-box'];
-      ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4'].forEach(function(bid) {
+      ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4',
+       'pc-pride','pc2-pride','pc3-pride','pc4-pride',
+       'pc-bl','pc2-bl','pc3-bl','pc4-bl'].forEach(function(bid) {
         if (data['imgLink_' + bid]) imgLinks[bid] = data['imgLink_' + bid];
       });
       prideClusters.forEach(function(c){ c.loadData(data); });
@@ -4233,7 +4270,7 @@ function downloadAboutUsPdf() {
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: {
       mode: ['css', 'legacy'],
-      avoid: ['table', '.pride-cluster-el', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
+      avoid: ['table', '.edu-val', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
     }
   };
   function cleanup() {
@@ -6281,8 +6318,9 @@ function uploadPrideImg(slotId, input) {
 
 // ===================== IMAGE LINK EDITOR =====================
 function applyImgLinks() {
-  var ids = ['hdr-box'];
-  prideClusters.forEach(function(c){ ids = ids.concat(c.allIds()); });
+  var ids = ['hdr-box',
+    'pc-pride', 'pc2-pride', 'pc3-pride', 'pc4-pride',
+    'pc-bl', 'pc2-bl', 'pc3-bl', 'pc4-bl'];
   ids.forEach(function(id) {
     var btn = el('lb-' + id);
     if (!btn) return;
