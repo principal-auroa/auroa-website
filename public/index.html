@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Auroa">
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Mouse+Memoirs&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Quicksand',sans-serif;}
 body{background:#fff;color:#222;min-height:100vh;}
@@ -1570,6 +1570,13 @@ body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 .y78-yt-wrap{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}
 #y78-yt-wrap{margin-top:20px;}
 /* ---- ABOUT US: CAPTIONED YOUTUBE VIDEOS (reorderable) ---- */
+.av-heading{
+  font-family:'Mouse Memoirs','Quicksand',sans-serif;
+  font-weight:400;color:#1a2b4a;text-align:center;
+  font-size:40px;line-height:1.15;letter-spacing:0.5px;
+  margin:18px 0 16px;
+}
+@media (max-width:768px){ .av-heading{font-size:30px;} }
 .av-section{margin:6px 0 24px;}
 .av-list{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start;}
 @media (max-width:768px){ .av-list{grid-template-columns:1fr;} }
@@ -2840,6 +2847,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button>
         </div>
       </div>
+
+      <h2 class="av-heading">What happens at Auroa School you ask?</h2>
 
       <!-- Captioned YouTube videos: reorderable list, admin can add more.
            Each box has an editable caption above a YouTube embed. -->
