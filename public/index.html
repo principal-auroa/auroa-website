@@ -1531,6 +1531,62 @@ body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 /* Y78 YouTube link boxes */
 .y78-yt-wrap{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}
 #y78-yt-wrap{margin-top:20px;}
+/* ---- ABOUT US: CAPTIONED YOUTUBE VIDEOS (reorderable) ---- */
+.av-section{margin:6px 0 24px;}
+.av-list{display:flex;flex-direction:column;gap:22px;}
+.av-box{
+  background:#fff;border:1px solid #e0e0e0;border-radius:10px;
+  overflow:hidden;position:relative;
+}
+.av-box.av-dragging{opacity:0.45;}
+.av-box.av-dragover{outline:2px dashed #c0642b;outline-offset:2px;}
+/* Visitors never see empty boxes (no video yet) */
+body:not(.is-admin) .av-box.av-empty{display:none;}
+.av-drag-handle{
+  display:none;position:absolute;top:8px;left:8px;z-index:4;
+  width:30px;height:26px;align-items:center;justify-content:center;
+  background:rgba(26,43,74,0.75);color:#fff;border-radius:6px;
+  cursor:grab;font-size:15px;user-select:none;
+}
+body.is-admin .av-drag-handle{display:flex;}
+.av-drag-handle:active{cursor:grabbing;}
+.av-caption{
+  padding:12px 16px;text-align:center;
+  color:#1a2b4a;font-weight:600;font-size:17px;line-height:1.4;
+}
+body.is-admin .av-caption{
+  outline:1px dashed rgba(26,43,74,0.35);border-radius:6px;margin:8px 44px;
+  cursor:text;min-height:22px;padding:8px 12px;
+}
+body.is-admin .av-caption:focus{outline-color:rgba(26,43,74,0.8);}
+body.is-admin .av-caption:empty::before{content:'Add a caption…';color:#aaa;}
+.av-admin-bar{display:none;padding:0 16px 12px;gap:8px;align-items:center;}
+body.is-admin .av-admin-bar{display:flex;}
+.av-admin-bar input{
+  flex:1;border:1px solid #ccc;border-radius:5px;padding:6px 10px;
+  font-family:'Quicksand',sans-serif;font-size:13px;
+}
+.av-admin-bar .av-box-del{
+  background:#c0392b;color:#fff;border:none;border-radius:5px;
+  padding:6px 12px;cursor:pointer;font-size:12px;
+  font-family:'Quicksand',sans-serif;white-space:nowrap;
+}
+.av-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;display:none;}
+.av-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+.av-placeholder{display:none;}
+body.is-admin .av-box.av-empty .av-placeholder{
+  display:flex;align-items:center;justify-content:center;
+  min-height:120px;color:#999;font-size:14px;background:#f7f7f7;
+}
+.av-add-btn{
+  display:none;margin-top:18px;
+  background:#1a2b4a;color:#fff;border:none;border-radius:6px;
+  padding:9px 20px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
+}
+body.is-admin .av-add-btn{display:inline-block;}
+.av-add-btn:hover{background:#243d6a;}
+
 /* ---- APPLE DISTINGUISHED SCHOOL PAGE ---- */
 .apple-img-wrap{display:flex;flex-direction:column;align-items:center;margin:0 auto 22px;}
 .apple-img-box{width:60%;max-width:460px;margin-bottom:10px;}
@@ -2746,6 +2802,13 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
 
+      <!-- Captioned YouTube videos: reorderable list, admin can add more.
+           Each box has an editable caption above a YouTube embed. -->
+      <div id="about-videos" class="av-section">
+        <div id="av-list" class="av-list"></div>
+        <button id="av-add-btn" class="av-add-btn" type="button" onclick="aboutVideosAdd()">+ Add Video</button>
+      </div>
+
       <hr class="home-rule" />
       <h2 class="edu-foot-h">Annual Plan</h2>
 
@@ -3688,6 +3751,9 @@ var y78YoutubeLinks = ['','','','','',''];
 var y78YtSaveTimers = [null,null,null,null,null,null];
 var appleVideo = '';
 var appleVideoSaveTimer = null;
+var aboutVideos = [];
+var aboutVideosSaveTimer = null;
+var avDragId = null;
 var y78PdfFile = null;
 var classroomImages = {};
 var newsletters = [];
@@ -3991,6 +4057,21 @@ function fetchState() {
       if (data.appleImage) applyAppleImg('/uploads/' + data.appleImage);
       appleVideo = data.appleVideo || '';
       renderAppleVideo();
+      // About Us captioned video boxes (default to 3 empty boxes)
+      aboutVideos = Array.isArray(data.aboutVideos) && data.aboutVideos.length
+        ? data.aboutVideos.map(function(v, i) {
+            return {
+              id: (v && v.id) || ('av_' + i + '_' + Math.random().toString(36).slice(2, 7)),
+              caption: (v && v.caption) || '',
+              url: (v && v.url) || ''
+            };
+          })
+        : [
+            { id: 'av_d1', caption: '', url: '' },
+            { id: 'av_d2', caption: '', url: '' },
+            { id: 'av_d3', caption: '', url: '' }
+          ];
+      renderAboutVideos();
       var et = data.educateImageTransform || {};
       eduImgTx = et.tx || 0; eduImgTy = et.ty || 0; eduImgScale = et.scale || 1;
       applyEduTransform();
@@ -4174,6 +4255,7 @@ function enterAdmin() {
   renderNeBtns();
   renderPrideBtnLabels();
   renderY78Boxes();
+  if (typeof renderAboutVideos === 'function') renderAboutVideos();
   renderSidebarPages();
   // Re-render sport table if already viewing a sport detail page, and
   // un-hide the Current + Copy link buttons that openSportDetail would
@@ -4249,6 +4331,7 @@ function exitAdmin() {
   renderNeBtns();
   renderPrideBtnLabels();
   renderY78Boxes();
+  if (typeof renderAboutVideos === 'function') renderAboutVideos();
   renderSidebarPages();
   // Mirror enterAdmin: also hide sport/event admin buttons on logout so
   // they don't linger for visitors after admin logs out from the page.
@@ -4359,6 +4442,160 @@ function renderAppleVideo() {
   }
 }
 
+// ---- About Us captioned video boxes (reorderable) ----
+function renderAboutVideos() {
+  var list = el('av-list');
+  if (!list) return;
+  list.innerHTML = '';
+  aboutVideos.forEach(function(v) {
+    list.appendChild(buildAboutVideoBox(v));
+  });
+}
+
+function buildAboutVideoBox(v) {
+  var box = document.createElement('div');
+  box.className = 'av-box';
+  box.setAttribute('data-id', v.id);
+
+  var handle = document.createElement('div');
+  handle.className = 'av-drag-handle';
+  handle.title = 'Drag to reorder';
+  handle.textContent = '⠿'; // ⠿
+  box.appendChild(handle);
+
+  var cap = document.createElement('div');
+  cap.className = 'av-caption';
+  cap.textContent = v.caption || '';
+  if (window.isAdmin) {
+    cap.contentEditable = 'true';
+    cap.addEventListener('input', function() {
+      v.caption = cap.textContent;
+      scheduleAboutVideosSave();
+    });
+  }
+  box.appendChild(cap);
+
+  var bar = document.createElement('div');
+  bar.className = 'av-admin-bar';
+  var inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = 'Paste YouTube link here…';
+  inp.value = v.url || '';
+  inp.addEventListener('input', function() {
+    v.url = inp.value.trim();
+    updateAboutVideoEmbed(box, v);
+    scheduleAboutVideosSave();
+  });
+  var del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'av-box-del';
+  del.textContent = '✕ Delete';
+  del.addEventListener('click', function() { aboutVideoDelete(v.id); });
+  bar.appendChild(inp);
+  bar.appendChild(del);
+  box.appendChild(bar);
+
+  var embed = document.createElement('div');
+  embed.className = 'av-embed';
+  box.appendChild(embed);
+
+  var ph = document.createElement('div');
+  ph.className = 'av-placeholder';
+  ph.textContent = 'Add a YouTube link below';
+  box.appendChild(ph);
+
+  updateAboutVideoEmbed(box, v);
+  attachAboutVideoDrag(box, handle);
+  return box;
+}
+
+function updateAboutVideoEmbed(box, v) {
+  var embed = box.querySelector('.av-embed');
+  if (!embed) return;
+  var embedUrl = getYoutubeEmbedUrl(v.url || '');
+  if (embedUrl) {
+    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.style.display = 'block';
+    box.classList.remove('av-empty');
+  } else {
+    embed.innerHTML = '';
+    embed.style.display = 'none';
+    box.classList.add('av-empty');
+  }
+}
+
+function attachAboutVideoDrag(box, handle) {
+  if (!window.isAdmin) return;
+  // Only allow dragging when initiated from the handle.
+  handle.addEventListener('mousedown', function() { box.draggable = true; });
+  box.addEventListener('dragstart', function(e) {
+    avDragId = box.getAttribute('data-id');
+    box.classList.add('av-dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', avDragId); } catch (_) {}
+    }
+  });
+  box.addEventListener('dragend', function() {
+    box.draggable = false;
+    box.classList.remove('av-dragging');
+    document.querySelectorAll('.av-box.av-dragover').forEach(function(b){ b.classList.remove('av-dragover'); });
+    avDragId = null;
+  });
+  box.addEventListener('dragover', function(e) {
+    if (avDragId == null) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    if (box.getAttribute('data-id') !== avDragId) box.classList.add('av-dragover');
+  });
+  box.addEventListener('dragleave', function() { box.classList.remove('av-dragover'); });
+  box.addEventListener('drop', function(e) {
+    e.preventDefault();
+    box.classList.remove('av-dragover');
+    var targetId = box.getAttribute('data-id');
+    if (avDragId == null || targetId === avDragId) return;
+    var from = aboutVideos.findIndex(function(x){ return x.id === avDragId; });
+    var to   = aboutVideos.findIndex(function(x){ return x.id === targetId; });
+    if (from < 0 || to < 0) return;
+    var moved = aboutVideos.splice(from, 1)[0];
+    aboutVideos.splice(to, 0, moved);
+    saveAboutVideos();
+    renderAboutVideos();
+  });
+}
+
+function aboutVideosAdd() {
+  aboutVideos.push({ id: 'av_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), caption: '', url: '' });
+  saveAboutVideos();
+  renderAboutVideos();
+}
+
+function aboutVideoDelete(id) {
+  if (!confirm('Delete this video box?')) return;
+  aboutVideos = aboutVideos.filter(function(x){ return x.id !== id; });
+  saveAboutVideos();
+  renderAboutVideos();
+}
+
+function scheduleAboutVideosSave() {
+  clearTimeout(aboutVideosSaveTimer);
+  aboutVideosSaveTimer = setTimeout(saveAboutVideos, 800);
+}
+
+function saveAboutVideos() {
+  apiSave('aboutVideos', aboutVideos, function(){ flashSave('Saved!'); });
+}
+
+// Safety net: if the handle was pressed but no drag occurred, clear draggable.
+if (!window._avDragCleanupBound) {
+  window._avDragCleanupBound = true;
+  document.addEventListener('mouseup', function() {
+    document.querySelectorAll('.av-box[draggable="true"]').forEach(function(b) {
+      if (!b.classList.contains('av-dragging')) b.draggable = false;
+    });
+  });
+}
+
 function applyEduFooterImg(slot, src) {
   var img = el('edu-foot-img-' + slot);
   if (!img) return;
@@ -4390,7 +4627,7 @@ function downloadAboutUsPdf() {
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: {
       mode: ['css', 'legacy'],
-      avoid: ['table', '.edu-val', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
+      avoid: ['table', '.edu-val', '.av-box', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
     }
   };
   function cleanup() {
