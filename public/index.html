@@ -1425,6 +1425,23 @@ body.is-admin .ss-caption{border-top-color:#ddd;background:#fafafa;}
   box-shadow:0 5px 20px rgba(0,0,0,0.3);
 }
 #fmt-toolbar.show{display:flex;}
+/* Dedicated link popup that appears just above highlighted text */
+#link-popup{
+  display:none;position:fixed;z-index:3001;
+  background:#1a2b4a;border-radius:9px;padding:5px 7px;
+  gap:6px;align-items:center;
+  box-shadow:0 5px 20px rgba(0,0,0,0.3);
+}
+#link-popup.show{display:flex;}
+.lp-btn{
+  border:none;cursor:pointer;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;
+  padding:6px 12px;line-height:1.3;
+}
+.lp-add{background:#2980b9;color:#fff;}
+.lp-add:hover{background:#2471a3;}
+.lp-remove{background:rgba(255,255,255,0.14);color:#fff;font-weight:600;padding:6px 10px;}
+.lp-remove:hover{background:rgba(255,255,255,0.26);}
 .fmt-btn{
   background:none;border:none;color:#fff;cursor:pointer;
   padding:3px 8px;border-radius:5px;
@@ -3727,10 +3744,13 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   <span class="fmt-dot" style="background:#111"                               title="Black"  onclick="fmtColor('#111111')"></span>
   <span class="fmt-dot" style="background:#fff;border:1px solid #888;"        title="White"  onclick="fmtColor('#ffffff')"></span>
   <div class="fmt-sep"></div>
-  <button class="fmt-btn" onclick="fmtLink()" title="Add / edit link">🔗</button>
-  <button class="fmt-btn" onclick="fmtUnlink()" title="Remove link" style="font-size:11px;padding:3px 7px;">🔗✕</button>
-  <div class="fmt-sep"></div>
   <button class="fmt-btn" onclick="fmtClearStyles()" title="Clear pasted formatting" style="font-size:10px;padding:3px 7px;color:#c0392b;">✕ Clear</button>
+</div>
+
+<!-- Dedicated link popup — appears just above highlighted text (admin) -->
+<div id="link-popup" onmousedown="return false">
+  <button class="lp-btn lp-add" onclick="fmtLink()">🔗 Add Link</button>
+  <button class="lp-btn lp-remove" onclick="fmtUnlink()" title="Remove the link from the highlighted text">Remove</button>
 </div>
 
 <!-- CELL CONTEXT MENU -->
@@ -6424,20 +6444,31 @@ document.addEventListener('selectionchange', function() {
   fmtSavedRange = sel.getRangeAt(0).cloneRange();
   var rect = sel.getRangeAt(0).getBoundingClientRect();
   var tb = el('fmt-toolbar');
+  var lp = el('link-popup');
   tb.classList.add('show');
+  if (lp) lp.classList.add('show');
   tb.style.left = '-9999px'; tb.style.top = '-9999px';
-  // position after paint so we can measure toolbar size
+  if (lp) { lp.style.left = '-9999px'; lp.style.top = '-9999px'; }
+  // position after paint so we can measure popup sizes. The link popup sits
+  // closest to the highlighted text; the formatting toolbar stacks beyond it.
   requestAnimationFrame(function() {
-    var tw = tb.offsetWidth;
-    var left = Math.max(8, rect.left + (rect.width / 2) - (tw / 2));
-    var top = rect.top - tb.offsetHeight - 10;
-    if (top < 60) top = rect.bottom + 10;
-    tb.style.left = left + 'px';
-    tb.style.top = top + 'px';
+    var cx = rect.left + (rect.width / 2);
+    var lpw = lp ? lp.offsetWidth : 0, lph = lp ? lp.offsetHeight : 0;
+    var tw = tb.offsetWidth, th = tb.offsetHeight;
+    var below = (rect.top - 60) < (lph + 8 + th + 8);
+    var lpTop, tbTop;
+    if (!below) { lpTop = rect.top - lph - 10; tbTop = lpTop - th - 8; }
+    else        { lpTop = rect.bottom + 10;    tbTop = lpTop + lph + 8; }
+    if (lp) { lp.style.left = Math.max(8, cx - lpw / 2) + 'px'; lp.style.top = lpTop + 'px'; }
+    tb.style.left = Math.max(8, cx - tw / 2) + 'px';
+    tb.style.top  = tbTop + 'px';
   });
 });
 
-function hideFmtToolbar() { el('fmt-toolbar').classList.remove('show'); }
+function hideFmtToolbar() {
+  el('fmt-toolbar').classList.remove('show');
+  var lp = el('link-popup'); if (lp) lp.classList.remove('show');
+}
 
 function restoreSel() {
   if (!fmtSavedRange) return false;
