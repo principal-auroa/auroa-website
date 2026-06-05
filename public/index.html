@@ -1432,6 +1432,14 @@ body.is-admin .ss-caption{border-top-color:#ddd;background:#fafafa;}
   transition:background 0.12s;line-height:1.4;
 }
 .fmt-btn:hover{background:rgba(255,255,255,0.18);}
+/* Hyperlinks added to body text via the format toolbar — make them clearly
+   clickable across all editable content areas. */
+.editable a, .nl-msg a, .nl-term-label a, .av-caption a, .pc-caption a,
+.edu-text a, td[contenteditable] a, [contenteditable] a{
+  color:#1a6fc4;text-decoration:underline;cursor:pointer;
+}
+.editable a:hover, .nl-msg a:hover, .av-caption a:hover,
+.edu-text a:hover, [contenteditable] a:hover{color:#c0642b;}
 .fmt-dot{
   width:16px;height:16px;border-radius:50%;cursor:pointer;flex-shrink:0;
   border:2px solid rgba(255,255,255,0.25);transition:transform 0.12s,border-color 0.12s;
@@ -3719,6 +3727,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   <span class="fmt-dot" style="background:#111"                               title="Black"  onclick="fmtColor('#111111')"></span>
   <span class="fmt-dot" style="background:#fff;border:1px solid #888;"        title="White"  onclick="fmtColor('#ffffff')"></span>
   <div class="fmt-sep"></div>
+  <button class="fmt-btn" onclick="fmtLink()" title="Add / edit link">🔗</button>
+  <button class="fmt-btn" onclick="fmtUnlink()" title="Remove link" style="font-size:11px;padding:3px 7px;">🔗✕</button>
+  <div class="fmt-sep"></div>
   <button class="fmt-btn" onclick="fmtClearStyles()" title="Clear pasted formatting" style="font-size:10px;padding:3px 7px;color:#c0392b;">✕ Clear</button>
 </div>
 
@@ -4465,11 +4476,12 @@ function buildAboutVideoBox(v) {
 
   var cap = document.createElement('div');
   cap.className = 'av-caption';
-  cap.textContent = v.caption || '';
+  // innerHTML (not textContent) so captions can hold links/formatting too.
+  cap.innerHTML = v.caption || '';
   if (window.isAdmin) {
     cap.contentEditable = 'true';
     cap.addEventListener('input', function() {
-      v.caption = cap.textContent;
+      v.caption = cap.innerHTML;
       scheduleAboutVideosSave();
     });
   }
@@ -6488,6 +6500,65 @@ function fmtBullet() {
   document.execCommand('insertUnorderedList');
   var sel = window.getSelection();
   if (sel && !sel.isCollapsed) fmtSavedRange = sel.getRangeAt(0).cloneRange();
+  fmtNotifyChange();
+}
+
+// Returns the editable container for the current selection (or null).
+function fmtEditableContainer() {
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  var node = sel.anchorNode;
+  while (node && node.nodeType !== 1) node = node.parentNode;
+  if (!node || !node.closest) return null;
+  return node.closest('[contenteditable="true"]') || node.closest('.editable.editing') || node.closest('td[contenteditable]');
+}
+
+// Wrap the highlighted text in a hyperlink (opens in a new tab for visitors).
+function fmtLink() {
+  restoreSel();
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) {
+    alert('Highlight some text first, then click the link button.');
+    return;
+  }
+  // Capture the editable container + any existing link BEFORE prompt() steals
+  // focus (after which the selection/focus must be restored for execCommand).
+  var ce = fmtEditableContainer();
+  var node = sel.anchorNode;
+  while (node && node.nodeType !== 1) node = node.parentNode;
+  var existingA = node && node.closest ? node.closest('a') : null;
+  var current = existingA ? (existingA.getAttribute('href') || '') : '';
+  var url = prompt('Enter the web address to link to (leave blank to remove the link):', current || 'https://');
+  if (url === null) return; // cancelled
+  url = url.trim();
+  // Re-focus the editable and restore the highlighted range so execCommand
+  // applies (prompt() blurs the editor).
+  if (ce) ce.focus();
+  restoreSel();
+  if (!url) {
+    document.execCommand('unlink');
+  } else {
+    if (!/^(https?:\/\/|mailto:|tel:)/i.test(url)) url = 'https://' + url;
+    document.execCommand('createLink', false, url);
+    // execCommand can't set target/rel, so add them to the link(s) so the
+    // page opens in a new tab when any visitor clicks the highlighted text.
+    if (ce) {
+      ce.querySelectorAll('a').forEach(function(a) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      });
+    }
+  }
+  var s2 = window.getSelection();
+  if (s2 && s2.rangeCount) fmtSavedRange = s2.getRangeAt(0).cloneRange();
+  fmtNotifyChange();
+}
+
+function fmtUnlink() {
+  restoreSel();
+  document.execCommand('unlink');
+  var s2 = window.getSelection();
+  if (s2 && s2.rangeCount) fmtSavedRange = s2.getRangeAt(0).cloneRange();
   fmtNotifyChange();
 }
 
