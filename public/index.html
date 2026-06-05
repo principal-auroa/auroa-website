@@ -1571,7 +1571,8 @@ body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 #y78-yt-wrap{margin-top:20px;}
 /* ---- ABOUT US: CAPTIONED YOUTUBE VIDEOS (reorderable) ---- */
 .av-section{margin:6px 0 24px;}
-.av-list{display:flex;flex-direction:column;gap:22px;}
+.av-list{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start;}
+@media (max-width:768px){ .av-list{grid-template-columns:1fr;} }
 .av-box{
   background:#fff;border:1px solid #e0e0e0;border-radius:10px;
   overflow:hidden;position:relative;
@@ -1593,12 +1594,12 @@ body.is-admin .av-drag-handle{display:flex;}
   color:#1a2b4a;font-weight:600;font-size:17px;line-height:1.4;
 }
 body.is-admin .av-caption{
-  outline:1px dashed rgba(26,43,74,0.35);border-radius:6px;margin:8px 44px;
+  outline:1px dashed rgba(26,43,74,0.35);border-radius:6px;margin:8px 12px 8px 46px;
   cursor:text;min-height:22px;padding:8px 12px;
 }
 body.is-admin .av-caption:focus{outline-color:rgba(26,43,74,0.8);}
 body.is-admin .av-caption:empty::before{content:'Add a caption…';color:#aaa;}
-.av-admin-bar{display:none;padding:0 16px 12px;gap:8px;align-items:center;}
+.av-admin-bar{display:none;padding:0 16px 12px;gap:8px;align-items:center;flex-wrap:wrap;}
 body.is-admin .av-admin-bar{display:flex;}
 .av-admin-bar input{
   flex:1;border:1px solid #ccc;border-radius:5px;padding:6px 10px;
@@ -4546,7 +4547,7 @@ function buildAboutVideoBox(v) {
 
   var ph = document.createElement('div');
   ph.className = 'av-placeholder';
-  ph.textContent = 'Add a YouTube link below';
+  ph.textContent = '🎬 Video preview will appear here';
   box.appendChild(ph);
 
   updateAboutVideoEmbed(box, v);
