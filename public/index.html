@@ -1937,7 +1937,7 @@ body.is-admin .pm-sub-counts{display:flex;}
 .pm-msg h4{color:#1a2b4a;font-size:15px;font-weight:700;margin:0 0 4px;}
 .pm-msg-date{color:#888;font-size:11px;margin-bottom:6px;}
 .pm-msg-body{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
-.pm-msg-img{display:block;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #e6e6e6;}
+.pm-msg-img{display:block;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #e6e6e6;cursor:zoom-in;}
 .pm-msg-link{display:inline-block;margin-top:8px;color:#1a2b4a;font-size:13px;font-weight:600;}
 .pm-msg-del{
   display:none;position:absolute;top:8px;right:8px;
@@ -9507,7 +9507,7 @@ function pmRenderList() {
       '<h4>' + lunchEsc(m.title) + '</h4>' +
       '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
       '<div class="pm-msg-body">' + lunchEsc(m.body) + '</div>' +
-      (m.image ? '<img class="pm-msg-img" src="/uploads/' + lunchEsc(m.image) + '" alt="" loading="lazy">' : '') +
+      (m.image ? '<img class="pm-msg-img" src="/uploads/' + lunchEsc(m.image) + '" alt="" loading="lazy" onclick="event.stopPropagation(); if(typeof openLightbox===\'function\') openLightbox(this.src);">' : '') +
       (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">' + linkText + '</a>' : '');
     var del = document.createElement('button');
     del.type = 'button';
