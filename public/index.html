@@ -1121,6 +1121,19 @@ body.is-admin .pc-caption:focus{outline-color:rgba(26,43,74,0.7);}
 .sd-table td:first-child{color:#555;font-weight:600;background:#f8f8f8;width:150px;white-space:normal;}
 .sd-table td[contenteditable="true"]{outline:none;}
 .sd-table td[contenteditable="true"]:focus{background:#fffdf0;}
+/* Sport notes — a rich-text field (was a plain textarea) so links can be
+   added to the text via the highlight link popup. */
+.sd-notes{
+  width:100%;font-family:'Quicksand',sans-serif;font-size:14px;
+  line-height:1.6;color:#333;margin-bottom:18px;
+}
+body.is-admin .sd-notes{
+  min-height:80px;border:1.5px solid #e0e0e0;border-radius:8px;
+  padding:12px 14px;outline:none;
+}
+body.is-admin .sd-notes:focus{border-color:#1a2b4a;background:#fffdf0;}
+body.is-admin .sd-notes:empty::before{content:attr(data-placeholder);color:#aaa;}
+body:not(.is-admin) .sd-notes:empty{display:none;}
 .sd-img-block{margin-bottom:14px;position:relative;display:inline-block;}
 .sd-img-block img{max-width:100%;border-radius:8px;display:block;}
 .sd-img-del{
@@ -2910,7 +2923,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <button class="abar-btn" style="font-size:11px;padding:4px 11px;" onclick="sdAddCol()">+ Column</button>
         <button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="sdRemoveCol()">− Column</button>
       </div>
-      <textarea id="sd-notes" placeholder="Notes…" oninput="sdNotesResize(this)" style="width:100%;min-height:80px;border:1.5px solid #e0e0e0;border-radius:8px;padding:12px 14px;font-family:'Quicksand',sans-serif;font-size:14px;resize:none;overflow:hidden;line-height:1.6;margin-bottom:18px;"></textarea>
+      <div id="sd-notes" class="sd-notes" data-placeholder="Notes…"></div>
       <div id="sd-images"></div>
       <div id="sd-img-admin" style="display:none;margin-top:8px;">
         <label class="abar-btn" style="font-size:11px;padding:4px 11px;cursor:pointer;">
@@ -5866,10 +5879,12 @@ function openSportDetail(sportId) {
   el('sd-name').textContent = sport.name;
   renderSdTable(sport.tableData);
   var notes = el('sd-notes');
-  notes.value = sport.notes || '';
-  sdNotesResize(notes);
+  // Older notes were saved as plain text with newlines; convert those to <br>.
+  // Notes that already contain HTML (e.g. links added later) are used as-is.
+  var rawNotes = sport.notes || '';
+  notes.innerHTML = /<[a-z!/]/i.test(rawNotes) ? rawNotes : rawNotes.replace(/\n/g, '<br>');
+  notes.contentEditable = isAdmin ? 'true' : 'false';
   notes.oninput = function() {
-    sdNotesResize(this);
     clearTimeout(sdAutoSaveTimer);
     sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000);
   };
@@ -5939,7 +5954,7 @@ function sdSave(cb) {
   var sport = sportsData[currentSportId];
   if (!sport) return;
   sport.tableData = sdExtractTable();
-  sport.notes     = el('sd-notes').value;
+  sport.notes     = el('sd-notes').innerHTML;
   saveSportsToServer(cb);
 }
 
@@ -6408,6 +6423,7 @@ enterAdmin = function() {
   if (document.querySelector('#pg-sport.active') && currentSportId) {
     el('sd-table-admin').style.display = 'flex';
     el('sd-img-admin').style.display = 'block';
+    if (typeof openSportDetail === 'function') openSportDetail(currentSportId);
   }
   if (document.querySelector('#pg-event.active') && currentEventId) {
     el('ev-text-admin').style.display = 'flex';
@@ -6424,6 +6440,9 @@ exitAdmin = function() {
   renderNeBtns();
   el('sd-table-admin').style.display = 'none';
   el('sd-img-admin').style.display = 'none';
+  if (document.querySelector('#pg-sport.active') && currentSportId) {
+    var _sdn = el('sd-notes'); if (_sdn) _sdn.contentEditable = 'false';
+  }
   if (document.querySelector('#pg-event.active') && currentEventId) {
     el('ev-text-admin').style.display = 'none';
     renderEvTextRows(eventsData[currentEventId] ? eventsData[currentEventId].textRows : ['']);
