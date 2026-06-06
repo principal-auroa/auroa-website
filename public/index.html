@@ -1570,13 +1570,15 @@ body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 .y78-yt-wrap{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}
 #y78-yt-wrap{margin-top:20px;}
 /* ---- ABOUT US: CAPTIONED YOUTUBE VIDEOS (reorderable) ---- */
-.av-heading{
+/* Selector is .pg-body h2.av-heading (not just .av-heading) so it beats the
+   global ".pg-body h2{font-size:18px}" rule, which is more specific. */
+.pg-body h2.av-heading{
   font-family:'Mouse Memoirs','Quicksand',sans-serif;
   font-weight:400;color:#1a2b4a;text-align:center;
   font-size:80px;line-height:1.1;letter-spacing:0.5px;
   margin:24px 0 16px;
 }
-@media (max-width:768px){ .av-heading{font-size:60px;} }
+@media (max-width:768px){ .pg-body h2.av-heading{font-size:60px;} }
 .av-intro{max-width:760px;margin:0 auto 22px;text-align:center;color:#333;font-size:16px;line-height:1.6;}
 .av-section{margin:6px 0 24px;}
 .av-list{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start;}
