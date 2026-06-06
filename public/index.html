@@ -1573,10 +1573,11 @@ body.is-admin .y78-section-box:focus{outline:2px dashed #c0642b;}
 .av-heading{
   font-family:'Mouse Memoirs','Quicksand',sans-serif;
   font-weight:400;color:#1a2b4a;text-align:center;
-  font-size:40px;line-height:1.15;letter-spacing:0.5px;
-  margin:18px 0 16px;
+  font-size:80px;line-height:1.1;letter-spacing:0.5px;
+  margin:24px 0 16px;
 }
-@media (max-width:768px){ .av-heading{font-size:30px;} }
+@media (max-width:768px){ .av-heading{font-size:60px;} }
+.av-intro{max-width:760px;margin:0 auto 22px;text-align:center;color:#333;font-size:16px;line-height:1.6;}
 .av-section{margin:6px 0 24px;}
 .av-list{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start;}
 @media (max-width:768px){ .av-list{grid-template-columns:1fr;} }
@@ -1632,6 +1633,14 @@ body.is-admin .av-box.av-empty .av-placeholder{
 }
 body.is-admin .av-add-btn{display:inline-block;}
 .av-add-btn:hover{background:#243d6a;}
+/* QR codes shown in the PDF in place of the (non-printable) video embeds */
+.av-qr{display:flex;flex-direction:column;align-items:center;padding:14px;}
+.av-qr img,.av-qr canvas{width:180px;height:180px;}
+.av-qr-hint{margin-top:8px;font-size:13px;color:#555;font-weight:600;}
+.av-pdf-hide{display:none !important;}
+.is-pdf-export .av-drag-handle,
+.is-pdf-export .av-admin-bar{display:none !important;}
+.is-pdf-export .av-caption{outline:none !important;margin:8px 12px !important;}
 
 /* ---- APPLE DISTINGUISHED SCHOOL PAGE ---- */
 .apple-img-wrap{display:flex;flex-direction:column;align-items:center;margin:0 auto 22px;}
@@ -2645,6 +2654,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 </style>
 <!-- PDF export library for the About Us "Download as PDF" button -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 </head>
 <body>
 
@@ -2849,6 +2859,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       </div>
 
       <h2 class="av-heading">What happens at Auroa School you ask?</h2>
+
+      <!-- Rich-text intro under the heading (admin editable, supports links) -->
+      <div class="editable av-intro" id="ec-aboutvideos"><p></p></div>
 
       <!-- Captioned YouTube videos: reorderable list, admin can add more.
            Each box has an editable caption above a YouTube embed. -->
@@ -4135,7 +4148,7 @@ function fetchState() {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo'].forEach(function(k) {
+      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
@@ -4662,6 +4675,38 @@ function applyEduFooterImg(slot, src) {
   }
 }
 
+// For the PDF, replace each video embed (iframes don't print) with a QR code
+// that links to the video, keeping the caption above it. Boxes with no video
+// are hidden in the PDF. Restored afterwards by re-rendering the video list.
+function aboutVideosToQR() {
+  if (typeof QRCode !== 'function') return;
+  document.querySelectorAll('#about-videos .av-box').forEach(function(box) {
+    var id = box.getAttribute('data-id');
+    var v = aboutVideos.find(function(x){ return x.id === id; });
+    var url = (v && v.url) ? v.url : '';
+    var ph = box.querySelector('.av-placeholder');
+    if (ph) ph.style.display = 'none';
+    if (!url || !getYoutubeEmbedUrl(url)) { box.classList.add('av-pdf-hide'); return; }
+    var embed = box.querySelector('.av-embed');
+    if (embed) embed.style.display = 'none';
+    var qrWrap = document.createElement('div');
+    qrWrap.className = 'av-qr';
+    var qrBox = document.createElement('div');
+    qrWrap.appendChild(qrBox);
+    var hint = document.createElement('div');
+    hint.className = 'av-qr-hint';
+    hint.textContent = 'Scan to watch the video';
+    qrWrap.appendChild(hint);
+    box.appendChild(qrWrap);
+    try {
+      new QRCode(qrBox, { text: url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+      // Convert to a plain data-URL <img> for reliable html2canvas capture.
+      var c = qrBox.querySelector('canvas');
+      if (c) { qrBox.innerHTML = '<img src="' + c.toDataURL('image/png') + '" width="180" height="180" alt="QR code">'; }
+    } catch (e) {}
+  });
+}
+
 function downloadAboutUsPdf() {
   if (typeof html2pdf !== 'function') {
     alert('PDF library is still loading — try again in a moment.');
@@ -4673,6 +4718,8 @@ function downloadAboutUsPdf() {
   if (btn) { btn.disabled = true; btn.textContent = 'Building PDF…'; }
   // Hide admin overlays + UI chrome while rendering.
   document.body.classList.add('is-pdf-export');
+  // Swap video embeds for QR codes (iframes don't render in the PDF).
+  aboutVideosToQR();
   // Keep grids/clusters/image boxes on one page each.
   var opts = {
     margin: [10, 10, 10, 10],
@@ -4687,13 +4734,18 @@ function downloadAboutUsPdf() {
   };
   function cleanup() {
     document.body.classList.remove('is-pdf-export');
+    // Restore the live video embeds (removes the temporary QR codes).
+    if (typeof renderAboutVideos === 'function') renderAboutVideos();
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg> Download as PDF'; }
   }
-  html2pdf().set(opts).from(page).save()
-    .then(cleanup, function(err) {
-      cleanup();
-      alert('Could not build PDF: ' + (err && err.message ? err.message : 'unknown error'));
-    });
+  // Small delay so the QR code images are painted before html2canvas captures.
+  setTimeout(function() {
+    html2pdf().set(opts).from(page).save()
+      .then(cleanup, function(err) {
+        cleanup();
+        alert('Could not build PDF: ' + (err && err.message ? err.message : 'unknown error'));
+      });
+  }, 250);
 }
 
 function uploadEducateFooter(slot, input) {
