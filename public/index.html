@@ -1778,6 +1778,36 @@ body.is-admin .y78-pdf-admin-bar{display:flex;}
 #y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
+/* Two side-by-side YouTube boxes in the Annual Plan section */
+.edu-foot-yt-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:18px 0;}
+.edu-foot-yt-box{background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;}
+body:not(.is-admin) .edu-foot-yt-box:not(.has-video){display:none;}
+.edu-foot-yt-admin-bar{display:none;padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;gap:8px;align-items:center;}
+body.is-admin .edu-foot-yt-admin-bar{display:flex;}
+.edu-foot-yt-admin-bar input{flex:1;border:1px solid #ccc;border-radius:5px;padding:6px 10px;font-family:'Quicksand',sans-serif;font-size:13px;}
+.edu-foot-yt-admin-bar button{background:#c0392b;color:#fff;border:none;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:'Quicksand',sans-serif;white-space:nowrap;}
+.edu-foot-yt-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;display:none;}
+.edu-foot-yt-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+.edu-foot-yt-ph{display:none;}
+body.is-admin .edu-foot-yt-box:not(.has-video) .edu-foot-yt-ph{display:flex;align-items:center;justify-content:center;min-height:120px;color:#999;font-size:14px;background:#f7f7f7;}
+@media (max-width:768px){ .edu-foot-yt-row{grid-template-columns:1fr;} }
+/* iframes don't render in the generated PDF, so hide these there. */
+.is-pdf-export .edu-foot-yt-row{display:none !important;}
+
+/* About Us bottom PDF — tall enough to show the first page, scroll for more. */
+#edu-pdf-section{margin-top:26px;margin-bottom:8px;}
+.edu-pdf-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
+body.is-admin .edu-pdf-admin-bar{display:flex;}
+.edu-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
+#edu-pdf-remove-btn{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
+#edu-pdf-viewer{width:100%;height:860px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
+#edu-pdf-viewer iframe{width:100%;height:100%;border:0;}
+#edu-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
+body:not(.is-admin) #edu-pdf-ph{display:none;}
+@media (max-width:768px){ #edu-pdf-viewer{height:70vh;min-height:440px;} }
+/* The embedded PDF can't render inside the generated About Us PDF, so hide it. */
+.is-pdf-export #edu-pdf-section{display:none !important;}
+
 /* ---- UPDATE-AVAILABLE BANNER ---- */
 #update-banner{
   display:none;position:fixed;top:0;left:0;right:0;
@@ -2949,6 +2979,44 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
         <label class="edu-foot-upload-btn" for="edu-foot-file-2">&#8679; Upload Image 2</label>
 
+        <!-- Two more image boxes, then two YouTube boxes side by side -->
+        <div class="img-box edu-foot-box" id="edu-foot-box-5">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-5" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-5"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-5" type="file" accept="image/*" onchange="uploadEducateFooter('5', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-5',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-5">&#8679; Upload Image 5</label>
+
+        <div class="img-box edu-foot-box" id="edu-foot-box-6">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="edu-foot-img-6" style="display:none;" alt="" />
+          <label class="upload-overlay" for="edu-foot-file-6"><span>Click to replace image</span></label>
+          <input class="file-in" id="edu-foot-file-6" type="file" accept="image/*" onchange="uploadEducateFooter('6', this)" />
+          <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-6',this)">🔗</button>
+        </div>
+        <label class="edu-foot-upload-btn" for="edu-foot-file-6">&#8679; Upload Image 6</label>
+
+        <div class="edu-foot-yt-row">
+          <div class="edu-foot-yt-box" id="eduyt-box-0">
+            <div class="edu-foot-yt-admin-bar">
+              <input type="text" id="eduyt-input-0" placeholder="Paste YouTube link here…" oninput="saveEduFooterVideo(0)">
+              <button type="button" onclick="clearEduFooterVideo(0)">✕ Clear</button>
+            </div>
+            <div class="edu-foot-yt-embed" id="eduyt-embed-0"></div>
+            <div class="edu-foot-yt-ph" id="eduyt-ph-0">Add a YouTube link above</div>
+          </div>
+          <div class="edu-foot-yt-box" id="eduyt-box-1">
+            <div class="edu-foot-yt-admin-bar">
+              <input type="text" id="eduyt-input-1" placeholder="Paste YouTube link here…" oninput="saveEduFooterVideo(1)">
+              <button type="button" onclick="clearEduFooterVideo(1)">✕ Clear</button>
+            </div>
+            <div class="edu-foot-yt-embed" id="eduyt-embed-1"></div>
+            <div class="edu-foot-yt-ph" id="eduyt-ph-1">Add a YouTube link above</div>
+          </div>
+        </div>
+
         <div class="img-box edu-foot-box" id="edu-foot-box-3">
           <div class="placeholder">No image — upload one as admin</div>
           <img id="edu-foot-img-3" style="display:none;" alt="" />
@@ -2966,6 +3034,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-4',this)">🔗</button>
         </div>
         <label class="edu-foot-upload-btn" for="edu-foot-file-4">&#8679; Upload Image 4</label>
+      </div>
+
+      <!-- Bottom-of-page PDF. Shows the first page; scroll for the rest.
+           Admin uploads / removes it. -->
+      <div id="edu-pdf-section">
+        <div class="edu-pdf-admin-bar">
+          <label for="edu-pdf-input">⇧ Upload PDF</label>
+          <input type="file" id="edu-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadAboutPdf(this)">
+          <button id="edu-pdf-remove-btn" type="button" onclick="removeAboutPdf()">✕ Remove PDF</button>
+        </div>
+        <div id="edu-pdf-viewer"><iframe id="edu-pdf-frame" src="" title="PDF document"></iframe></div>
+        <div id="edu-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
 
     </div>
@@ -3878,6 +3958,7 @@ var aboutVideos = [];
 var aboutVideosSaveTimer = null;
 var avDragId = null;
 var y78PdfFile = null;
+var aboutPdfFile = null;
 var classroomImages = {};
 var newsletters = [];
 var newsletterYear = 2026;
@@ -4074,7 +4155,7 @@ window.addEventListener('DOMContentLoaded', function() {
       window.open(imgLinks['hfoot-box'], '_blank');
     // Non-admin edu-foot-box-N link click
     if (!isAdmin && !e.target.closest('.upload-overlay')) {
-      for (var i = 1; i <= 4; i++) {
+      for (var i = 1; i <= 6; i++) {
         var bid = 'edu-foot-box-' + i;
         if (e.target.closest('#' + bid) && imgLinks[bid]) {
           window.open(imgLinks[bid], '_blank');
@@ -4173,9 +4254,14 @@ function fetchState() {
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
       if (data.homeFooterImage) applyHomeFooterImg('/uploads/' + data.homeFooterImage);
       var eduFooterImgs = data.educateFooterImages || {};
-      ['1','2','3','4'].forEach(function(slot) {
+      ['1','2','3','4','5','6'].forEach(function(slot) {
         if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
       });
+      // Annual Plan: two side-by-side YouTube boxes
+      eduFooterVideos = Array.isArray(data.eduFooterVideos)
+        ? [data.eduFooterVideos[0] || '', data.eduFooterVideos[1] || '']
+        : ['', ''];
+      renderEduFooterVideos();
       // Apple Distinguished School page: image + YouTube video
       if (data.appleImage) applyAppleImg('/uploads/' + data.appleImage);
       appleVideo = data.appleVideo || '';
@@ -4255,6 +4341,8 @@ function fetchState() {
       renderY78Youtube();
       y78PdfFile = data.y78PdfFile || null;
       renderY78Pdf();
+      aboutPdfFile = data.aboutPdfFile || null;
+      renderAboutPdf();
 
       newsletters = data.newsletters || [];
       newsletterYear = data.newsletterYear || 2026;
@@ -4298,7 +4386,7 @@ function fetchState() {
       imgLinks = {};
       if (data['imgLink_hdr-box']) imgLinks['hdr-box'] = data['imgLink_hdr-box'];
       if (data['imgLink_hfoot-box']) imgLinks['hfoot-box'] = data['imgLink_hfoot-box'];
-      ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4',
+      ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4','edu-foot-box-5','edu-foot-box-6',
        'pc-pride','pc2-pride','pc3-pride','pc4-pride',
        'pc-bl','pc2-bl','pc3-bl','pc4-bl'].forEach(function(bid) {
         if (data['imgLink_' + bid]) imgLinks[bid] = data['imgLink_' + bid];
@@ -7220,6 +7308,92 @@ function removeY78Pdf() {
   fetch('/api/ne-image/' + y78PdfFile, { method: 'DELETE' });
   y78PdfFile = null;
   apiSave('y78PdfFile', null, function() { renderY78Pdf(); flashSave('PDF removed!'); });
+}
+
+// ---- Annual Plan: two side-by-side YouTube boxes ----
+var eduFooterVideos = ['', ''];
+var eduFooterVideoTimers = [null, null];
+function saveEduFooterVideo(i) {
+  var inp = el('eduyt-input-' + i);
+  if (!inp) return;
+  eduFooterVideos[i] = inp.value.trim();
+  renderEduFooterVideo(i);
+  clearTimeout(eduFooterVideoTimers[i]);
+  eduFooterVideoTimers[i] = setTimeout(function() {
+    apiSave('eduFooterVideos', eduFooterVideos, function() { flashSave('Saved!'); });
+  }, 800);
+}
+function clearEduFooterVideo(i) {
+  eduFooterVideos[i] = '';
+  var inp = el('eduyt-input-' + i);
+  if (inp) inp.value = '';
+  renderEduFooterVideo(i);
+  apiSave('eduFooterVideos', eduFooterVideos, function() { flashSave('Cleared!'); });
+}
+function renderEduFooterVideo(i) {
+  var inp = el('eduyt-input-' + i);
+  var embed = el('eduyt-embed-' + i);
+  var box = el('eduyt-box-' + i);
+  if (!embed) return;
+  var url = eduFooterVideos[i] || '';
+  if (inp) inp.value = url;
+  var embedUrl = getYoutubeEmbedUrl(url);
+  if (embedUrl) {
+    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.style.display = 'block';
+    if (box) box.classList.add('has-video');
+  } else {
+    embed.innerHTML = '';
+    embed.style.display = 'none';
+    if (box) box.classList.remove('has-video');
+  }
+}
+function renderEduFooterVideos() { renderEduFooterVideo(0); renderEduFooterVideo(1); }
+
+// ---- About Us bottom PDF ----
+function renderAboutPdf() {
+  var viewer = el('edu-pdf-viewer');
+  var frame = el('edu-pdf-frame');
+  var ph = el('edu-pdf-ph');
+  var removeBtn = el('edu-pdf-remove-btn');
+  if (!viewer) return;
+  if (aboutPdfFile) {
+    // #view=FitH fits the page to the viewer width so the first page shows
+    // fully; the reader scrolls down for the remaining pages.
+    if (frame) frame.src = '/uploads/' + aboutPdfFile + '#view=FitH';
+    viewer.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = '';
+  } else {
+    if (frame) frame.src = '';
+    viewer.style.display = 'none';
+    if (ph) ph.style.display = '';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+function uploadAboutPdf(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/ne', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.filename) {
+        if (aboutPdfFile) { fetch('/api/ne-image/' + aboutPdfFile, { method: 'DELETE' }); }
+        aboutPdfFile = d.filename;
+        apiSave('aboutPdfFile', aboutPdfFile, function() { renderAboutPdf(); flashSave('PDF uploaded!'); });
+      } else { flashSave('Upload failed.'); }
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
+}
+function removeAboutPdf() {
+  if (!aboutPdfFile) return;
+  if (!confirm('Remove this PDF?')) return;
+  fetch('/api/ne-image/' + aboutPdfFile, { method: 'DELETE' });
+  aboutPdfFile = null;
+  apiSave('aboutPdfFile', null, function() { renderAboutPdf(); flashSave('PDF removed!'); });
 }
 
 // ===================== NEWSLETTERS =====================
