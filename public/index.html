@@ -1778,6 +1778,20 @@ body.is-admin .y78-pdf-admin-bar{display:flex;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
 .edu-foot-text{margin:4px 0 18px;color:#333;font-size:15px;line-height:1.6;}
+/* Waiata audio player + admin upload */
+#waiata-audio-wrap{margin:6px 0 20px;}
+.waiata-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
+body.is-admin .waiata-admin-bar{display:flex;}
+.waiata-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
+#waiata-remove-btn{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
+#waiata-play-btn{
+  display:none;background:#27ae60;color:#fff;border:none;border-radius:10px;
+  padding:12px 24px;cursor:pointer;font-family:'Quicksand',sans-serif;
+  font-size:16px;font-weight:700;box-shadow:0 3px 10px rgba(39,174,96,0.3);
+}
+#waiata-play-btn:hover{background:#1f8b4d;}
+#waiata-audio{display:none;}
+.is-pdf-export #waiata-audio-wrap{display:none !important;}
 /* Two side-by-side YouTube boxes in the Annual Plan section */
 .edu-foot-yt-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:18px 0;}
 .edu-foot-yt-box{background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;}
@@ -2991,6 +3005,17 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
         <!-- Rich-text box under image 5 (admin editable, supports links) -->
         <div class="editable edu-foot-text" id="ec-edufoot5"><p></p></div>
+
+        <!-- Waiata audio: admin uploads a file; everyone gets a play/pause button -->
+        <div id="waiata-audio-wrap">
+          <div class="waiata-admin-bar">
+            <label for="waiata-audio-input">⇧ Upload Audio</label>
+            <input type="file" id="waiata-audio-input" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="file-in" onchange="uploadWaiataAudio(this)">
+            <button type="button" id="waiata-remove-btn" onclick="removeWaiataAudio()">✕ Remove Audio</button>
+          </div>
+          <button type="button" id="waiata-play-btn" onclick="toggleWaiataAudio()">▶ Click here to hear our waiata</button>
+          <audio id="waiata-audio" preload="none" onended="waiataAudioEnded()"></audio>
+        </div>
 
         <div class="img-box edu-foot-box" id="edu-foot-box-6">
           <div class="placeholder">No image — upload one as admin</div>
@@ -4252,6 +4277,8 @@ function fetchState() {
       renderSidebarPages();
       pageAudio = data.pageAudio || {};
       updateSidebarAudio('pg-home');
+      waiataAudioFile = pageAudio['about-waiata'] || null;
+      renderWaiataAudio();
 
       if (data.headerImage)  applyHdrImg('/uploads/' + data.headerImage);
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
@@ -7360,6 +7387,64 @@ function renderEduFooterVideo(i) {
   }
 }
 function renderEduFooterVideos() { renderEduFooterVideo(0); renderEduFooterVideo(1); }
+
+// ---- Waiata audio (under About Us image 5) ----
+var waiataAudioFile = null;
+function resetWaiataBtn() {
+  var b = el('waiata-play-btn');
+  if (b) b.innerHTML = '▶ Click here to hear our waiata';
+}
+function renderWaiataAudio() {
+  var playBtn = el('waiata-play-btn');
+  var removeBtn = el('waiata-remove-btn');
+  var audio = el('waiata-audio');
+  if (!playBtn) return;
+  if (waiataAudioFile) {
+    if (audio) audio.src = '/uploads/' + waiataAudioFile;
+    playBtn.style.display = 'inline-block';
+    if (removeBtn) removeBtn.style.display = '';
+  } else {
+    if (audio) { try { audio.pause(); } catch (e) {} audio.removeAttribute('src'); }
+    playBtn.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+  resetWaiataBtn();
+}
+function toggleWaiataAudio() {
+  var audio = el('waiata-audio');
+  var b = el('waiata-play-btn');
+  if (!audio || !audio.src) return;
+  if (audio.paused) {
+    audio.play();
+    if (b) b.innerHTML = '⏸ Pause our waiata';
+  } else {
+    audio.pause();
+    resetWaiataBtn();
+  }
+}
+function waiataAudioEnded() { resetWaiataBtn(); }
+function uploadWaiataAudio(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('audio', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/audio/about-waiata', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.filename) { waiataAudioFile = d.filename; renderWaiataAudio(); flashSave('Audio uploaded!'); }
+      else flashSave('Upload failed.');
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
+}
+function removeWaiataAudio() {
+  if (!waiataAudioFile) return;
+  if (!confirm('Remove this audio?')) return;
+  fetch('/api/audio/about-waiata', { method: 'DELETE' });
+  waiataAudioFile = null;
+  renderWaiataAudio();
+  flashSave('Audio removed!');
+}
 
 // ---- About Us bottom PDF ----
 function renderAboutPdf() {
