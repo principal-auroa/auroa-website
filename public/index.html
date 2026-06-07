@@ -1646,12 +1646,25 @@ body.is-admin .av-add-btn{display:inline-block;}
 .is-pdf-export .av-admin-bar{display:none !important;}
 .is-pdf-export .av-caption{outline:none !important;margin:6px 10px !important;padding:4px !important;font-size:13px !important;}
 /* ---- PDF EXPORT: keep boxes whole + un-squash the value banners ---- */
-/* Each card/unit must not be split across pages. */
-.is-pdf-export .av-box,
+/* html2pdf does NOT reliably keep CSS-grid items together across page breaks,
+   so for the PDF we switch both grids to inline-block flow (which it paginates
+   correctly), keeping the same 2-column (values) / 3-column (videos) look.
+   font-size:0 on the wrapper removes inline-block whitespace gaps. */
+.is-pdf-export #pride-wrap.edu-values-grid{display:block !important;font-size:0 !important;margin:0 0 24px !important;}
 .is-pdf-export .edu-val-unit{
-  break-inside:avoid;page-break-inside:avoid;overflow:visible;
+  display:inline-block !important;width:48% !important;vertical-align:top;
+  margin:0 0.9% 16px !important;
+  break-inside:avoid;page-break-inside:avoid;
 }
-.is-pdf-export .av-box{border:1px solid #e0e0e0;border-radius:10px;}
+.is-pdf-export .edu-val-unit .edu-val-orange{margin-bottom:12px;}
+
+.is-pdf-export #about-videos .av-list{display:block !important;font-size:0 !important;}
+.is-pdf-export .av-box{
+  display:inline-block !important;width:32% !important;vertical-align:top;
+  margin:0 0.55% 12px !important;overflow:visible;
+  border:1px solid #e0e0e0;border-radius:10px;
+  break-inside:avoid;page-break-inside:avoid;
+}
 /* html2canvas does not support aspect-ratio/object-fit, which squashed the
    word banners. Render them at natural height instead. */
 .is-pdf-export .edu-val-orange{
@@ -1661,9 +1674,10 @@ body.is-admin .av-add-btn{display:inline-block;}
 .is-pdf-export .edu-val-orange img{
   width:100% !important;height:auto !important;object-fit:contain !important;display:block !important;
 }
-/* Tighter gaps so four rows of QR codes fit on a page. */
-.is-pdf-export #about-videos .av-list{gap:12px;}
-.is-pdf-export .edu-val-unit{gap:10px;}
+/* Hide admin-only chrome from the printed PDF. */
+.is-pdf-export .av-add-btn,
+.is-pdf-export .img-link-btn{display:none !important;}
+.is-pdf-export .av-caption:empty{display:none !important;}
 
 /* ---- APPLE DISTINGUISHED SCHOOL PAGE ---- */
 .apple-img-wrap{display:flex;flex-direction:column;align-items:center;margin:0 auto 22px;}
