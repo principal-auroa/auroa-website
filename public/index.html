@@ -910,6 +910,8 @@ body.is-admin .sidebar-imp-add{display:block;}
   display:grid;grid-template-columns:1fr 1fr;gap:18px;
   width:100%;margin:0 0 40px;align-items:start;
 }
+/* Each unit = an orange word banner locked above its blue poster. */
+.edu-val-unit{display:flex;flex-direction:column;gap:18px;}
 .edu-val{position:relative;border-radius:14px;}
 .edu-val .file-in{display:none;}
 /* Orange value banner: cream box + orange border (the word images are
@@ -1636,13 +1638,32 @@ body.is-admin .av-box.av-empty .av-placeholder{
 body.is-admin .av-add-btn{display:inline-block;}
 .av-add-btn:hover{background:#243d6a;}
 /* QR codes shown in the PDF in place of the (non-printable) video embeds */
-.av-qr{display:flex;flex-direction:column;align-items:center;padding:14px;}
-.av-qr img,.av-qr canvas{width:180px;height:180px;}
-.av-qr-hint{margin-top:8px;font-size:13px;color:#555;font-weight:600;}
+.av-qr{display:flex;flex-direction:column;align-items:center;padding:10px;}
+.av-qr img,.av-qr canvas{width:120px;height:120px;}
+.av-qr-hint{margin-top:6px;font-size:11px;color:#555;font-weight:600;}
 .av-pdf-hide{display:none !important;}
 .is-pdf-export .av-drag-handle,
 .is-pdf-export .av-admin-bar{display:none !important;}
-.is-pdf-export .av-caption{outline:none !important;margin:8px 12px !important;}
+.is-pdf-export .av-caption{outline:none !important;margin:6px 10px !important;padding:4px !important;font-size:13px !important;}
+/* ---- PDF EXPORT: keep boxes whole + un-squash the value banners ---- */
+/* Each card/unit must not be split across pages. */
+.is-pdf-export .av-box,
+.is-pdf-export .edu-val-unit{
+  break-inside:avoid;page-break-inside:avoid;overflow:visible;
+}
+.is-pdf-export .av-box{border:1px solid #e0e0e0;border-radius:10px;}
+/* html2canvas does not support aspect-ratio/object-fit, which squashed the
+   word banners. Render them at natural height instead. */
+.is-pdf-export .edu-val-orange{
+  aspect-ratio:auto !important;height:auto !important;
+  display:block !important;padding:6px 12px !important;overflow:visible !important;
+}
+.is-pdf-export .edu-val-orange img{
+  width:100% !important;height:auto !important;object-fit:contain !important;display:block !important;
+}
+/* Tighter gaps so four rows of QR codes fit on a page. */
+.is-pdf-export #about-videos .av-list{gap:12px;}
+.is-pdf-export .edu-val-unit{gap:10px;}
 
 /* ---- APPLE DISTINGUISHED SCHOOL PAGE ---- */
 .apple-img-wrap{display:flex;flex-direction:column;align-items:center;margin:0 auto 22px;}
@@ -2806,57 +2827,65 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <div class="edu-text editable" id="ec-edu2"><p></p></div>
 
-      <!-- About Us values: 2-column grid. Orange value banners with a
-           blue image box beneath each. IDs are reused from the old pride
-           cluster so existing uploaded images / links keep working. -->
+      <!-- About Us values: 2-column grid of word+poster units. Each unit
+           keeps the orange word banner locked above its blue poster (also
+           keeps them together when exporting the PDF). -->
       <div id="pride-wrap" class="edu-values-grid">
-        <div class="edu-val edu-val-orange" id="pc-pride">
-          <img id="pc-pride-img" style="display:none;" alt="Pride">
-          <div class="pc-upload-ov" onclick="el('pc-pride-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-pride',this)">
-          <button class="img-link-btn" id="lb-pc-pride" onclick="event.stopPropagation();openImgLinkEditor('pc-pride',this)">🔗</button>
+        <div class="edu-val-unit">
+          <div class="edu-val edu-val-orange" id="pc-pride">
+            <img id="pc-pride-img" style="display:none;" alt="Pride">
+            <div class="pc-upload-ov" onclick="el('pc-pride-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-pride',this)">
+            <button class="img-link-btn" id="lb-pc-pride" onclick="event.stopPropagation();openImgLinkEditor('pc-pride',this)">🔗</button>
+          </div>
+          <div class="edu-val edu-val-blue" id="pc-bl">
+            <img id="pc-bl-img" style="display:none;" alt="">
+            <div class="pc-upload-ov" onclick="el('pc-bl-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bl',this)">
+            <button class="img-link-btn" id="lb-pc-bl" onclick="event.stopPropagation();openImgLinkEditor('pc-bl',this)">🔗</button>
+          </div>
         </div>
-        <div class="edu-val edu-val-orange" id="pc2-pride">
-          <img id="pc2-pride-img" style="display:none;" alt="Innovation">
-          <div class="pc-upload-ov" onclick="el('pc2-pride-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc2-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-pride',this)">
-          <button class="img-link-btn" id="lb-pc2-pride" onclick="event.stopPropagation();openImgLinkEditor('pc2-pride',this)">🔗</button>
+        <div class="edu-val-unit">
+          <div class="edu-val edu-val-orange" id="pc2-pride">
+            <img id="pc2-pride-img" style="display:none;" alt="Innovation">
+            <div class="pc-upload-ov" onclick="el('pc2-pride-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc2-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-pride',this)">
+            <button class="img-link-btn" id="lb-pc2-pride" onclick="event.stopPropagation();openImgLinkEditor('pc2-pride',this)">🔗</button>
+          </div>
+          <div class="edu-val edu-val-blue" id="pc2-bl">
+            <img id="pc2-bl-img" style="display:none;" alt="">
+            <div class="pc-upload-ov" onclick="el('pc2-bl-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc2-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bl',this)">
+            <button class="img-link-btn" id="lb-pc2-bl" onclick="event.stopPropagation();openImgLinkEditor('pc2-bl',this)">🔗</button>
+          </div>
         </div>
-        <div class="edu-val edu-val-blue" id="pc-bl">
-          <img id="pc-bl-img" style="display:none;" alt="">
-          <div class="pc-upload-ov" onclick="el('pc-bl-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bl',this)">
-          <button class="img-link-btn" id="lb-pc-bl" onclick="event.stopPropagation();openImgLinkEditor('pc-bl',this)">🔗</button>
+        <div class="edu-val-unit">
+          <div class="edu-val edu-val-orange" id="pc3-pride">
+            <img id="pc3-pride-img" style="display:none;" alt="Respect">
+            <div class="pc-upload-ov" onclick="el('pc3-pride-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc3-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-pride',this)">
+            <button class="img-link-btn" id="lb-pc3-pride" onclick="event.stopPropagation();openImgLinkEditor('pc3-pride',this)">🔗</button>
+          </div>
+          <div class="edu-val edu-val-blue" id="pc3-bl">
+            <img id="pc3-bl-img" style="display:none;" alt="">
+            <div class="pc-upload-ov" onclick="el('pc3-bl-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc3-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bl',this)">
+            <button class="img-link-btn" id="lb-pc3-bl" onclick="event.stopPropagation();openImgLinkEditor('pc3-bl',this)">🔗</button>
+          </div>
         </div>
-        <div class="edu-val edu-val-blue" id="pc2-bl">
-          <img id="pc2-bl-img" style="display:none;" alt="">
-          <div class="pc-upload-ov" onclick="el('pc2-bl-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc2-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bl',this)">
-          <button class="img-link-btn" id="lb-pc2-bl" onclick="event.stopPropagation();openImgLinkEditor('pc2-bl',this)">🔗</button>
-        </div>
-        <div class="edu-val edu-val-orange" id="pc3-pride">
-          <img id="pc3-pride-img" style="display:none;" alt="Respect">
-          <div class="pc-upload-ov" onclick="el('pc3-pride-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc3-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-pride',this)">
-          <button class="img-link-btn" id="lb-pc3-pride" onclick="event.stopPropagation();openImgLinkEditor('pc3-pride',this)">🔗</button>
-        </div>
-        <div class="edu-val edu-val-orange" id="pc4-pride">
-          <img id="pc4-pride-img" style="display:none;" alt="Initiative">
-          <div class="pc-upload-ov" onclick="el('pc4-pride-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc4-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-pride',this)">
-          <button class="img-link-btn" id="lb-pc4-pride" onclick="event.stopPropagation();openImgLinkEditor('pc4-pride',this)">🔗</button>
-        </div>
-        <div class="edu-val edu-val-blue" id="pc3-bl">
-          <img id="pc3-bl-img" style="display:none;" alt="">
-          <div class="pc-upload-ov" onclick="el('pc3-bl-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc3-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bl',this)">
-          <button class="img-link-btn" id="lb-pc3-bl" onclick="event.stopPropagation();openImgLinkEditor('pc3-bl',this)">🔗</button>
-        </div>
-        <div class="edu-val edu-val-blue" id="pc4-bl">
-          <img id="pc4-bl-img" style="display:none;" alt="">
-          <div class="pc-upload-ov" onclick="el('pc4-bl-fin').click()"><span>+</span></div>
-          <input class="file-in" id="pc4-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bl',this)">
-          <button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button>
+        <div class="edu-val-unit">
+          <div class="edu-val edu-val-orange" id="pc4-pride">
+            <img id="pc4-pride-img" style="display:none;" alt="Initiative">
+            <div class="pc-upload-ov" onclick="el('pc4-pride-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc4-pride-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-pride',this)">
+            <button class="img-link-btn" id="lb-pc4-pride" onclick="event.stopPropagation();openImgLinkEditor('pc4-pride',this)">🔗</button>
+          </div>
+          <div class="edu-val edu-val-blue" id="pc4-bl">
+            <img id="pc4-bl-img" style="display:none;" alt="">
+            <div class="pc-upload-ov" onclick="el('pc4-bl-fin').click()"><span>+</span></div>
+            <input class="file-in" id="pc4-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bl',this)">
+            <button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button>
+          </div>
         </div>
       </div>
 
@@ -4701,10 +4730,12 @@ function aboutVideosToQR() {
     qrWrap.appendChild(hint);
     box.appendChild(qrWrap);
     try {
-      new QRCode(qrBox, { text: url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+      // Render at high resolution but display small (see .av-qr img CSS) so the
+      // printed QR is crisp and fully fits inside its card.
+      new QRCode(qrBox, { text: url, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
       // Convert to a plain data-URL <img> for reliable html2canvas capture.
       var c = qrBox.querySelector('canvas');
-      if (c) { qrBox.innerHTML = '<img src="' + c.toDataURL('image/png') + '" width="180" height="180" alt="QR code">'; }
+      if (c) { qrBox.innerHTML = '<img src="' + c.toDataURL('image/png') + '" width="120" height="120" alt="QR code">'; }
     } catch (e) {}
   });
 }
@@ -4731,7 +4762,7 @@ function downloadAboutUsPdf() {
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: {
       mode: ['css', 'legacy'],
-      avoid: ['table', '.edu-val', '.av-box', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
+      avoid: ['table', '.edu-val-unit', '.av-box', '.edu-foot-box', '.img-box', '.pc-cell', 'figure', '.edu-text']
     }
   };
   function cleanup() {
