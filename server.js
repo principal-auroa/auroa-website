@@ -565,8 +565,11 @@ app.post('/api/upload/audio/:pageId', multer({
   }),
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    cb(null, /audio\/(mpeg|wav|wave|x-wav|mp3|ogg|mp4)/.test(file.mimetype) ||
-             /\.(mp3|wav|ogg|m4a)$/i.test(file.originalname));
+    // Accept any audio/* type (covers audio/mpeg for MP3) or a common audio
+    // extension — some browsers send octet-stream for MP3s, so also allow by
+    // file name.
+    cb(null, /^audio\//i.test(file.mimetype) ||
+             /\.(mp3|m4a|wav|wave|ogg|oga|aac|flac|mp4|weba|webm)$/i.test(file.originalname));
   }
 }).single('audio'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });

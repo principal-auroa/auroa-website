@@ -3010,7 +3010,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div id="waiata-audio-wrap">
           <div class="waiata-admin-bar">
             <label for="waiata-audio-input">⇧ Upload Audio</label>
-            <input type="file" id="waiata-audio-input" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="file-in" onchange="uploadWaiataAudio(this)">
+            <input type="file" id="waiata-audio-input" accept=".mp3,.m4a,.wav,.ogg,.aac,audio/mpeg,audio/*" class="file-in" onchange="uploadWaiataAudio(this)">
             <button type="button" id="waiata-remove-btn" onclick="removeWaiataAudio()">✕ Remove Audio</button>
           </div>
           <button type="button" id="waiata-play-btn" onclick="toggleWaiataAudio()">▶ Click here to hear our waiata</button>
