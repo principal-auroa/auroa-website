@@ -1777,7 +1777,6 @@ body.is-admin .y78-pdf-admin-bar{display:flex;}
 #y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
-.edu-foot-text{margin:4px 0 18px;color:#333;font-size:15px;line-height:1.6;}
 /* Waiata audio player + admin upload */
 #waiata-audio-wrap{margin:6px 0 20px;}
 .waiata-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
@@ -3002,9 +3001,6 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <button class="img-link-btn" onclick="event.stopPropagation();openImgLinkEditor('edu-foot-box-5',this)">🔗</button>
         </div>
         <label class="edu-foot-upload-btn" for="edu-foot-file-5">&#8679; Upload Image 5</label>
-
-        <!-- Rich-text box under image 5 (admin editable, supports links) -->
-        <div class="editable edu-foot-text" id="ec-edufoot5"><p></p></div>
 
         <!-- Waiata audio: admin uploads a file; everyone gets a play/pause button -->
         <div id="waiata-audio-wrap">
@@ -4320,7 +4316,7 @@ function fetchState() {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','aboutvideos','edufoot5','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo'].forEach(function(k) {
+      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
