@@ -288,6 +288,7 @@ app.use('/uploads', express.static(UPLOADS));
 // /api/state strips the full editHistory snapshots (30 copies of data is heavy)
 // and replaces them with a lightweight count + recent metadata for the Undo UI.
 app.get('/api/state', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   const data = load();
   const {
     editHistory = [],

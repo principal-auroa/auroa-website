@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v2';
+const CACHE = 'auroa-cache-v3';
 const SHELL = ['/', '/icon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -38,6 +38,15 @@ self.addEventListener('fetch', (e) => {
   try { url = new URL(req.url); } catch (_) { return; }
   if (url.origin !== self.location.origin) return;  // let cross-origin pass through
 
+  // API data must ALWAYS be fresh — never cache it, or different devices can
+  // show stale content (e.g. old newsletter data after an edit). Go straight
+  // to the network with caching bypassed; if it fails, the page's own error
+  // handling takes over.
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(req.url, { cache: 'no-store' }));
+    return;
+  }
+
   // Uploaded media + static icons: cache-first. Upload filenames are unique,
   // so a cached copy never goes stale, and images stay reliable on flaky nets.
   if (url.pathname.startsWith('/uploads/') ||
@@ -47,8 +56,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTML pages + API: network-first so content stays fresh when online, but
-  // fall back to the cached copy when the network drops.
+  // HTML pages: network-first so content stays fresh when online, but fall
+  // back to the cached copy when the network drops.
   e.respondWith(networkFirst(req));
 });
 

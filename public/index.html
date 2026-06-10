@@ -9236,13 +9236,20 @@ document.addEventListener('paste', function(e) {
   document.execCommand('insertText', false, text);
 });
 
-window.addEventListener('beforeunload', function() {
+window.addEventListener('beforeunload', function(e) {
   // Best-effort: fire any pending saves before the tab unloads. Regular
   // fetch() requests can get aborted on unload, so the newsletter save
   // also goes via navigator.sendBeacon as a guaranteed-completion path.
   if (typeof nlFlushPendingSave === 'function') nlFlushPendingSave();
   if (typeof window.flushAutoSave === 'function') window.flushAutoSave();
   if (typeof nlBeaconSave === 'function') nlBeaconSave();
+  // Warn the admin if a save has failed (e.g. dropped connection) so they
+  // don't unknowingly close the page and lose unsaved changes.
+  if (typeof window.hasFailedSave === 'function' && window.hasFailedSave()) {
+    e.preventDefault();
+    e.returnValue = 'Some changes have not been saved yet. Leave anyway?';
+    return e.returnValue;
+  }
 });
 
 // pagehide fires more reliably than beforeunload (especially on mobile)
@@ -10307,6 +10314,7 @@ function joinGroupSubmit() {
   var DEBOUNCE_MS = 1500;
   var _autoTimers = {};
   var _saveInFlight = {};
+  var _retry = {};
   var _editHistoryCount = 0;
 
   function setSaveStatus(state, msg) {
@@ -10317,7 +10325,9 @@ function joinGroupSubmit() {
       box.innerHTML = msg;
     } else {
       box.textContent = msg;
-      if (state !== 'saving') {
+      // 'saving' shows a spinner; 'error' stays visible until a save succeeds
+      // (so a failed save is never silently hidden). Other states auto-clear.
+      if (state !== 'saving' && state !== 'error') {
         setTimeout(function() {
           if (box.className === state) { box.className = ''; box.textContent = ''; }
         }, 2500);
@@ -10331,6 +10341,11 @@ function joinGroupSubmit() {
     if (msg.indexOf('spinner') !== -1 || msg.indexOf('Saving') !== -1 || msg.indexOf('Uploading') !== -1) state = 'saving';
     if (msg.toLowerCase().indexOf('fail') !== -1) state = 'error';
     setSaveStatus(state, msg);
+  };
+
+  // True when a save has failed and not yet succeeded (data at risk of loss).
+  window.hasFailedSave = function() {
+    return Object.keys(_retry).some(function(k) { return _retry[k] > 0; });
   };
 
   window.scheduleAutoSave = function(kind) {
@@ -10371,10 +10386,20 @@ function joinGroupSubmit() {
     var done = function(ok) {
       _saveInFlight[kind] = false;
       if (ok) {
+        _retry[kind] = 0;
         bumpUndoCount();
         setSaveStatus('saved', 'Saved');
       } else {
-        setSaveStatus('error', 'Save failed');
+        // Auto-retry a failed save (covers brief connection drops) and keep a
+        // visible warning the whole time so a save can never fail silently.
+        _retry[kind] = (_retry[kind] || 0) + 1;
+        if (_retry[kind] <= 6) {
+          setSaveStatus('error', '⚠ Not saved yet — retrying…');
+          clearTimeout(_autoTimers[kind]);
+          _autoTimers[kind] = setTimeout(function() { runAutoSave(kind); }, 3000);
+        } else {
+          setSaveStatus('error', '⚠ NOT SAVED — check your connection, then keep editing to retry');
+        }
       }
     };
     if (kind === 'newsletter' && typeof saveNewsletter === 'function') {
