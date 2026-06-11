@@ -626,6 +626,18 @@ body.is-admin #carousel-empty{display:block;}
 }
 .home-rule{border:none;border-top:1.5px solid #222;margin:18px 0;}
 
+/* ---- HOME PAGE VIDEO (full width, under the welcome text) ---- */
+.home-video-box{width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;margin:18px 0;}
+body:not(.is-admin) .home-video-box:not(.has-video){display:none;}
+.home-video-admin-bar{display:none;padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;gap:8px;align-items:center;}
+body.is-admin .home-video-admin-bar{display:flex;}
+.home-video-admin-bar input{flex:1;border:1px solid #ccc;border-radius:5px;padding:6px 10px;font-family:'Quicksand',sans-serif;font-size:13px;}
+.home-video-admin-bar button{background:#c0392b;color:#fff;border:none;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:'Quicksand',sans-serif;white-space:nowrap;}
+.home-video-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;display:none;}
+.home-video-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+.home-video-ph{display:none;}
+body.is-admin .home-video-box:not(.has-video) .home-video-ph{display:flex;align-items:center;justify-content:center;min-height:140px;color:#999;font-size:14px;}
+
 /* ---- DAILY QUOTE ---- */
 .home-quote{
   text-align:center;
@@ -2835,6 +2847,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="editable" id="ec-welcome"><p>Welcome to Auroa School. We are a small, proud rural school in the heart of South Taranaki, committed to nurturing confident, curious learners in a safe and supportive environment.</p></div>
       </div>
 
+      <!-- Full-width video under the welcome text (YouTube or Google Drive) -->
+      <div id="home-video" class="home-video-box">
+        <div class="home-video-admin-bar">
+          <input type="text" id="home-video-input" placeholder="Paste a YouTube or Google Drive link…" oninput="saveHomeVideo()">
+          <button type="button" onclick="clearHomeVideo()">✕ Clear</button>
+        </div>
+        <div class="home-video-embed" id="home-video-embed"></div>
+        <div class="home-video-ph" id="home-video-ph">Add a video link above</div>
+      </div>
+
       <hr class="home-rule" />
 
       <!-- Daily inspirational quote (rotates each day, same for all visitors) -->
@@ -4267,6 +4289,9 @@ function fetchState() {
       if (data.appleImage) applyAppleImg('/uploads/' + data.appleImage);
       appleVideo = data.appleVideo || '';
       renderAppleVideo();
+      // Home page full-width video
+      homeVideo = data.homeVideo || '';
+      renderHomeVideo();
       // About Us captioned video boxes (default to 3 empty boxes)
       aboutVideos = Array.isArray(data.aboutVideos) && data.aboutVideos.length
         ? data.aboutVideos.map(function(v, i) {
@@ -7358,6 +7383,45 @@ function renderEduFooterVideo(i) {
   }
 }
 function renderEduFooterVideos() { renderEduFooterVideo(0); renderEduFooterVideo(1); }
+
+// ---- Home page full-width video ----
+var homeVideo = '';
+var homeVideoTimer = null;
+function saveHomeVideo() {
+  var inp = el('home-video-input');
+  if (!inp) return;
+  homeVideo = inp.value.trim();
+  renderHomeVideo();
+  clearTimeout(homeVideoTimer);
+  homeVideoTimer = setTimeout(function() {
+    apiSave('homeVideo', homeVideo, function() { flashSave('Saved!'); });
+  }, 800);
+}
+function clearHomeVideo() {
+  homeVideo = '';
+  var inp = el('home-video-input');
+  if (inp) inp.value = '';
+  renderHomeVideo();
+  apiSave('homeVideo', homeVideo, function() { flashSave('Cleared!'); });
+}
+function renderHomeVideo() {
+  var inp = el('home-video-input');
+  var embed = el('home-video-embed');
+  var box = el('home-video');
+  if (!embed) return;
+  var url = homeVideo || '';
+  if (inp) inp.value = url;
+  var embedUrl = getYoutubeEmbedUrl(url);
+  if (embedUrl) {
+    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.style.display = 'block';
+    if (box) box.classList.add('has-video');
+  } else {
+    embed.innerHTML = '';
+    embed.style.display = 'none';
+    if (box) box.classList.remove('has-video');
+  }
+}
 
 // ---- Waiata audio (under About Us image 5) ----
 var waiataAudioFile = null;
