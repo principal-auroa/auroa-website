@@ -1647,20 +1647,36 @@ async function notifyAll({ title, body, url, source, groupId, image }) {
     ? data.emailSubscribers.filter(e => groupEmails.has((e || '').toLowerCase()))
     : data.emailSubscribers;
   if (transport && targetEmails.length) {
-    const appUrl = envClean('APP_URL') || '';
-    for (const to of targetEmails) {
-      transport.sendMail({
-        from:    envClean('SMTP_FROM') || envClean('SMTP_USER'),
-        to,
-        subject: msg.title,
-        text:
-`${msg.body}
-${msg.image && appUrl ? '\n' + appUrl + '/uploads/' + msg.image + '\n' : ''}
-${appUrl ? appUrl + msg.url : ''}
+    // Default to the live site so the email always has a working link even
+    // when APP_URL isn't set in the environment.
+    const appUrl   = envClean('APP_URL') || 'https://www.auroa.school.nz';
+    const link     = appUrl + (msg.url || '/');
+    const fromAddr = envClean('SMTP_FROM') || envClean('SMTP_USER');
+    const from     = fromAddr ? ('"Auroa School" <' + fromAddr + '>') : undefined;
+    const bodyText = String(msg.body || '').trim();
+    const imgUrl   = msg.image ? (appUrl + '/uploads/' + msg.image) : '';
+    // Plain-text version — the title is included in the body (not just the
+    // subject) so the email is never blank.
+    const text =
+`${msg.title}
+
+${bodyText ? bodyText + '\n\n' : ''}${imgUrl ? imgUrl + '\n\n' : ''}View on the school website: ${link}
 
 You're receiving this because you subscribed to Auroa School notifications.
-To stop, open the school website and tap "Turn off notifications".`
-      }).catch(e => console.warn('[email] send failed for', to, e.message));
+To stop, open the school website and tap "Turn off notifications".`;
+    // HTML version for a readable, branded email.
+    const html =
+`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#222;line-height:1.6;max-width:560px;margin:0 auto;">
+  <h2 style="color:#1a2b4a;margin:0 0 12px;">${nlEscape(msg.title)}</h2>
+  ${bodyText ? '<p style="white-space:pre-wrap;margin:0 0 14px;">' + nlEscape(bodyText) + '</p>' : ''}
+  ${imgUrl ? '<p style="margin:0 0 14px;"><img src="' + nlEscape(imgUrl) + '" alt="" style="max-width:100%;border-radius:8px;"></p>' : ''}
+  <p style="margin:0 0 18px;"><a href="${nlEscape(link)}" style="display:inline-block;background:#1a2b4a;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:bold;">View on the school website</a></p>
+  <hr style="border:none;border-top:1px solid #eeeeee;margin:0 0 12px;">
+  <p style="font-size:12px;color:#888888;margin:0;">You're receiving this because you subscribed to Auroa School notifications. To stop, open the school website and tap "Turn off notifications".</p>
+</div>`;
+    for (const to of targetEmails) {
+      transport.sendMail({ from, to, subject: msg.title, text, html })
+        .catch(e => console.warn('[email] send failed for', to, e.message));
     }
   }
 
