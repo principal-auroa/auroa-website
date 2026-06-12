@@ -27,18 +27,18 @@ function lunchMenuLookup(id) {
   return null;
 }
 function weekKeyFor(when) {
-  // Returns YYYY-MM-DD of the most recent Friday-3pm boundary at or before `when`.
-  // Each week's batch runs Fri 3pm → following Fri 2:59pm. After Friday 3pm the
+  // Returns YYYY-MM-DD of the most recent Thursday-3pm boundary at or before `when`.
+  // Each week's batch runs Thu 3pm → following Thu 2:59pm. After Thursday 3pm the
   // admin's "This week" view automatically flips to a new (empty) week.
   var d = new Date(when);
   var day = d.getDay(); // 0=Sun .. 6=Sat
   var diff;
-  if (day === 5) {
-    // Friday: split at 3pm local time
+  if (day === 4) {
+    // Thursday: split at 3pm local time
     diff = (d.getHours() < 15) ? -7 : 0;
   } else {
-    // Days since most recent Friday going backwards
-    diff = -((day - 5 + 7) % 7);
+    // Days since most recent Thursday going backwards
+    diff = -((day - 4 + 7) % 7);
   }
   d.setDate(d.getDate() + diff);
   var y = d.getFullYear();

@@ -3652,7 +3652,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="lunch-admin-block">
           <div class="lunch-admin-block-h">
             <h3>This week's orders</h3>
-            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span> (resets every Friday at 3pm)</div>
+            <div class="lunch-admin-week">Week of <span id="lunch-week-label"></span> (resets every Thursday at 3pm)</div>
           </div>
           <table id="lunch-week-table" class="lunch-table"></table>
           <div id="lunch-week-empty" class="lunch-empty">No orders yet this week.</div>
@@ -8564,16 +8564,16 @@ function nlContentToHtml(content) {
     .replace(/\n/g, '<br>');
 }
 function lunchWeekKey(when) {
-  // Most recent Friday-3pm boundary on or before `when`. Each week runs
-  // Fri 3pm → next Fri 2:59pm, so the admin's "This week" view auto-clears
-  // every Friday at 3pm sharp.
+  // Most recent Thursday-3pm boundary on or before `when`. Each week runs
+  // Thu 3pm → next Thu 2:59pm, so the admin's "This week" view auto-clears
+  // every Thursday at 3pm sharp.
   var d = new Date(when);
   var day = d.getDay();
   var diff;
-  if (day === 5) {
+  if (day === 4) {
     diff = (d.getHours() < 15) ? -7 : 0;
   } else {
-    diff = -((day - 5 + 7) % 7);
+    diff = -((day - 4 + 7) % 7);
   }
   d.setDate(d.getDate() + diff);
   var y = d.getFullYear();
