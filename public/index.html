@@ -2293,6 +2293,35 @@ textarea.hb-input{resize:vertical;min-height:60px;line-height:1.4;}
 .hb-cal-swatch.hb-confirmed{background:#bbf7d0;}
 .hb-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
 body.is-admin .hb-admin{display:block;}
+
+/* ---- STUDENT ABSENCE NOTIFICATION ---- */
+.abs-intro{color:#555;font-size:14px;margin-bottom:16px;}
+.abs-name-row{display:flex;gap:14px;flex-wrap:wrap;}
+.abs-name-col{flex:1;min-width:200px;}
+.abs-date-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.abs-date-row select{flex:1;min-width:90px;}
+.abs-submit-row{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
+.abs-submit-row .hb-submit-btn{flex:1;}
+.abs-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
+body.is-admin .abs-admin{display:block;}
+.abs-admin-h{color:#1a2b4a;font-size:16px;font-weight:700;margin-bottom:14px;}
+.abs-list-empty{color:#888;font-size:13px;}
+.abs-card{
+  background:#fff;border:1px solid #e6e6e6;border-left:5px solid #1a2b4a;
+  border-radius:10px;padding:12px 14px;margin-bottom:10px;position:relative;
+}
+.abs-card h4{color:#1a2b4a;font-size:15px;font-weight:700;margin:0 0 6px;padding-right:64px;}
+.abs-reason-tag{
+  display:inline-block;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:700;
+  padding:2px 9px;border-radius:10px;text-transform:capitalize;margin-bottom:6px;
+}
+.abs-card .abs-meta{color:#555;font-size:13px;line-height:1.5;}
+.abs-card .abs-meta strong{color:#333;}
+.abs-card-del{
+  position:absolute;top:10px;right:10px;background:none;border:1px solid #c0392b;color:#c0392b;
+  padding:3px 9px;border-radius:6px;font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;cursor:pointer;
+}
+.abs-card-del:hover{background:#c0392b;color:#fff;}
 .hb-admin-card{
   background:#f9fafb;border:1px solid #e6e6e6;border-radius:10px;
   padding:14px 16px;margin-bottom:10px;
@@ -3890,6 +3919,68 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== STUDENT ABSENCE NOTIFICATION PAGE ======== -->
+  <div id="pg-absence" class="page">
+    <div class="pg-header" id="ph-absence"></div>
+    <div class="pg-body hb-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Student Absence Notification</h1>
+      </div>
+
+      <p class="abs-intro">Please let the school know if your child will be away.</p>
+
+      <form id="abs-form" onsubmit="event.preventDefault(); submitAbsence();">
+        <div class="abs-name-row">
+          <div class="abs-name-col">
+            <label class="hb-label" for="abs-first">Student first name <span class="hb-required">*</span></label>
+            <input id="abs-first" class="hb-input" type="text" required maxlength="100" autocomplete="off">
+          </div>
+          <div class="abs-name-col">
+            <label class="hb-label" for="abs-last">Student last name <span class="hb-required">*</span></label>
+            <input id="abs-last" class="hb-input" type="text" required maxlength="100" autocomplete="off">
+          </div>
+        </div>
+
+        <label class="hb-label" for="abs-reason">Reason for absence <span class="hb-required">*</span></label>
+        <select id="abs-reason" class="hb-input" required onchange="absReasonChange()">
+          <option value="">— Choose a reason —</option>
+          <option value="medical">Medical</option>
+          <option value="holiday">Holiday</option>
+          <option value="doctor appointment">Doctor appointment</option>
+          <option value="dentist appointment">Dentist appointment</option>
+          <option value="optometrist">Optometrist</option>
+          <option value="other learning">Other learning</option>
+          <option value="counsellor">Counsellor</option>
+          <option value="other">Other</option>
+        </select>
+
+        <div id="abs-detail-wrap" style="display:none;">
+          <label class="hb-label" for="abs-detail">Please add more detail <span class="hb-required">*</span></label>
+          <textarea id="abs-detail" class="hb-input" rows="3" maxlength="1000" placeholder="More detail…"></textarea>
+        </div>
+
+        <label class="hb-label">Date of absence <span class="hb-required">*</span></label>
+        <div class="abs-date-row">
+          <select id="abs-day" class="hb-input" aria-label="Day"></select>
+          <select id="abs-month" class="hb-input" aria-label="Month"></select>
+          <select id="abs-year" class="hb-input" aria-label="Year"></select>
+        </div>
+
+        <div class="abs-submit-row">
+          <button id="abs-submit-btn" type="submit" class="hb-submit-btn">Submit absence</button>
+          <span id="abs-status" class="hb-err"></span>
+        </div>
+      </form>
+
+      <!-- Admin: list of submitted absences (most recent first) -->
+      <div id="abs-admin" class="abs-admin">
+        <h2 class="abs-admin-h">Absence notifications</h2>
+        <div id="abs-admin-list"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- NEWSLETTER UPLOAD MODAL -->
@@ -4021,6 +4112,7 @@ var PAGE_CONFIG_DEFAULTS = [
   { id:'pg-apple',      label:'Apple Distinguished School', hidden:false },
   { id:'pg-classroom',  label:'Classroom Lists',    hidden:false },
   { id:'pg-staff',      label:'Staff at Auroa',     hidden:false },
+  { id:'pg-absence',    label:'Student Absence Notification', hidden:false },
 ];
 var busColWidths = { A: [50, 50], B: [50, 50] };
 var busHeights = { A: 200, B: 200 };
@@ -4274,6 +4366,11 @@ function fetchState() {
         if (_y78i >= 0) pageConfig.splice(_y78i + 1, 0, _appleCfg);
         else pageConfig.push(_appleCfg);
       }
+      // Ensure the Student Absence Notification page exists for saved configs
+      // that predate it.
+      if (!pageConfig.some(function(p){ return p.id === 'pg-absence'; })) {
+        pageConfig.push({ id:'pg-absence', label:'Student Absence Notification', hidden:false });
+      }
       renderSidebarPages();
       pageAudio = data.pageAudio || {};
       updateSidebarAudio('pg-home');
@@ -4472,7 +4569,10 @@ function openLogin() {
 function closeLogin() { el('login-modal').classList.remove('open'); }
 function tryLogin() {
   if (el('lu').value.trim() === 'admin' && el('lp').value === 'piri2010') {
-    isAdmin = true; closeLogin(); enterAdmin();
+    isAdmin = true;
+    window.__adminPw = el('lp').value; // used to fetch the admin-only absence list
+    closeLogin(); enterAdmin();
+    if (typeof absRenderAdmin === 'function') absRenderAdmin();
     // Pull the latest server state so any edits another admin made since
     // this tab was opened become visible — otherwise we'd keep showing
     // the stale snapshot loaded when the page first opened.
@@ -4962,7 +5062,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img src="' + src + '" alt="Header" />';
@@ -5128,6 +5228,10 @@ function showPage(id) {
     if (typeof pmUpdateSubscribeButton === 'function') pmUpdateSubscribeButton();
     if (typeof pmRenderGroupsAdmin === 'function') pmRenderGroupsAdmin();
     if (typeof pmUpdateTargetSelect === 'function') pmUpdateTargetSelect();
+  }
+  if (id === 'pg-absence') {
+    if (typeof absInitDate === 'function') absInitDate();
+    if (isAdmin && typeof absRenderAdmin === 'function') absRenderAdmin();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -5534,7 +5638,8 @@ var PAGE_LABELS = {
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
   'pg-linkdetail': 'Link Page',
-  'pg-newsletter': 'School Newsletter'
+  'pg-newsletter': 'School Newsletter',
+  'pg-absence': 'Student Absence Notification'
 };
 
 function updateSidebarAudio(pageId) {
@@ -7428,6 +7533,111 @@ function renderHomeVideo() {
     embed.style.display = 'none';
     if (box) box.classList.remove('has-video');
   }
+}
+
+// ===================== STUDENT ABSENCE NOTIFICATION =====================
+var ABS_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var _absDateInited = false;
+function absInitDate() {
+  var daySel = el('abs-day'), monSel = el('abs-month'), yrSel = el('abs-year');
+  if (!daySel || !monSel || !yrSel) return;
+  var today = new Date();
+  if (!_absDateInited) {
+    var i, h;
+    h = ''; for (i = 1; i <= 31; i++) h += '<option value="' + i + '">' + i + '</option>'; daySel.innerHTML = h;
+    h = ''; for (i = 0; i < 12; i++) h += '<option value="' + i + '">' + ABS_MONTHS[i] + '</option>'; monSel.innerHTML = h;
+    var yr = today.getFullYear();
+    h = ''; for (i = yr; i <= yr + 1; i++) h += '<option value="' + i + '">' + i + '</option>'; yrSel.innerHTML = h;
+    _absDateInited = true;
+  }
+  // Default to today's date.
+  daySel.value = String(today.getDate());
+  monSel.value = String(today.getMonth());
+  yrSel.value  = String(today.getFullYear());
+}
+function absReasonChange() {
+  var reason = el('abs-reason') ? el('abs-reason').value : '';
+  var wrap = el('abs-detail-wrap');
+  if (wrap) wrap.style.display = (reason === 'other' || reason === 'other learning') ? 'block' : 'none';
+}
+function absStatus(text, ok) {
+  var s = el('abs-status');
+  if (!s) return;
+  s.textContent = text || '';
+  s.style.color = ok ? '#16a34a' : '#c0392b';
+}
+function submitAbsence() {
+  var first  = (el('abs-first').value || '').trim();
+  var last   = (el('abs-last').value || '').trim();
+  var reason = el('abs-reason').value;
+  var detail = ((el('abs-detail') && el('abs-detail').value) || '').trim();
+  if (!first || !last) { absStatus("Please enter the student's first and last name."); return; }
+  if (!reason) { absStatus('Please choose a reason for the absence.'); return; }
+  if ((reason === 'other' || reason === 'other learning') && !detail) { absStatus('Please add more detail.'); return; }
+  var two = function(n){ n = String(n); return n.length < 2 ? '0' + n : n; };
+  var date = el('abs-year').value + '-' + two(parseInt(el('abs-month').value, 10) + 1) + '-' + two(el('abs-day').value);
+  var btn = el('abs-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  absStatus('');
+  fetch('/api/absence', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ firstName: first, lastName: last, reason: reason, detail: detail, date: date })
+  })
+  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(res){
+    btn.disabled = false; btn.textContent = 'Submit absence';
+    if (!res.ok) { absStatus((res.body && res.body.error) || 'Could not submit. Please try again.'); return; }
+    absStatus('✓ Absence recorded — thank you.', true);
+    el('abs-first').value = ''; el('abs-last').value = '';
+    el('abs-reason').value = ''; if (el('abs-detail')) el('abs-detail').value = '';
+    absReasonChange();
+    absInitDate();
+    if (isAdmin) absRenderAdmin();
+  })
+  .catch(function(){ btn.disabled = false; btn.textContent = 'Submit absence'; absStatus('Network error — please try again.'); });
+}
+function absFmtDate(ymd) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || '');
+  if (!m) return ymd || '';
+  return parseInt(m[3], 10) + ' ' + ABS_MONTHS[parseInt(m[2], 10) - 1] + ' ' + m[1];
+}
+function absRenderAdmin() {
+  var wrap = el('abs-admin-list');
+  if (!wrap || !isAdmin) return;
+  fetch('/api/absences/list', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '' })
+  })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(b){
+    if (!b || !Array.isArray(b.absences)) { wrap.innerHTML = '<div class="abs-list-empty">Could not load entries (log in again).</div>'; return; }
+    if (!b.absences.length) { wrap.innerHTML = '<div class="abs-list-empty">No absence notifications yet.</div>'; return; }
+    wrap.innerHTML = '';
+    b.absences.forEach(function(a){
+      var card = document.createElement('div');
+      card.className = 'abs-card';
+      var submitted = a.createdAt ? new Date(a.createdAt).toLocaleString() : '';
+      card.innerHTML =
+        '<span class="abs-reason-tag">' + lunchEsc(a.reason || '') + '</span>' +
+        '<h4>' + lunchEsc(((a.firstName || '') + ' ' + (a.lastName || '')).trim()) + '</h4>' +
+        '<div class="abs-meta"><strong>Absent:</strong> ' + lunchEsc(absFmtDate(a.date)) + '</div>' +
+        (a.detail ? '<div class="abs-meta"><strong>Detail:</strong> ' + lunchEsc(a.detail) + '</div>' : '') +
+        '<div class="abs-meta" style="color:#999;font-size:11px;">Submitted ' + lunchEsc(submitted) + '</div>';
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'abs-card-del'; del.textContent = 'Delete';
+      del.onclick = function(){ absDelete(a.id); };
+      card.appendChild(del);
+      wrap.appendChild(card);
+    });
+  })
+  .catch(function(){ wrap.innerHTML = '<div class="abs-list-empty">Could not load entries.</div>'; });
+}
+function absDelete(id) {
+  if (!confirm('Delete this absence notification?')) return;
+  fetch('/api/absences/delete', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '', id: id })
+  }).then(function(){ absRenderAdmin(); });
 }
 
 // ---- Waiata audio (under About Us image 5) ----

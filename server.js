@@ -157,6 +157,7 @@ function load() {
   }
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   if (!Array.isArray(data.hallBookings)) data.hallBookings = [];
+  if (!Array.isArray(data.absences)) data.absences = [];
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
   if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
@@ -296,6 +297,7 @@ app.get('/api/state', (req, res) => {
     pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
     parentMessages = [],                    // filter to messages-page sources only
     parentGroups = [],                      // strip member emails / endpoints (PII)
+    absences,                               // student names + medical reasons — admin-only, never public
     ...rest
   } = data;
   const recent = editHistory.slice(-5).reverse().map(h => ({
@@ -646,6 +648,65 @@ app.post('/api/lunch-order', (req, res) => {
   data.lunchOrders.push(order);
   save(data, { silent: true }); // parent submission — don't notify other parents
   res.json({ ok: true, order });
+});
+
+// ===================== STUDENT ABSENCES =====================
+// Absences hold student names + reasons (incl. medical), so they are NEVER
+// included in the public /api/state. Admin reads them via a password-gated
+// endpoint (same admin password as the site login).
+const ABSENCE_ADMIN_PW = envClean('ADMIN_PW') || 'piri2010';
+const ABSENCE_REASONS = ['medical', 'holiday', 'doctor appointment',
+  'dentist appointment', 'optometrist', 'other learning', 'counsellor', 'other'];
+
+// Public: a parent submits an absence notification.
+app.post('/api/absence', (req, res) => {
+  const b = req.body || {};
+  const firstName = String(b.firstName || '').trim();
+  const lastName  = String(b.lastName  || '').trim();
+  const reason    = String(b.reason    || '').trim();
+  const detail    = String(b.detail    || '').trim();
+  const date      = String(b.date      || '').trim(); // YYYY-MM-DD
+  if (!firstName || !lastName) return res.status(400).json({ error: 'Please enter the student\'s first and last name.' });
+  if (!ABSENCE_REASONS.includes(reason)) return res.status(400).json({ error: 'Please choose a reason for the absence.' });
+  if ((reason === 'other' || reason === 'other learning') && !detail) {
+    return res.status(400).json({ error: 'Please add more detail.' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Please choose the date of absence.' });
+  const data = load();
+  if (!Array.isArray(data.absences)) data.absences = [];
+  data.absences.push({
+    id: 'abs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    firstName: firstName.slice(0, 100),
+    lastName:  lastName.slice(0, 100),
+    reason,
+    detail:    detail.slice(0, 1000),
+    date,
+    createdAt: Date.now()
+  });
+  save(data, { silent: true }); // parent submission — no public update banner
+  res.json({ ok: true });
+});
+
+// Admin: list absences (password-gated), most recent first.
+app.post('/api/absences/list', (req, res) => {
+  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+  const data = load();
+  const list = (data.absences || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  res.json({ absences: list });
+});
+
+// Admin: delete an absence entry (password-gated).
+app.post('/api/absences/delete', (req, res) => {
+  const b = req.body || {};
+  if (String(b.password || '') !== ABSENCE_ADMIN_PW) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+  const data = load();
+  data.absences = (data.absences || []).filter(a => a.id !== String(b.id || ''));
+  save(data, { silent: true });
+  res.json({ ok: true });
 });
 
 app.delete('/api/lunch-order/:id', (req, res) => {
