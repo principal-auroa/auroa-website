@@ -2029,6 +2029,12 @@ body.is-admin .lunch-admin{display:block;}
   color:#1a2b4a;font-size:18px;font-weight:600;
   margin:28px 0 12px;letter-spacing:0.3px;
 }
+.pm-unsub-btn{
+  margin-left:auto;background:none;border:1.5px solid #c0392b;color:#c0392b;
+  padding:6px 14px;border-radius:18px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;white-space:nowrap;
+}
+.pm-unsub-btn:hover{background:#c0392b;color:#fff;}
 .pm-subscribe{
   background:#fff7ed;border:1.5px solid #f59e0b;border-radius:12px;
   padding:18px 20px;margin:18px 0 24px;
@@ -3696,6 +3702,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div class="pg-title-row">
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">Messages</h1>
+        <button type="button" id="pm-unsub-btn" class="pm-unsub-btn" onclick="pmUnsubscribe()" style="display:none;">Unsubscribe</button>
       </div>
 
       <div id="pm-subscribe" class="pm-subscribe">
@@ -9788,14 +9795,18 @@ function urlBase64ToUint8Array(b64) {
 }
 
 function pmUpdateSubscribeButton() {
+  var subbed = pmIsSubscribed();
+  // Once subscribed, hide the big "Get school notifications" box and show a
+  // small Unsubscribe button in the banner instead. If they're not subscribed
+  // (or have turned notifications off), show the big sign-up box again.
+  var box = el('pm-subscribe');
+  if (box) box.style.display = subbed ? 'none' : '';
+  var unsub = el('pm-unsub-btn');
+  if (unsub) unsub.style.display = subbed ? 'inline-block' : 'none';
   var btn = el('pm-subscribe-btn');
-  if (!btn) return;
-  if (pmIsSubscribed()) {
-    btn.textContent = '✓ Notifications on — tap to turn off';
-    btn.classList.add('is-on');
-  } else {
-    btn.textContent = 'Get notifications';
-    btn.classList.remove('is-on');
+  if (btn) {
+    if (subbed) { btn.textContent = '✓ Notifications on — tap to turn off'; btn.classList.add('is-on'); }
+    else { btn.textContent = 'Get notifications'; btn.classList.remove('is-on'); }
   }
 }
 
