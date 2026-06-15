@@ -374,6 +374,16 @@ app.post('/api/upload/apple', uploader('apple').single('image'), (req, res) => {
   res.json({ filename: req.file.filename });
 });
 
+// Second image on the Apple Distinguished School page (under the video).
+app.post('/api/upload/apple2', uploader('apple2').single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.appleImage2);
+  data.appleImage2 = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+
 // Full-width image at the bottom of the home page (replaces the old
 // text + image info table).
 app.post('/api/upload/homefooter', uploader('homefooter').single('image'), (req, res) => {

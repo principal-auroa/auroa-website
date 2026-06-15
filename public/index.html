@@ -3449,6 +3449,17 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="apple-yt-embed" id="apple-yt-embed"></div>
         <div class="apple-yt-placeholder" id="apple-yt-ph">Add a YouTube video link above</div>
       </div>
+
+      <!-- Image box underneath the video -->
+      <div class="apple-img-wrap" style="margin-top:22px;">
+        <div class="img-box apple-img-box" id="apple-box-2">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img id="apple-img-2" style="display:none;" alt="" />
+          <label class="upload-overlay" for="apple-file-2"><span>Click to replace image</span></label>
+          <input class="file-in" id="apple-file-2" type="file" accept="image/*" onchange="uploadImg('apple2', this)" />
+        </div>
+        <label class="edu-foot-upload-btn" for="apple-file-2">&#8679; Upload Image</label>
+      </div>
     </div>
   </div>
 
@@ -4374,6 +4385,7 @@ function fetchState() {
       renderEduFooterVideos();
       // Apple Distinguished School page: image + YouTube video
       if (data.appleImage) applyAppleImg('/uploads/' + data.appleImage);
+      if (data.appleImage2) applyAppleImg2('/uploads/' + data.appleImage2);
       appleVideo = data.appleVideo || '';
       renderAppleVideo();
       // Home page full-width video
@@ -4704,6 +4716,8 @@ function uploadImg(type, input) {
         applyHomeFooterImg('/uploads/' + data.filename);
       } else if (type === 'apple') {
         applyAppleImg('/uploads/' + data.filename);
+      } else if (type === 'apple2') {
+        applyAppleImg2('/uploads/' + data.filename);
       } else {
         applyEduImg('/uploads/' + data.filename);
       }
@@ -4726,6 +4740,16 @@ function applyAppleImg(src) {
   if (!img) return;
   img.src = src; img.style.display = 'block';
   var box = el('apple-box');
+  if (box) {
+    var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none';
+    box.style.border = 'none';
+  }
+}
+function applyAppleImg2(src) {
+  var img = el('apple-img-2');
+  if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var box = el('apple-box-2');
   if (box) {
     var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none';
     box.style.border = 'none';
