@@ -193,12 +193,16 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   background:rgba(255,255,255,0.08);
   color:#fff;border-left-color:#c0642b;
 }
-/* Student Absence Notification button: grey with black text */
+/* Student Absence Notification: a rounded grey button with black text */
 .sidebar-btn[data-page="pg-absence"]{
-  background:#bdbdbd;color:#111;border-left-color:transparent;
+  background:#bdbdbd;color:#111;font-weight:600;font-size:15px;
+  border:none;border-left:none;border-radius:8px;
+  margin:6px 16px 12px;padding:13px 20px;
+  text-align:center;display:block;width:calc(100% - 32px);
+  transition:background 0.15s;
 }
 .sidebar-btn[data-page="pg-absence"]:hover{
-  background:#a9a9a9;color:#111;border-left-color:transparent;
+  background:#a3a3a3;color:#111;border-left-color:transparent;
 }
 .sidebar-btn.enrol{
   color:#fff;font-weight:400;font-size:17px;
