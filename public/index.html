@@ -193,6 +193,13 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   background:rgba(255,255,255,0.08);
   color:#fff;border-left-color:#c0642b;
 }
+/* Student Absence Notification button: grey with black text */
+.sidebar-btn[data-page="pg-absence"]{
+  background:#bdbdbd;color:#111;border-left-color:transparent;
+}
+.sidebar-btn[data-page="pg-absence"]:hover{
+  background:#a9a9a9;color:#111;border-left-color:transparent;
+}
 .sidebar-btn.enrol{
   color:#fff;font-weight:400;font-size:17px;
   background:#c0642b;border:none;border-left:none;
@@ -3453,7 +3460,12 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="apple-yt-placeholder" id="apple-yt-ph">Add a YouTube video link above</div>
       </div>
 
-      <!-- Image box underneath the video -->
+      <!-- Editable text box (under the video) -->
+      <div class="editable apple-text" id="ec-apple">
+        <p>Add information about Auroa School's Apple Distinguished School status here.</p>
+      </div>
+
+      <!-- Image box at the very bottom -->
       <div class="apple-img-wrap" style="margin-top:22px;">
         <div class="img-box apple-img-box" id="apple-box-2">
           <div class="placeholder">No image — upload one as admin</div>
@@ -3462,11 +3474,6 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input class="file-in" id="apple-file-2" type="file" accept="image/*" onchange="uploadImg('apple2', this)" />
         </div>
         <label class="edu-foot-upload-btn" for="apple-file-2">&#8679; Upload Image</label>
-      </div>
-
-      <!-- Editable text box -->
-      <div class="editable apple-text" id="ec-apple">
-        <p>Add information about Auroa School's Apple Distinguished School status here.</p>
       </div>
     </div>
   </div>
@@ -3957,11 +3964,13 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="abs-name-row">
           <div class="abs-name-col">
             <label class="hb-label" for="abs-first">Student first name <span class="hb-required">*</span></label>
-            <input id="abs-first" class="hb-input" type="text" required maxlength="100" autocomplete="off">
+            <input id="abs-first" class="hb-input" type="text" required maxlength="100" list="abs-first-names">
+            <datalist id="abs-first-names"></datalist>
           </div>
           <div class="abs-name-col">
             <label class="hb-label" for="abs-last">Student last name <span class="hb-required">*</span></label>
-            <input id="abs-last" class="hb-input" type="text" required maxlength="100" autocomplete="off">
+            <input id="abs-last" class="hb-input" type="text" required maxlength="100" list="abs-last-names">
+            <datalist id="abs-last-names"></datalist>
           </div>
         </div>
 
@@ -5473,6 +5482,7 @@ function renderSidebarPages() {
     btn.className = 'sidebar-btn'
       + (colorClass ? ' ' + colorClass : '')
       + (lastInGroup ? ' last-in-group' : '');
+    btn.setAttribute('data-page', pg.id);
     btn.textContent = pg.label;
     btn.onclick = (function(id){ return function(e){ bubbleGo(e, id); }; })(pg.id);
     div.appendChild(btn);
@@ -7597,6 +7607,37 @@ function absInitEntries() {
   wrap.innerHTML = '';
   wrap.appendChild(absMakeRow());
   absUpdateAddBtn();
+  absLoadNames();
+}
+// Remember previously-entered names on this device so they suggest while typing.
+function absLoadNames() {
+  [['first','abs-first-names'], ['last','abs-last-names']].forEach(function(pair){
+    var dl = el(pair[1]);
+    if (!dl) return;
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem('abs_' + pair[0] + '_names') || '[]'); } catch (e) {}
+    if (!Array.isArray(list)) list = [];
+    dl.innerHTML = list.map(function(n){
+      return '<option value="' + String(n).replace(/"/g, '&quot;') + '"></option>';
+    }).join('');
+  });
+}
+function absRememberName(first, last) {
+  try {
+    [['first', first], ['last', last]].forEach(function(pair){
+      var val = String(pair[1] || '').trim();
+      if (!val) return;
+      var key = 'abs_' + pair[0] + '_names';
+      var list = [];
+      try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+      if (!Array.isArray(list)) list = [];
+      list = list.filter(function(n){ return String(n).toLowerCase() !== val.toLowerCase(); });
+      list.unshift(val);
+      if (list.length > 40) list = list.slice(0, 40);
+      localStorage.setItem(key, JSON.stringify(list));
+    });
+  } catch (e) {}
+  absLoadNames();
 }
 function absResetEntries() { absInitEntries(); }
 // "Add more dates" — reveal another row (up to ABS_ROWS); the button reappears
@@ -7651,6 +7692,7 @@ function submitAbsence() {
     if (!res.ok) { absStatus((res.body && res.body.error) || 'Could not submit. Please try again.'); return; }
     var n = (res.body && res.body.count) || entries.length;
     absStatus('✓ ' + n + (n === 1 ? ' absence' : ' absences') + ' recorded — thank you.', true);
+    absRememberName(first, last);
     el('abs-first').value = ''; el('abs-last').value = '';
     absResetEntries();
     if (isAdmin) absRenderAdmin();
