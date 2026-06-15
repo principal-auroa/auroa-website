@@ -5544,8 +5544,11 @@ function renderSidebarPages() {
     bubbleGo(e, 'pg-lunch-orders');
   }, 'lunch-orders-btn', true);
 
+  // Student Absence Notification — directly under School Lunch Orders, above Buses.
+  renderPage(findPage('pg-absence'), null);
+
   // Remaining pages — plain style, original order
-  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1 };
+  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1 };
   pageConfig.forEach(function(pg) {
     if (!alreadyRendered[pg.id]) renderPage(pg, null);
   });
