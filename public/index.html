@@ -2298,8 +2298,12 @@ body.is-admin .hb-admin{display:block;}
 .abs-intro{color:#555;font-size:14px;margin-bottom:16px;}
 .abs-name-row{display:flex;gap:14px;flex-wrap:wrap;}
 .abs-name-col{flex:1;min-width:200px;}
-.abs-date-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-.abs-date-row select{flex:1;min-width:90px;}
+.abs-hint{color:#888;font-size:12px;margin:0 0 10px;}
+.abs-entry{margin-bottom:10px;}
+.abs-entry-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.abs-entry-fields select{flex:1;min-width:80px;}
+.abs-entry-fields .abs-reason{flex:2;min-width:150px;}
+.abs-entry .abs-detail{margin-top:6px;}
 .abs-submit-row{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
 .abs-submit-row .hb-submit-btn{flex:1;}
 .abs-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
@@ -3942,30 +3946,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           </div>
         </div>
 
-        <label class="hb-label" for="abs-reason">Reason for absence <span class="hb-required">*</span></label>
-        <select id="abs-reason" class="hb-input" required onchange="absReasonChange()">
-          <option value="">— Choose a reason —</option>
-          <option value="medical">Medical</option>
-          <option value="holiday">Holiday</option>
-          <option value="doctor appointment">Doctor appointment</option>
-          <option value="dentist appointment">Dentist appointment</option>
-          <option value="optometrist">Optometrist</option>
-          <option value="other learning">Other learning</option>
-          <option value="counsellor">Counsellor</option>
-          <option value="other">Other</option>
-        </select>
-
-        <div id="abs-detail-wrap" style="display:none;">
-          <label class="hb-label" for="abs-detail">Please add more detail <span class="hb-required">*</span></label>
-          <textarea id="abs-detail" class="hb-input" rows="3" maxlength="1000" placeholder="More detail…"></textarea>
-        </div>
-
-        <label class="hb-label">Date of absence <span class="hb-required">*</span></label>
-        <div class="abs-date-row">
-          <select id="abs-day" class="hb-input" aria-label="Day"></select>
-          <select id="abs-month" class="hb-input" aria-label="Month"></select>
-          <select id="abs-year" class="hb-input" aria-label="Year"></select>
-        </div>
+        <label class="hb-label">Date(s) of absence &amp; reason <span class="hb-required">*</span></label>
+        <p class="abs-hint">Add a row for each day your child will be away. The first row is required; the rest are optional.</p>
+        <div id="abs-entries"></div>
 
         <div class="abs-submit-row">
           <button id="abs-submit-btn" type="submit" class="hb-submit-btn">Submit absence</button>
@@ -5230,7 +5213,7 @@ function showPage(id) {
     if (typeof pmUpdateTargetSelect === 'function') pmUpdateTargetSelect();
   }
   if (id === 'pg-absence') {
-    if (typeof absInitDate === 'function') absInitDate();
+    if (typeof absInitEntries === 'function') absInitEntries();
     if (isAdmin && typeof absRenderAdmin === 'function') absRenderAdmin();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
@@ -7537,28 +7520,62 @@ function renderHomeVideo() {
 
 // ===================== STUDENT ABSENCE NOTIFICATION =====================
 var ABS_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-var _absDateInited = false;
-function absInitDate() {
-  var daySel = el('abs-day'), monSel = el('abs-month'), yrSel = el('abs-year');
-  if (!daySel || !monSel || !yrSel) return;
+var ABS_REASONS = [
+  ['', '— Choose a reason —'], ['medical','Medical'], ['holiday','Holiday'],
+  ['doctor appointment','Doctor appointment'], ['dentist appointment','Dentist appointment'],
+  ['optometrist','Optometrist'], ['other learning','Other learning'],
+  ['counsellor','Counsellor'], ['other','Other']
+];
+var ABS_ROWS = 6; // first row + five more
+
+// Build the rows of [day][month][year][reason] (+ conditional detail) once,
+// then reset each row's date to today.
+function absInitEntries() {
+  var wrap = el('abs-entries');
+  if (!wrap) return;
   var today = new Date();
-  if (!_absDateInited) {
-    var i, h;
-    h = ''; for (i = 1; i <= 31; i++) h += '<option value="' + i + '">' + i + '</option>'; daySel.innerHTML = h;
-    h = ''; for (i = 0; i < 12; i++) h += '<option value="' + i + '">' + ABS_MONTHS[i] + '</option>'; monSel.innerHTML = h;
-    var yr = today.getFullYear();
-    h = ''; for (i = yr; i <= yr + 1; i++) h += '<option value="' + i + '">' + i + '</option>'; yrSel.innerHTML = h;
-    _absDateInited = true;
+  var yr = today.getFullYear();
+  if (!wrap.children.length) {
+    var dayOpts = '', monOpts = '', yrOpts = '', reasonOpts = '', i;
+    for (i = 1; i <= 31; i++) dayOpts += '<option value="' + i + '">' + i + '</option>';
+    for (i = 0; i < 12; i++) monOpts += '<option value="' + i + '">' + ABS_MONTHS[i] + '</option>';
+    for (i = yr; i <= yr + 1; i++) yrOpts += '<option value="' + i + '">' + i + '</option>';
+    ABS_REASONS.forEach(function(r){ reasonOpts += '<option value="' + r[0] + '">' + r[1] + '</option>'; });
+    for (var n = 0; n < ABS_ROWS; n++) {
+      var row = document.createElement('div');
+      row.className = 'abs-entry';
+      row.innerHTML =
+        '<div class="abs-entry-fields">' +
+          '<select class="abs-day hb-input" aria-label="Day">' + dayOpts + '</select>' +
+          '<select class="abs-month hb-input" aria-label="Month">' + monOpts + '</select>' +
+          '<select class="abs-year hb-input" aria-label="Year">' + yrOpts + '</select>' +
+          '<select class="abs-reason hb-input" aria-label="Reason">' + reasonOpts + '</select>' +
+        '</div>' +
+        '<input class="abs-detail hb-input" type="text" maxlength="1000" placeholder="Please add more detail…" style="display:none;">';
+      (function(row){
+        var reasonSel = row.querySelector('.abs-reason');
+        var detail = row.querySelector('.abs-detail');
+        reasonSel.addEventListener('change', function(){
+          var r = reasonSel.value;
+          detail.style.display = (r === 'other' || r === 'other learning') ? 'block' : 'none';
+        });
+      })(row);
+      wrap.appendChild(row);
+    }
   }
-  // Default to today's date.
-  daySel.value = String(today.getDate());
-  monSel.value = String(today.getMonth());
-  yrSel.value  = String(today.getFullYear());
+  // Reset each row to today's date and no reason.
+  absResetEntries();
 }
-function absReasonChange() {
-  var reason = el('abs-reason') ? el('abs-reason').value : '';
-  var wrap = el('abs-detail-wrap');
-  if (wrap) wrap.style.display = (reason === 'other' || reason === 'other learning') ? 'block' : 'none';
+function absResetEntries() {
+  var today = new Date();
+  document.querySelectorAll('#abs-entries .abs-entry').forEach(function(row){
+    row.querySelector('.abs-day').value   = String(today.getDate());
+    row.querySelector('.abs-month').value = String(today.getMonth());
+    row.querySelector('.abs-year').value  = String(today.getFullYear());
+    row.querySelector('.abs-reason').value = '';
+    var d = row.querySelector('.abs-detail');
+    d.value = ''; d.style.display = 'none';
+  });
 }
 function absStatus(text, ok) {
   var s = el('abs-status');
@@ -7567,31 +7584,40 @@ function absStatus(text, ok) {
   s.style.color = ok ? '#16a34a' : '#c0392b';
 }
 function submitAbsence() {
-  var first  = (el('abs-first').value || '').trim();
-  var last   = (el('abs-last').value || '').trim();
-  var reason = el('abs-reason').value;
-  var detail = ((el('abs-detail') && el('abs-detail').value) || '').trim();
+  var first = (el('abs-first').value || '').trim();
+  var last  = (el('abs-last').value || '').trim();
   if (!first || !last) { absStatus("Please enter the student's first and last name."); return; }
-  if (!reason) { absStatus('Please choose a reason for the absence.'); return; }
-  if ((reason === 'other' || reason === 'other learning') && !detail) { absStatus('Please add more detail.'); return; }
   var two = function(n){ n = String(n); return n.length < 2 ? '0' + n : n; };
-  var date = el('abs-year').value + '-' + two(parseInt(el('abs-month').value, 10) + 1) + '-' + two(el('abs-day').value);
+  var entries = [];
+  var rows = document.querySelectorAll('#abs-entries .abs-entry');
+  for (var i = 0; i < rows.length; i++) {
+    var reason = rows[i].querySelector('.abs-reason').value;
+    if (!reason) continue; // empty row — skip
+    var detail = (rows[i].querySelector('.abs-detail').value || '').trim();
+    if ((reason === 'other' || reason === 'other learning') && !detail) {
+      absStatus('Please add more detail for the "' + reason + '" absence.'); return;
+    }
+    var date = rows[i].querySelector('.abs-year').value + '-' +
+               two(parseInt(rows[i].querySelector('.abs-month').value, 10) + 1) + '-' +
+               two(rows[i].querySelector('.abs-day').value);
+    entries.push({ reason: reason, detail: detail, date: date });
+  }
+  if (!entries.length) { absStatus('Please choose at least one date and reason.'); return; }
   var btn = el('abs-submit-btn');
   btn.disabled = true; btn.textContent = 'Submitting…';
   absStatus('');
   fetch('/api/absence', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ firstName: first, lastName: last, reason: reason, detail: detail, date: date })
+    body: JSON.stringify({ firstName: first, lastName: last, entries: entries })
   })
   .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
   .then(function(res){
     btn.disabled = false; btn.textContent = 'Submit absence';
     if (!res.ok) { absStatus((res.body && res.body.error) || 'Could not submit. Please try again.'); return; }
-    absStatus('✓ Absence recorded — thank you.', true);
+    var n = (res.body && res.body.count) || entries.length;
+    absStatus('✓ ' + n + (n === 1 ? ' absence' : ' absences') + ' recorded — thank you.', true);
     el('abs-first').value = ''; el('abs-last').value = '';
-    el('abs-reason').value = ''; if (el('abs-detail')) el('abs-detail').value = '';
-    absReasonChange();
-    absInitDate();
+    absResetEntries();
     if (isAdmin) absRenderAdmin();
   })
   .catch(function(){ btn.disabled = false; btn.textContent = 'Submit absence'; absStatus('Network error — please try again.'); });

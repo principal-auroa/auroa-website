@@ -663,28 +663,38 @@ app.post('/api/absence', (req, res) => {
   const b = req.body || {};
   const firstName = String(b.firstName || '').trim();
   const lastName  = String(b.lastName  || '').trim();
-  const reason    = String(b.reason    || '').trim();
-  const detail    = String(b.detail    || '').trim();
-  const date      = String(b.date      || '').trim(); // YYYY-MM-DD
   if (!firstName || !lastName) return res.status(400).json({ error: 'Please enter the student\'s first and last name.' });
-  if (!ABSENCE_REASONS.includes(reason)) return res.status(400).json({ error: 'Please choose a reason for the absence.' });
-  if ((reason === 'other' || reason === 'other learning') && !detail) {
-    return res.status(400).json({ error: 'Please add more detail.' });
+  // Accept one or many date+reason entries (parents can list multiple days).
+  const rawEntries = Array.isArray(b.entries) && b.entries.length
+    ? b.entries
+    : [{ reason: b.reason, detail: b.detail, date: b.date }];
+  const records = [];
+  for (const e of rawEntries) {
+    const reason = String((e && e.reason) || '').trim();
+    if (!reason) continue; // skip blank rows
+    if (!ABSENCE_REASONS.includes(reason)) return res.status(400).json({ error: 'Please choose a valid reason for each absence.' });
+    const detail = String((e && e.detail) || '').trim();
+    if ((reason === 'other' || reason === 'other learning') && !detail) {
+      return res.status(400).json({ error: 'Please add more detail for the "' + reason + '" absence.' });
+    }
+    const date = String((e && e.date) || '').trim(); // YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Please choose a date for each absence.' });
+    records.push({
+      id: 'abs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      firstName: firstName.slice(0, 100),
+      lastName:  lastName.slice(0, 100),
+      reason,
+      detail:    detail.slice(0, 1000),
+      date,
+      createdAt: Date.now()
+    });
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Please choose the date of absence.' });
+  if (!records.length) return res.status(400).json({ error: 'Please choose at least one date and reason.' });
   const data = load();
   if (!Array.isArray(data.absences)) data.absences = [];
-  data.absences.push({
-    id: 'abs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-    firstName: firstName.slice(0, 100),
-    lastName:  lastName.slice(0, 100),
-    reason,
-    detail:    detail.slice(0, 1000),
-    date,
-    createdAt: Date.now()
-  });
+  data.absences.push(...records);
   save(data, { silent: true }); // parent submission — no public update banner
-  res.json({ ok: true });
+  res.json({ ok: true, count: records.length });
 });
 
 // Admin: list absences (password-gated), most recent first.
