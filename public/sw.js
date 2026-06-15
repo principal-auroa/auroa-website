@@ -36,6 +36,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;          // never touch POST/PUT/DELETE
   let url;
   try { url = new URL(req.url); } catch (_) { return; }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;  // skip blob:/data: (downloads etc.)
   if (url.origin !== self.location.origin) return;  // let cross-origin pass through
 
   // API data must ALWAYS be fresh — never cache it, or different devices can
