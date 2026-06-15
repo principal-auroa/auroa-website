@@ -2304,6 +2304,12 @@ body.is-admin .hb-admin{display:block;}
 .abs-entry-fields select{flex:1;min-width:80px;}
 .abs-entry-fields .abs-reason{flex:2;min-width:150px;}
 .abs-entry .abs-detail{margin-top:6px;}
+.abs-add-btn{
+  background:none;border:1.5px dashed #1a2b4a;color:#1a2b4a;
+  padding:8px 16px;border-radius:8px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;margin:2px 0 6px;
+}
+.abs-add-btn:hover{background:#1a2b4a;color:#fff;}
 .abs-submit-row{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
 .abs-submit-row .hb-submit-btn{flex:1;}
 .abs-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
@@ -3957,9 +3963,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           </div>
         </div>
 
-        <label class="hb-label">Date(s) of absence &amp; reason <span class="hb-required">*</span></label>
-        <p class="abs-hint">Add a row for each day your child will be away. The first row is required; the rest are optional.</p>
+        <label class="hb-label">Date of absence &amp; reason <span class="hb-required">*</span></label>
         <div id="abs-entries"></div>
+        <button id="abs-add-btn" type="button" class="abs-add-btn" onclick="absAddRow()">+ Add more dates</button>
 
         <div class="abs-submit-row">
           <button id="abs-submit-btn" type="submit" class="hb-submit-btn">Submit absence</button>
@@ -7550,56 +7556,59 @@ var ABS_REASONS = [
   ['optometrist','Optometrist'], ['other learning','Other learning'],
   ['counsellor','Counsellor'], ['other','Other']
 ];
-var ABS_ROWS = 6; // first row + five more
+var ABS_ROWS = 6; // maximum number of date rows
 
-// Build the rows of [day][month][year][reason] (+ conditional detail) once,
-// then reset each row's date to today.
+// Build one date+reason row (date pre-set to today), wired to show its detail
+// box for "other"/"other learning".
+function absMakeRow() {
+  var today = new Date();
+  var yr = today.getFullYear();
+  var dayOpts = '', monOpts = '', yrOpts = '', reasonOpts = '', i;
+  for (i = 1; i <= 31; i++) dayOpts += '<option value="' + i + '">' + i + '</option>';
+  for (i = 0; i < 12; i++) monOpts += '<option value="' + i + '">' + ABS_MONTHS[i] + '</option>';
+  for (i = yr; i <= yr + 1; i++) yrOpts += '<option value="' + i + '">' + i + '</option>';
+  ABS_REASONS.forEach(function(r){ reasonOpts += '<option value="' + r[0] + '">' + r[1] + '</option>'; });
+  var row = document.createElement('div');
+  row.className = 'abs-entry';
+  row.innerHTML =
+    '<div class="abs-entry-fields">' +
+      '<select class="abs-day hb-input" aria-label="Day">' + dayOpts + '</select>' +
+      '<select class="abs-month hb-input" aria-label="Month">' + monOpts + '</select>' +
+      '<select class="abs-year hb-input" aria-label="Year">' + yrOpts + '</select>' +
+      '<select class="abs-reason hb-input" aria-label="Reason">' + reasonOpts + '</select>' +
+    '</div>' +
+    '<input class="abs-detail hb-input" type="text" maxlength="1000" placeholder="Please add more detail…" style="display:none;">';
+  row.querySelector('.abs-day').value   = String(today.getDate());
+  row.querySelector('.abs-month').value = String(today.getMonth());
+  row.querySelector('.abs-year').value  = String(today.getFullYear());
+  var reasonSel = row.querySelector('.abs-reason');
+  var detail = row.querySelector('.abs-detail');
+  reasonSel.addEventListener('change', function(){
+    detail.style.display = (reasonSel.value === 'other' || reasonSel.value === 'other learning') ? 'block' : 'none';
+  });
+  return row;
+}
+// Start with just the first date row; extra rows are added on demand.
 function absInitEntries() {
   var wrap = el('abs-entries');
   if (!wrap) return;
-  var today = new Date();
-  var yr = today.getFullYear();
-  if (!wrap.children.length) {
-    var dayOpts = '', monOpts = '', yrOpts = '', reasonOpts = '', i;
-    for (i = 1; i <= 31; i++) dayOpts += '<option value="' + i + '">' + i + '</option>';
-    for (i = 0; i < 12; i++) monOpts += '<option value="' + i + '">' + ABS_MONTHS[i] + '</option>';
-    for (i = yr; i <= yr + 1; i++) yrOpts += '<option value="' + i + '">' + i + '</option>';
-    ABS_REASONS.forEach(function(r){ reasonOpts += '<option value="' + r[0] + '">' + r[1] + '</option>'; });
-    for (var n = 0; n < ABS_ROWS; n++) {
-      var row = document.createElement('div');
-      row.className = 'abs-entry';
-      row.innerHTML =
-        '<div class="abs-entry-fields">' +
-          '<select class="abs-day hb-input" aria-label="Day">' + dayOpts + '</select>' +
-          '<select class="abs-month hb-input" aria-label="Month">' + monOpts + '</select>' +
-          '<select class="abs-year hb-input" aria-label="Year">' + yrOpts + '</select>' +
-          '<select class="abs-reason hb-input" aria-label="Reason">' + reasonOpts + '</select>' +
-        '</div>' +
-        '<input class="abs-detail hb-input" type="text" maxlength="1000" placeholder="Please add more detail…" style="display:none;">';
-      (function(row){
-        var reasonSel = row.querySelector('.abs-reason');
-        var detail = row.querySelector('.abs-detail');
-        reasonSel.addEventListener('change', function(){
-          var r = reasonSel.value;
-          detail.style.display = (r === 'other' || r === 'other learning') ? 'block' : 'none';
-        });
-      })(row);
-      wrap.appendChild(row);
-    }
-  }
-  // Reset each row to today's date and no reason.
-  absResetEntries();
+  wrap.innerHTML = '';
+  wrap.appendChild(absMakeRow());
+  absUpdateAddBtn();
 }
-function absResetEntries() {
-  var today = new Date();
-  document.querySelectorAll('#abs-entries .abs-entry').forEach(function(row){
-    row.querySelector('.abs-day').value   = String(today.getDate());
-    row.querySelector('.abs-month').value = String(today.getMonth());
-    row.querySelector('.abs-year').value  = String(today.getFullYear());
-    row.querySelector('.abs-reason').value = '';
-    var d = row.querySelector('.abs-detail');
-    d.value = ''; d.style.display = 'none';
-  });
+function absResetEntries() { absInitEntries(); }
+// "Add more dates" — reveal another row (up to ABS_ROWS); the button reappears
+// under the new row.
+function absAddRow() {
+  var wrap = el('abs-entries');
+  if (!wrap || wrap.children.length >= ABS_ROWS) return;
+  wrap.appendChild(absMakeRow());
+  absUpdateAddBtn();
+}
+function absUpdateAddBtn() {
+  var btn = el('abs-add-btn'), wrap = el('abs-entries');
+  if (!btn || !wrap) return;
+  btn.style.display = (wrap.children.length < ABS_ROWS) ? 'inline-block' : 'none';
 }
 function absStatus(text, ok) {
   var s = el('abs-status');
