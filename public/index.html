@@ -7577,8 +7577,8 @@ var ABS_REASONS = [
 ];
 var ABS_ROWS = 6; // maximum number of date rows
 
-// Build one date+reason row (date pre-set to today), wired to show its detail
-// box for "other"/"other learning".
+// Build one date+reason row (date pre-set to today) with an always-visible
+// comment box (required for "other"/"other learning", optional otherwise).
 function absMakeRow() {
   var today = new Date();
   var yr = today.getFullYear();
@@ -7596,14 +7596,16 @@ function absMakeRow() {
       '<select class="abs-year hb-input" aria-label="Year">' + yrOpts + '</select>' +
       '<select class="abs-reason hb-input" aria-label="Reason">' + reasonOpts + '</select>' +
     '</div>' +
-    '<input class="abs-detail hb-input" type="text" maxlength="1000" placeholder="Please add more detail…" style="display:none;">';
+    '<input class="abs-detail hb-input" type="text" maxlength="1000" placeholder="Comment (optional)">';
   row.querySelector('.abs-day').value   = String(today.getDate());
   row.querySelector('.abs-month').value = String(today.getMonth());
   row.querySelector('.abs-year').value  = String(today.getFullYear());
   var reasonSel = row.querySelector('.abs-reason');
   var detail = row.querySelector('.abs-detail');
+  // Comment box is always shown; for "other"/"other learning" it's required.
   reasonSel.addEventListener('change', function(){
-    detail.style.display = (reasonSel.value === 'other' || reasonSel.value === 'other learning') ? 'block' : 'none';
+    var req = (reasonSel.value === 'other' || reasonSel.value === 'other learning');
+    detail.placeholder = req ? 'Please add more detail (required)' : 'Comment (optional)';
   });
   return row;
 }

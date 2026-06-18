@@ -127,19 +127,25 @@ self.addEventListener('push', (event) => {
   event.waitUntil(Promise.all(tasks));
 });
 
-// Tap on notification → focus an existing app tab or open the Messages page.
+// Tap on notification → open the target page (Messages page for message
+// notifications). Reliably lands on the right page: focus a window already
+// there, else navigate an existing window, else open a new one.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/messages';
+  const target = (event.notification.data && event.notification.data.url) || '/messages';
+  const targetUrl = new URL(target, self.location.origin).href;
   event.waitUntil((async () => {
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of clients) {
-      if ('focus' in c) {
-        // Prefer a tab already on this origin; navigate it to the target URL.
-        try { await c.navigate(url); } catch (_) {}
-        return c.focus();
-      }
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // A window already on the target page — just focus it.
+    for (const c of all) {
+      if (c.url === targetUrl && 'focus' in c) return c.focus();
     }
-    return self.clients.openWindow(url);
+    // Otherwise navigate an existing window to the target page.
+    const c = all.find((w) => 'focus' in w);
+    if (c) {
+      try { await c.navigate(targetUrl); } catch (_) {}
+      return c.focus();
+    }
+    return self.clients.openWindow(targetUrl);
   })());
 });

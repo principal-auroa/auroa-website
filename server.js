@@ -1522,7 +1522,8 @@ app.post('/api/parent-messages', async (req, res) => {
     const g = (data.parentGroups || []).find(x => x.id === groupId);
     if (!g) return res.status(400).json({ error: 'Unknown group' });
   }
-  const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image });
+  // Manual Messages-page send — this is the only thing that pushes a notification.
+  const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image, pushOut: true });
   res.json({ ok: true, message: msg });
 });
 
@@ -1648,7 +1649,10 @@ app.get('/join-group/:id', (req, res) => {
 // If groupId is provided, push + email are restricted to that group's
 // members (matched by stored endpoint or email). The message record still
 // stores the groupId so the client can filter rendering by membership.
-async function notifyAll({ title, body, url, source, groupId, image }) {
+// `pushOut` controls whether a push notification + email actually go out.
+// Only manual Messages-page sends push; newsletter/event/group triggers still
+// record their Messages-page card (if any) but do not push notifications.
+async function notifyAll({ title, body, url, source, groupId, image, pushOut }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
@@ -1691,7 +1695,7 @@ async function notifyAll({ title, body, url, source, groupId, image }) {
   const targetSubs = group
     ? data.pushSubscriptions.filter(s => groupEndpoints.has(s.endpoint))
     : data.pushSubscriptions;
-  if (wp && targetSubs.length) {
+  if (pushOut && wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
       title: msg.title,
@@ -1727,7 +1731,7 @@ async function notifyAll({ title, body, url, source, groupId, image }) {
   const targetEmails = group
     ? data.emailSubscribers.filter(e => groupEmails.has((e || '').toLowerCase()))
     : data.emailSubscribers;
-  if (transport && targetEmails.length) {
+  if (pushOut && transport && targetEmails.length) {
     // Default to the live site so the email always has a working link even
     // when APP_URL isn't set in the environment.
     const appUrl   = envClean('APP_URL') || 'https://www.auroa.school.nz';
