@@ -148,6 +148,7 @@ function load() {
     if (typeof data.newsletter.uniformPortraitImage === 'undefined') data.newsletter.uniformPortraitImage = null;
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
     if (typeof data.newsletter.importantDatesImage === 'undefined') data.newsletter.importantDatesImage = null;
+    if (!Array.isArray(data.newsletter.weekPhotos)) data.newsletter.weekPhotos = [];
   }
   // Published version visitors see, distinct from the draft that admins edit.
   // Only the Publish endpoint writes to this — no auto-seeding from the draft,
@@ -863,6 +864,7 @@ app.post('/api/newsletter/save', (req, res) => {
     principalMessage: sanitiseRich(b.principalMessage || '').slice(0, 200000),
     importantDates: sanitiseRich(b.importantDates || '').slice(0, 100000),
     studentsWeekImage: b.studentsWeekImage || null,
+    weekPhotos: Array.isArray(b.weekPhotos) ? b.weekPhotos.slice(0, 5).map(function (fn) { return fn || null; }) : [],
     studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 100000),
     campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 100000),
     schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
@@ -910,6 +912,7 @@ app.post('/api/newsletter/publish', (req, res) => {
     snap.principalMessage      = draft.principalMessage || '';
     snap.importantDates        = draft.importantDates || '';
     snap.studentsWeekImage     = draft.studentsWeekImage || null;
+    snap.weekPhotos            = Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [];
     snap.studentsWeekMessage   = draft.studentsWeekMessage || '';
     snap.campsDayTrips         = draft.campsDayTrips || '';
     snap.schoolAccountsPayments = draft.schoolAccountsPayments || '';
@@ -931,6 +934,7 @@ app.post('/api/newsletter/publish', (req, res) => {
       principalMessage: draft.principalMessage || '',
       importantDates: draft.importantDates || '',
       studentsWeekImage: draft.studentsWeekImage || null,
+      weekPhotos: Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [],
       studentsWeekMessage: draft.studentsWeekMessage || '',
       campsDayTrips: draft.campsDayTrips || '',
       schoolAccountsPayments: draft.schoolAccountsPayments || '',
@@ -975,6 +979,7 @@ function collectReferencedFiles(data) {
     add(data.newsletter.uniformPortraitImage);
     add(data.newsletter.uniformLandscapeImage);
     add(data.newsletter.importantDatesImage);
+    (data.newsletter.weekPhotos || []).forEach(add);
     (data.newsletter.notices || []).forEach(n => add(n && n.filename));
   }
   (data.newsletterSnapshots || []).forEach(s => {
@@ -985,6 +990,7 @@ function collectReferencedFiles(data) {
     add(s.uniformPortraitImage);
     add(s.uniformLandscapeImage);
     add(s.importantDatesImage);
+    (s.weekPhotos || []).forEach(add);
     (s.notices || []).forEach(n => add(n && n.filename));
   });
   return refs;
@@ -1007,6 +1013,7 @@ app.delete('/api/newsletter-snapshot/:id', (req, res) => {
   add(target.uniformPortraitImage);
   add(target.uniformLandscapeImage);
   add(target.importantDatesImage);
+  (target.weekPhotos || []).forEach(add);
   (target.notices || []).forEach(n => add(n && n.filename));
 
   // Drop the snapshot first so we can compute "still referenced" correctly
@@ -1117,6 +1124,10 @@ app.get('/newsletter/:slug', (req, res) => {
     </figure>`;
   }).join('');
   const msgHtml = richField(snap.principalMessage);
+  const weekPhotosHtml = (snap.weekPhotos || []).filter(Boolean).map(fn => {
+    const url = '/uploads/' + nlEscape(fn);
+    return `<div class="nl-pub-wphoto" onclick="lbOpen('${url}')"><img src="${url}" alt=""></div>`;
+  }).join('');
 
   const html = `<!doctype html>
 <html lang="en">
@@ -1148,6 +1159,9 @@ app.get('/newsletter/:slug', (req, res) => {
   .nl-pub-notice{display:flex;flex-direction:column;gap:8px;}
   .nl-pub-notice figcaption{font-weight:600;color:#1a2b4a;font-size:14px;}
   .nl-pub-notice img{width:100%;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
+  .nl-pub-wphotos{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  .nl-pub-wphotos .nl-pub-wphoto{flex:1 1 calc(20% - 8px);min-width:130px;}
+  .nl-pub-wphotos .nl-pub-wphoto img{width:100%;display:block;border-radius:8px;cursor:zoom-in;border:1px solid #eaeaea;}
   .nl-pub-uni-portrait{display:flex;justify-content:center;margin:8px 0 16px;}
   .nl-pub-uni-portrait img{max-width:320px;width:auto;height:auto;display:block;border-radius:10px;cursor:zoom-in;border:1px solid #eaeaea;}
   .nl-pub-uni-landscape{margin:8px 0 16px;}
@@ -1172,6 +1186,7 @@ app.get('/newsletter/:slug', (req, res) => {
   <h2>Principal's Message</h2>
   ${nlPrincipal ? `<div class="nl-pub-principal-img"><img src="${nlPrincipal}" alt=""></div>` : ''}
   <div class="nl-pub-msg">${msgHtml || ''}</div>
+  ${weekPhotosHtml ? `<div class="nl-pub-wphotos">${weekPhotosHtml}</div>` : ''}
   ${(nlSotw || sotwHtml) ? `<h2>Students of the Week</h2>${nlSotw ? `<div class="nl-pub-hero"><img src="${nlSotw}" alt=""></div>` : ''}${sotwHtml ? `<div class="nl-pub-msg">${sotwHtml}</div>` : ''}` : ''}
   ${(datesHtml || nlDatesImg) ? `<h2>Important Dates</h2>${datesHtml ? `<div class="nl-pub-msg">${datesHtml}</div>` : ''}${nlDatesImg ? `<div class="nl-pub-hero" style="margin-top:14px;" onclick="lbOpen('${nlDatesImg}')"><img src="${nlDatesImg}" alt=""></div>` : ''}` : ''}
   ${sapHtml ? `<h2>School Accounts and Payments</h2><div class="nl-pub-msg">${sapHtml}</div>` : ''}

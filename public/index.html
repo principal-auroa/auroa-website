@@ -2494,6 +2494,11 @@ h2.nl-section-h{
   margin:32px 0 18px;
 }
 .nl-image-slot{position:relative;margin:0 0 18px;}
+/* Row of five photos above Students of the Week */
+.nl-week-photos{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px;}
+.nl-week-photos .nl-wphoto{flex:1 1 calc(20% - 8px);min-width:130px;margin:0;}
+.nl-week-photos .nl-wphoto img{border-radius:8px;}
+body:not(.is-admin) .nl-week-photos .nl-wphoto:not(.has-photo){display:none;}
 .nl-image-slot img{
   width:100%;display:none;border-radius:12px;cursor:zoom-in;
 }
@@ -3572,6 +3577,50 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
       <div id="nl-principal-msg" class="nl-msg" data-placeholder="Write the principal's message here..."></div>
+
+      <!-- Five photos above Students of the Week — click to enlarge -->
+      <div id="nl-week-photos" class="nl-week-photos">
+        <div class="nl-image-slot nl-wphoto" id="nl-wphoto-0">
+          <img id="nl-wphoto-img-0" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No photo</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto0')"></label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto0')">Remove</button>
+          </div>
+        </div>
+        <div class="nl-image-slot nl-wphoto" id="nl-wphoto-1">
+          <img id="nl-wphoto-img-1" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No photo</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto1')"></label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto1')">Remove</button>
+          </div>
+        </div>
+        <div class="nl-image-slot nl-wphoto" id="nl-wphoto-2">
+          <img id="nl-wphoto-img-2" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No photo</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto2')"></label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto2')">Remove</button>
+          </div>
+        </div>
+        <div class="nl-image-slot nl-wphoto" id="nl-wphoto-3">
+          <img id="nl-wphoto-img-3" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No photo</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto3')"></label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto3')">Remove</button>
+          </div>
+        </div>
+        <div class="nl-image-slot nl-wphoto" id="nl-wphoto-4">
+          <img id="nl-wphoto-img-4" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No photo</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto4')"></label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto4')">Remove</button>
+          </div>
+        </div>
+      </div>
 
       <h2 class="nl-section-h">Students of the Week</h2>
       <div id="nl-sotw-slot" class="nl-image-slot nl-hero">
@@ -9469,6 +9518,14 @@ function renderNewsletter() {
   var datesImg = el('nl-dates-img');
   if (datesImg) nlSetImage(el('nl-dates-slot'), datesImg, src.importantDatesImage);
 
+  var weekPhotos = Array.isArray(src.weekPhotos) ? src.weekPhotos : [];
+  for (var wi = 0; wi < 5; wi++) {
+    var wImg = el('nl-wphoto-img-' + wi);
+    var wSlot = el('nl-wphoto-' + wi);
+    if (wImg) nlSetImage(wSlot, wImg, weekPhotos[wi] || null);
+    if (wSlot) wSlot.classList.toggle('has-photo', !!weekPhotos[wi]);
+  }
+
   var sotwImg = el('nl-sotw-img');
   if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, src.studentsWeekImage);
 
@@ -9681,6 +9738,11 @@ function nlUploadImage(event, slot) {
       else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = res.filename;
       else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = res.filename;
       else if (slot === 'importantDates') newsletterData.importantDatesImage = res.filename;
+      else if (slot.indexOf('wphoto') === 0) {
+        var ui = parseInt(slot.slice(6), 10);
+        if (!Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos = [];
+        newsletterData.weekPhotos[ui] = res.filename;
+      }
       renderNewsletter();
       // Schedule a save AND flush it immediately so the new image filename
       // hits disk right away — not 1.5s later — to avoid races with a
@@ -9700,6 +9762,10 @@ function nlRemoveImage(slot) {
   else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = null;
   else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = null;
   else if (slot === 'importantDates') newsletterData.importantDatesImage = null;
+  else if (slot.indexOf('wphoto') === 0) {
+    var ri = parseInt(slot.slice(6), 10);
+    if (Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos[ri] = null;
+  }
   renderNewsletter();
   nlAutoSave();
   if (typeof window.flushAutoSave === 'function') window.flushAutoSave('newsletter');
@@ -9840,6 +9906,7 @@ function nlBuildDraft() {
     principalImage: newsletterData.principalImage || null,
     importantDates: datesEl ? (datesEl.innerHTML || '') : '',
     studentsWeekImage: newsletterData.studentsWeekImage || null,
+    weekPhotos: (newsletterData.weekPhotos || []).slice(0, 5).map(function(fn){ return fn || null; }),
     studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerHTML || '') : '',
     campsDayTrips: campsEdEl ? (campsEdEl.innerHTML || '') : '',
     schoolAccountsPayments: sapEdEl ? (sapEdEl.innerHTML || '') : '',
