@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v3';
+const CACHE = 'auroa-cache-v4';
 const SHELL = ['/', '/icon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -126,6 +126,47 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(Promise.all(tasks));
 });
+
+// The browser can rotate or expire a push subscription at any time (Apple's
+// push service on iPhone does this silently). When it does, the OLD endpoint
+// the server stored stops delivering. This event fires on rotation — re-create
+// the subscription and re-register it so the server always has a live endpoint.
+// (iOS Safari is unreliable about firing this, which is why the page ALSO
+// re-syncs on every load; the two together cover both cases.)
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      let appServerKey = null;
+      const oldSub = event.oldSubscription || (await self.registration.pushManager.getSubscription());
+      if (oldSub && oldSub.options && oldSub.options.applicationServerKey) {
+        appServerKey = oldSub.options.applicationServerKey;  // ArrayBuffer — reuse as-is
+      } else {
+        const r = await fetch('/api/push/vapid-public-key');
+        const b = await r.json();
+        if (!b || !b.key) return;
+        appServerKey = urlBase64ToUint8Array(b.key);
+      }
+      const sub = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: appServerKey
+      });
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() })
+      });
+    } catch (_) {}
+  })());
+});
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
 // Tap on notification → open the target page (Messages page for message
 // notifications). Reliably lands on the right page: focus a window already

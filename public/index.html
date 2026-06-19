@@ -204,6 +204,15 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 .sidebar-btn[data-page="pg-absence"]:hover{
   background:#a3a3a3;color:#111;border-left-color:transparent;
 }
+/* Grey box buttons (School Newsletter + Messages) grouped under Absence. */
+.sidebar-btn.sb-grey{
+  background:#bdbdbd;color:#111;font-weight:600;font-size:15px;
+  border:none;border-left:none;border-radius:8px;
+  margin:6px 16px 12px;padding:13px 20px;
+  text-align:center;display:block;width:calc(100% - 32px);
+  position:relative;transition:background 0.15s;
+}
+.sidebar-btn.sb-grey:hover{ background:#a3a3a3;color:#111;border-left-color:transparent; }
 .sidebar-btn.enrol{
   color:#fff;font-weight:400;font-size:17px;
   background:#c0642b;border:none;border-left:none;
@@ -5600,11 +5609,31 @@ function renderSidebarPages() {
   // Student Absence Notification — directly under School Lunch Orders, above Buses.
   renderPage(findPage('pg-absence'), null);
 
+  // School Newsletter + Messages — grey boxes directly under Student Absence.
+  renderSynthetic('School Newsletter', 'sb-grey', function(e){ bubbleGo(e, 'pg-newsletter'); });
+  (function(){
+    var div = document.createElement('div');
+    div.className = 'sb-page-wrap';
+    var btn = document.createElement('button');
+    btn.className = 'sidebar-btn sb-grey';
+    btn.textContent = 'Messages';
+    btn.onclick = function(e){ bubbleGo(e, 'pg-messages'); };
+    var badge = document.createElement('span');
+    badge.id = 'sidebar-msg-badge';
+    badge.className = 'sidebar-msg-badge';
+    btn.appendChild(badge);
+    div.appendChild(btn);
+    wrap.appendChild(div);
+  })();
+
   // Remaining pages — plain style, original order
   var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1 };
   pageConfig.forEach(function(pg) {
     if (!alreadyRendered[pg.id]) renderPage(pg, null);
   });
+
+  // Re-apply the unread badge count (the Messages badge span was just rebuilt).
+  if (typeof pmUpdateUnreadIndicators === 'function') pmUpdateUnreadIndicators();
 }
 
 function pageRename(pg) {
@@ -5630,6 +5659,8 @@ function renderImpDropdown() {
   if (!wrap) return;
   wrap.innerHTML = '';
   importantLinks.forEach(function(lnk) {
+    // School Newsletter (ilink_1) now lives in the grey box under Absence.
+    if (lnk.id === 'ilink_1') return;
     // Non-admins don't see hidden links at all.
     if (lnk.hidden && !isAdmin) return;
 
@@ -8829,12 +8860,6 @@ document.addEventListener('click', function(e) {
     Hall Bookings
   </button>
 
-  <button class="sidebar-btn"
-          onclick="bubbleGo(event, 'pg-messages')">
-    Messages
-    <span id="sidebar-msg-badge" class="sidebar-msg-badge"></span>
-  </button>
-
   <button class="sidebar-btn parent-portal"
           onclick="window.open('https://auroa-students-production.up.railway.app/parent','_blank','noopener')">
     Register for Messages
@@ -10318,6 +10343,52 @@ function pmToggleSubscribe() {
   else pmSubscribe();
 }
 
+// Re-validate THIS device's push subscription with the server on every load.
+//
+// Push subscriptions are not permanent: browsers — Apple's push service on
+// iPhone/iPad especially — silently rotate or drop them over time. If we only
+// registered once, the server keeps a dead endpoint that never delivers, so a
+// device that "has notifications on" quietly stops receiving them (and Apple
+// often accepts the send without erroring, so the server never cleans it up).
+// Fix: every load, read the CURRENT live subscription and re-POST it. The
+// server dedupes by endpoint, so this is idempotent for an unchanged sub and
+// re-registers a rotated one. If the browser dropped the sub entirely (but
+// permission is still granted and the user hasn't opted out) we subscribe afresh.
+async function pmResyncSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.Notification) return;
+  if (Notification.permission !== 'granted') return;        // only devices that already opted in
+  try { if (localStorage.getItem('pm_subscribed') === '0') return; } catch (e) {}  // respect opt-out
+  var reg;
+  try { reg = await navigator.serviceWorker.ready; } catch (e) { return; }
+  var sub = null;
+  try { sub = await reg.pushManager.getSubscription(); } catch (e) {}
+  if (!sub) {
+    // Permission granted but the browser dropped the subscription — re-create it.
+    try {
+      if (!_pmVapidKey) {
+        var r = await fetch('/api/push/vapid-public-key');
+        var b = await r.json();
+        _pmVapidKey = b && b.key;
+      }
+      if (!_pmVapidKey) return;
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(_pmVapidKey)
+      });
+    } catch (e) { return; }
+  }
+  if (!sub) return;
+  try {
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    pmSetSubscribed(true, sub.endpoint);
+    pmUpdateSubscribeButton();
+  } catch (e) {}
+}
+
 // In an installed PWA (standalone mode), automatically request notification
 // permission + subscribe on page load. Respects users who have explicitly
 // turned notifications off (they're not re-prompted) and silently no-ops
@@ -10329,14 +10400,18 @@ async function pmTryAutoSubscribe() {
   // Respect explicit opt-out — don't re-prompt after the user said no.
   try { if (localStorage.getItem('pm_subscribed') === '0') return; } catch (e) {}
   if (Notification.permission === 'denied') return;
+  if (Notification.permission === 'granted') return;  // already granted: pmResyncSubscription handles it
   try { await pmSubscribe(); } catch (e) {}
 }
 
-// Fire auto-subscribe shortly after the page loads, then again on the first
-// click if the page-load attempt didn't take (iOS PWA needs a user gesture
-// for Notification.requestPermission).
+// Fire auto-subscribe + a re-sync shortly after the page loads, then again on
+// the first click if the page-load attempt didn't take (iOS PWA needs a user
+// gesture for Notification.requestPermission).
 (function() {
-  function tryNow(){ try { pmTryAutoSubscribe(); } catch (e) {} }
+  function tryNow(){
+    try { pmResyncSubscription(); } catch (e) {}   // re-register existing subs (all platforms)
+    try { pmTryAutoSubscribe(); } catch (e) {}      // first-time opt-in prompt (standalone PWAs)
+  }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(tryNow, 800); });
   } else {
@@ -10517,8 +10592,22 @@ function pmSendMessage() {
     }
     el('pm-title').value = ''; el('pm-body').value = '';
     pmClearImage();
-    status.textContent = 'Sent.';
-    setTimeout(function(){ status.textContent = ''; }, 1500);
+    // Show a delivery report so it's obvious whether the push actually reached
+    // any phones (the #1 confusion: "I sent it but nobody got an alert").
+    var p = res.body.push;
+    var report = 'Sent.';
+    var warn = false;
+    if (p) {
+      if (!p.configured) { report = '⚠ Saved to the page, but push notifications are not set up on the server.'; warn = true; }
+      else if (p.targets === 0) { report = '⚠ Saved, but no devices are currently subscribed to push, so no alerts were sent. Ask people to open the app and tap “Get notifications”.'; warn = true; }
+      else {
+        report = '✅ Pushed to ' + p.sent + ' of ' + p.targets + ' device' + (p.targets === 1 ? '' : 's') + '.';
+        if (p.failed) { report += ' ' + p.failed + ' failed' + (p.removed ? ' (' + p.removed + ' stale removed)' : '') + '.'; warn = true; }
+      }
+    }
+    status.textContent = report;
+    status.style.color = warn ? '#c0392b' : '#16a34a';
+    setTimeout(function(){ status.textContent = ''; status.style.color = ''; }, warn ? 12000 : 5000);
     parentMessages.push(res.body.message);
     pmRenderList();
   })

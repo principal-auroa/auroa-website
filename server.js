@@ -1539,7 +1539,7 @@ app.post('/api/parent-messages', async (req, res) => {
   }
   // Manual Messages-page send — this is the only thing that pushes a notification.
   const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image, pushOut: true });
-  res.json({ ok: true, message: msg });
+  res.json({ ok: true, message: msg, push: msg._push || null });
 });
 
 app.delete('/api/parent-messages/:id', (req, res) => {
@@ -1710,6 +1710,16 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
   const targetSubs = group
     ? data.pushSubscriptions.filter(s => groupEndpoints.has(s.endpoint))
     : data.pushSubscriptions;
+  // Delivery diagnostics so the admin can see whether a send actually reached
+  // devices (returned to the Messages page after a manual send).
+  const pushStats = {
+    configured: !!wp,          // web-push library + VAPID keys ready
+    requested: !!pushOut,      // did this send ask to push?
+    targets: targetSubs.length,// devices we attempted
+    sent: 0,                   // accepted by the push service
+    failed: 0,                 // errored
+    removed: 0                 // dead endpoints pruned
+  };
   if (pushOut && wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
@@ -1728,12 +1738,13 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     const deadEndpoints = new Set();
     targetSubs.forEach((s, i) => {
       const r = results[i];
-      if (r.status === 'rejected') {
-        const code = r.reason && r.reason.statusCode;
-        if (code === 410 || code === 404) deadEndpoints.add(s.endpoint);
-        else console.warn('[push] failed', code || '', r.reason && r.reason.message);
-      }
+      if (r.status === 'fulfilled') { pushStats.sent++; return; }
+      pushStats.failed++;
+      const code = r.reason && r.reason.statusCode;
+      if (code === 410 || code === 404) deadEndpoints.add(s.endpoint);
+      else console.warn('[push] failed', code || '', r.reason && r.reason.message);
     });
+    pushStats.removed = deadEndpoints.size;
     if (deadEndpoints.size) {
       const d2 = load();
       d2.pushSubscriptions = (d2.pushSubscriptions || []).filter(s => !deadEndpoints.has(s.endpoint));
@@ -1780,7 +1791,9 @@ To stop, open the school website and tap "Turn off notifications".`;
     }
   }
 
-  return msg;
+  // Shallow copy so delivery stats reach the caller without polluting the
+  // stored Messages-page card.
+  return Object.assign({}, msg, { _push: pushStats });
 }
 
 app.post('/api/save', (req, res) => {
