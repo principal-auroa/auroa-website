@@ -9920,6 +9920,13 @@ function collectNoticeEdits() {
 // Capture the current newsletter editor state into a draft object.
 // Used by both saveNewsletter (fetch) and nlBeaconSave (sendBeacon).
 function nlBuildDraft() {
+  // Sync the in-memory newsletterData from the live DOM (text fields only —
+  // not images) BEFORE building the payload. Without this, the POST is built
+  // straight from the DOM but newsletterData keeps the OLD text, so when the
+  // admin navigates away and back the page re-renders from that stale copy and
+  // the just-saved text visibly reverts (even though the server has it). Keeping
+  // them in lockstep means the re-render always shows what was saved.
+  nlCollectAllTextEdits();
   collectNoticeEdits();
   var datesEl   = el('nl-important-dates');
   var sotwMsgEl = el('nl-sotw-msg');
