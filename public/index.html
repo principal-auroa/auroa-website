@@ -3823,8 +3823,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div class="pg-title-row">
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">Messages</h1>
+        <button type="button" id="pm-test-btn" class="pm-unsub-btn" onclick="pmSendTest()" style="display:none;">Send test to this device</button>
         <button type="button" id="pm-unsub-btn" class="pm-unsub-btn" onclick="pmUnsubscribe()" style="display:none;">Unsubscribe</button>
       </div>
+      <div id="pm-test-status" class="pm-subscribe-status" style="text-align:right;"></div>
 
       <div id="pm-subscribe" class="pm-subscribe">
         <div class="pm-subscribe-text">
@@ -10238,6 +10240,8 @@ function pmUpdateSubscribeButton() {
   if (box) box.style.display = subbed ? 'none' : '';
   var unsub = el('pm-unsub-btn');
   if (unsub) unsub.style.display = subbed ? 'inline-block' : 'none';
+  var test = el('pm-test-btn');
+  if (test) test.style.display = subbed ? 'inline-block' : 'none';
   var btn = el('pm-subscribe-btn');
   if (btn) {
     if (subbed) { btn.textContent = '✓ Notifications on — tap to turn off'; btn.classList.add('is-on'); }
@@ -10350,6 +10354,48 @@ function pmToggleSubscribe() {
   else pmSubscribe();
 }
 
+// One-tap self-test: ask the server to push a single notification to THIS
+// device only. The clearest way to confirm the whole pipeline works end-to-end
+// — and to distinguish "push is broken" from "I was just looking at the app"
+// (a foreground app often won't pop a banner). Tells the user to background the
+// app so the banner is actually visible.
+async function pmSendTest() {
+  var s = el('pm-test-status');
+  function say(t, kind){ if (s){ s.textContent = t || ''; s.className = 'pm-subscribe-status' + (kind ? ' ' + kind : ''); } }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    say('This browser doesn’t support push notifications.', 'err'); return;
+  }
+  say('Sending a test… now switch away from this app for a few seconds to see the banner.');
+  var endpoint = null;
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+    endpoint = sub ? sub.endpoint : null;
+  } catch (e) {}
+  if (!endpoint) { say('This device isn’t subscribed yet. Tap “Get notifications” first.', 'err'); return; }
+  try {
+    var res = await fetch('/api/push/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: endpoint })
+    });
+    var b = await res.json();
+    if (b && b.ok) {
+      say('✅ Test sent. If no banner appears within ~10s (with the app in the background), notifications are blocked in your device settings.', 'ok');
+    } else if (b && b.reason === 'not-subscribed') {
+      // Server didn't have our endpoint — re-register, then it'll work next time.
+      try { await pmResyncSubscription(); } catch (e) {}
+      say('Re-registered this device. Tap “Send test” once more.', 'err');
+    } else if (b && b.reason === 'not-configured') {
+      say('Push isn’t set up on the server.', 'err');
+    } else {
+      say('Test failed to send' + (b && b.code ? ' (code ' + b.code + ')' : '') + '. The subscription may have expired — reload the page and try again.', 'err');
+    }
+  } catch (e) {
+    say('Network error sending the test.', 'err');
+  }
+}
+
 // Re-validate THIS device's push subscription with the server on every load.
 //
 // Push subscriptions are not permanent: browsers — Apple's push service on
@@ -10361,22 +10407,61 @@ function pmToggleSubscribe() {
 // server dedupes by endpoint, so this is idempotent for an unchanged sub and
 // re-registers a rotated one. If the browser dropped the sub entirely (but
 // permission is still granted and the user hasn't opted out) we subscribe afresh.
+// Convert an ArrayBuffer (a subscription's applicationServerKey) to the
+// base64url string form the server reports, so we can compare them.
+function _pmBufToB64url(buf) {
+  try {
+    var bytes = new Uint8Array(buf);
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) { return null; }
+}
+
 async function pmResyncSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.Notification) return;
   if (Notification.permission !== 'granted') return;        // only devices that already opted in
   try { if (localStorage.getItem('pm_subscribed') === '0') return; } catch (e) {}  // respect opt-out
   var reg;
   try { reg = await navigator.serviceWorker.ready; } catch (e) { return; }
+
+  // Always know the server's CURRENT VAPID public key. If the server's key ever
+  // differs from the one a device's subscription was created with, the push
+  // service still returns success on send but silently never delivers — the
+  // device "has notifications on" yet gets nothing, on every platform. Detect
+  // that mismatch here and re-subscribe with the current key so it self-heals.
+  if (!_pmVapidKey) {
+    try {
+      var r = await fetch('/api/push/vapid-public-key');
+      var b = await r.json();
+      _pmVapidKey = b && b.key;
+    } catch (e) {}
+  }
+
   var sub = null;
   try { sub = await reg.pushManager.getSubscription(); } catch (e) {}
+
+  // If a subscription exists but was minted with a different VAPID key, drop it.
+  if (sub && _pmVapidKey) {
+    var curKey = sub.options && sub.options.applicationServerKey
+      ? _pmBufToB64url(sub.options.applicationServerKey) : null;
+    if (curKey && curKey !== _pmVapidKey) {
+      try {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint })
+        });
+      } catch (e) {}
+      try { await sub.unsubscribe(); } catch (e) {}
+      sub = null;  // fall through to re-create below
+    }
+  }
+
   if (!sub) {
-    // Permission granted but the browser dropped the subscription — re-create it.
+    // Browser dropped the subscription (or we just cleared a stale-key one) —
+    // re-create it against the current key.
     try {
-      if (!_pmVapidKey) {
-        var r = await fetch('/api/push/vapid-public-key');
-        var b = await r.json();
-        _pmVapidKey = b && b.key;
-      }
       if (!_pmVapidKey) return;
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,

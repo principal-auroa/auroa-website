@@ -10,8 +10,8 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v4';
-const SHELL = ['/', '/icon.svg', '/manifest.webmanifest'];
+const CACHE = 'auroa-cache-v5';
+const SHELL = ['/', '/icon.svg', '/icon-192.png', '/badge-96.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
@@ -109,17 +109,28 @@ self.addEventListener('push', (event) => {
 
   const opts = {
     body,
-    icon:  '/icon.svg',
-    badge: '/icon.svg',
+    // PNG icons only. SVG icons/badges are unreliable for notifications — the
+    // badge in particular MUST be a raster PNG (Android tints its alpha), and a
+    // bad icon can cause the whole banner to silently fail to render on some
+    // platforms. That looked like "push not working" even though delivery
+    // succeeded.
+    icon:  '/icon-192.png',
+    badge: '/badge-96.png',
     tag:   'auroa-message',
     renotify: true,
     data: { url }
   };
   // Large preview image (supported on Android/Chrome; ignored elsewhere).
   if (image) opts.image = image;
-  const tasks = [
-    self.registration.showNotification(title, opts)
-  ];
+
+  // Show the notification. If anything about the rich options (image, icon,
+  // badge) makes showNotification reject, fall back to a bare notification so a
+  // banner ALWAYS appears — a delivered push must never be silently dropped.
+  const show = self.registration.showNotification(title, opts)
+    .catch(() => self.registration.showNotification(title, { body, data: { url } }))
+    .catch(() => {});
+
+  const tasks = [show];
   // Bump the app icon badge (Chrome desktop/Android, Safari iOS 16.4+ PWA).
   if (count != null && self.navigator && typeof self.navigator.setAppBadge === 'function') {
     tasks.push(self.navigator.setAppBadge(count).catch(() => {}));

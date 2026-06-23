@@ -1458,9 +1458,18 @@ function getWebPush() {
       data.vapidPrivateKey = keys.privateKey;
       save(data, { silent: true });
     }
+    // VAPID "subject" — a contact mailto for the push service. This MUST be a
+    // valid mailto:, or strict push services (Apple's) can refuse delivery.
+    // Previously this expression had an operator-precedence bug: `+` binds
+    // tighter than `||`, so when SMTP_FROM had no angle-bracket address it
+    // produced the literal string "mailto:undefined" instead of falling back.
+    const fromAddr =
+      (envClean('SMTP_FROM').match(/<([^>]+)>/) || [])[1] ||  // "Name <a@b>" form
+      (envClean('SMTP_FROM').includes('@') ? envClean('SMTP_FROM') : '') || // bare email
+      envClean('SMTP_USER') ||
+      'admin@auroa.school.nz';
     _webpush.setVapidDetails(
-      'mailto:' + (envClean('SMTP_FROM').match(/<([^>]+)>/) || [])[1] ||
-        envClean('SMTP_USER') || 'mailto:admin@auroa.school.nz',
+      'mailto:' + fromAddr,
       data.vapidPublicKey,
       data.vapidPrivateKey
     );
@@ -1504,6 +1513,38 @@ app.post('/api/push/unsubscribe', (req, res) => {
     save(data, { silent: true });
   }
   res.json({ ok: true });
+});
+
+// Self-test: push a single notification to ONE device (the caller's own
+// subscription endpoint). Lets anyone confirm the full pipeline end-to-end on
+// their own phone without spamming everyone. Returns a precise result so the
+// UI can say exactly what happened.
+app.post('/api/push/test', async (req, res) => {
+  const endpoint = (req.body && req.body.endpoint) || '';
+  const wp = getWebPush();
+  if (!wp) return res.json({ ok: false, reason: 'not-configured' });
+  if (!endpoint) return res.json({ ok: false, reason: 'no-endpoint' });
+  const data = load();
+  const sub = (data.pushSubscriptions || []).find(s => s.endpoint === endpoint);
+  if (!sub) return res.json({ ok: false, reason: 'not-subscribed' });
+  const payload = JSON.stringify({
+    title: 'Auroa School',
+    body:  'Test notification — if you can see this, push is working on this device. 🎉',
+    url:   '/messages'
+  });
+  try {
+    await wp.sendNotification(sub, payload);
+    return res.json({ ok: true });
+  } catch (e) {
+    const code = e && e.statusCode;
+    // Dead endpoint — prune it so the device re-registers a fresh one.
+    if (code === 410 || code === 404) {
+      const d2 = load();
+      d2.pushSubscriptions = (d2.pushSubscriptions || []).filter(s => s.endpoint !== endpoint);
+      save(d2, { silent: true });
+    }
+    return res.json({ ok: false, reason: 'send-failed', code: code || null });
+  }
 });
 
 // Sources whose messages render on the public Messages page.
