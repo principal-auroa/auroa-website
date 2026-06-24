@@ -1811,6 +1811,17 @@ body.is-admin .y78-pdf-admin-bar{display:flex;}
 #y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
+/* Sport/Event detail PDF section (shared) */
+.detail-pdf-section{margin-top:20px;margin-bottom:24px;}
+.detail-pdf-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
+body.is-admin .detail-pdf-admin-bar{display:flex;}
+.detail-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
+.detail-pdf-admin-bar button{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
+.detail-pdf-viewer{width:100%;height:780px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
+.detail-pdf-viewer iframe{width:100%;height:100%;border:0;}
+.detail-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
+body:not(.is-admin) .detail-pdf-ph{display:none;}
+
 /* Waiata audio player + admin upload */
 #waiata-audio-wrap{margin:6px 0 20px;}
 .waiata-admin-bar{display:none;gap:8px;align-items:center;margin-bottom:10px;}
@@ -3182,6 +3193,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           + Add Image<input type="file" accept="image/*" style="display:none;" onchange="sdUploadImage(this)" />
         </label>
       </div>
+      <!-- PDF upload and viewer -->
+      <div id="sd-pdf-section" class="detail-pdf-section">
+        <div class="detail-pdf-admin-bar">
+          <label for="sd-pdf-input">⇧ Upload PDF</label>
+          <input type="file" id="sd-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadSdPdf(this)">
+          <button id="sd-pdf-remove-btn" onclick="removeSdPdf()">✕ Remove PDF</button>
+        </div>
+        <div id="sd-pdf-viewer" class="detail-pdf-viewer"><iframe id="sd-pdf-frame" src=""></iframe></div>
+        <div id="sd-pdf-ph" class="detail-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
+      </div>
     </div>
   </div>
 
@@ -3203,6 +3224,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="evRemoveTextRow()">&#8722; Row</button>
       </div>
       <div id="ev-images"></div>
+      <!-- PDF upload and viewer -->
+      <div id="ev-pdf-section" class="detail-pdf-section">
+        <div class="detail-pdf-admin-bar">
+          <label for="ev-pdf-input">⇧ Upload PDF</label>
+          <input type="file" id="ev-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadEvPdf(this)">
+          <button id="ev-pdf-remove-btn" onclick="removeEvPdf()">✕ Remove PDF</button>
+        </div>
+        <div id="ev-pdf-viewer" class="detail-pdf-viewer"><iframe id="ev-pdf-frame" src=""></iframe></div>
+        <div id="ev-pdf-ph" class="detail-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
+      </div>
     </div>
   </div>
 
@@ -6349,6 +6380,7 @@ function openSportDetail(sportId) {
     sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000);
   };
   renderSdImages(sport.images || []);
+  renderSdPdf();
   if (isAdmin) {
     el('sd-table-admin').style.display = 'flex';
     el('sd-img-admin').style.display = 'block';
@@ -6541,6 +6573,60 @@ function sdReplaceImage(oldFilename, idx, input) {
   input.value = '';
 }
 
+// ---- Sport/Event detail PDF (shared) ----
+// Uses the generic /api/upload/ne endpoint (accepts any file incl. PDFs) and
+// /api/ne-image DELETE; the filename is stored on the sport/event object and
+// persists with the rest of its data.
+function _renderDetailPdf(prefix, file) {
+  var viewer    = el(prefix + '-pdf-viewer');
+  var frame     = el(prefix + '-pdf-frame');
+  var ph        = el(prefix + '-pdf-ph');
+  var removeBtn = el(prefix + '-pdf-remove-btn');
+  if (!viewer) return;
+  if (file) {
+    if (frame) frame.src = '/uploads/' + file;
+    viewer.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = '';
+  } else {
+    if (frame) frame.src = '';
+    viewer.style.display = 'none';
+    if (ph) ph.style.display = '';        // CSS hides it for non-admins
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+function renderSdPdf() {
+  var sport = sportsData[currentSportId];
+  _renderDetailPdf('sd', sport ? sport.pdf : null);
+}
+
+function uploadSdPdf(input) {
+  if (!input.files[0] || !currentSportId) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/ne', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var sport = sportsData[currentSportId];
+      if (!d.filename || !sport) { flashSave('Upload failed.'); return; }
+      if (sport.pdf) fetch('/api/ne-image/' + encodeURIComponent(sport.pdf), { method: 'DELETE' });
+      sport.pdf = d.filename;
+      saveSportsToServer(function() { renderSdPdf(); flashSave('PDF uploaded!'); });
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
+}
+
+function removeSdPdf() {
+  var sport = sportsData[currentSportId];
+  if (!sport || !sport.pdf) return;
+  fetch('/api/ne-image/' + encodeURIComponent(sport.pdf), { method: 'DELETE' });
+  sport.pdf = null;
+  saveSportsToServer(function() { renderSdPdf(); flashSave('PDF removed!'); });
+}
+
 // ===================== EVENTS =====================
 var eventsData = {};
 var currentEventId = null;
@@ -6646,6 +6732,7 @@ function openEventDetail(eventId) {
   if (!ev.textRows || ev.textRows.length === 0) ev.textRows = [''];
   renderEvTextRows(ev.textRows);
   renderEvImages(ev.images || []);
+  renderEvPdf();
   if (isAdmin) {
     el('ev-text-admin').style.display = 'flex';
     var evCurBtn = el('ev-current-btn');
@@ -6847,6 +6934,37 @@ function evReplaceImage(oldFilename, idx, input) {
     })
     .catch(function() { flashSave('Upload failed.'); });
   input.value = '';
+}
+
+function renderEvPdf() {
+  var ev = eventsData[currentEventId];
+  _renderDetailPdf('ev', ev ? ev.pdf : null);
+}
+
+function uploadEvPdf(input) {
+  if (!input.files[0] || !currentEventId) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/ne', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var ev = eventsData[currentEventId];
+      if (!d.filename || !ev) { flashSave('Upload failed.'); return; }
+      if (ev.pdf) fetch('/api/ne-image/' + encodeURIComponent(ev.pdf), { method: 'DELETE' });
+      ev.pdf = d.filename;
+      saveEventsToServer(function() { renderEvPdf(); flashSave('PDF uploaded!'); });
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
+}
+
+function removeEvPdf() {
+  var ev = eventsData[currentEventId];
+  if (!ev || !ev.pdf) return;
+  fetch('/api/ne-image/' + encodeURIComponent(ev.pdf), { method: 'DELETE' });
+  ev.pdf = null;
+  saveEventsToServer(function() { renderEvPdf(); flashSave('PDF removed!'); });
 }
 
 // hook Save Page button to also save event detail when on that page
