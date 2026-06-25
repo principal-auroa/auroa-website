@@ -3447,12 +3447,22 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <form id="ue-form" onsubmit="event.preventDefault(); submitUpcomingEvent();">
           <div class="hb-row">
             <div class="hb-field">
-              <label class="hb-label" for="ue-date">Date <span class="hb-required">*</span></label>
+              <label class="hb-label" for="ue-date">Start date <span class="hb-required">*</span></label>
               <input id="ue-date" class="hb-input" type="date" required />
             </div>
             <div class="hb-field">
+              <label class="hb-label" for="ue-end-date">End date <span style="color:#888;font-weight:normal;">(optional)</span></label>
+              <input id="ue-end-date" class="hb-input" type="date" />
+            </div>
+          </div>
+          <div class="hb-row">
+            <div class="hb-field">
               <label class="hb-label" for="ue-time">Time <span class="hb-required">*</span></label>
               <input id="ue-time" class="hb-input" type="time" required />
+            </div>
+            <div class="hb-field">
+              <label class="hb-label" for="ue-color">Highlight colour</label>
+              <input id="ue-color" class="hb-input" type="color" value="#dbeafe" style="height:42px;padding:3px;cursor:pointer;" />
             </div>
           </div>
           <label class="hb-label" for="ue-name">Event name <span class="hb-required">*</span></label>
@@ -11641,6 +11651,23 @@ function ueChangeMonth(delta) {
   renderUeCalendar();
 }
 
+// End of an event (single-day events have no endDate).
+function ueEventEnd(e) { return e.endDate || e.date; }
+// Display a single date, or a "start – end" range when the event spans days.
+function ueFmtRange(e) {
+  var end = ueEventEnd(e);
+  return (end && end !== e.date) ? (e.date + ' – ' + end) : e.date;
+}
+// Pick readable text (dark or white) for the admin-chosen highlight colour.
+function ueTextOn(bg) {
+  var hex = String(bg || '').replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  if (hex.length !== 6) return '#1e3a8a';
+  var r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return lum > 0.6 ? '#1a2b4a' : '#ffffff';
+}
+
 function renderUeCalendar() {
   var grid = el('ue-cal-grid');
   var label = el('ue-cal-month-label');
@@ -11649,12 +11676,6 @@ function renderUeCalendar() {
   var month = ueCalCursor.getMonth();
   var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   label.textContent = monthNames[month] + ' ' + year;
-
-  var byDate = {};
-  upcomingEvents.forEach(function(e) {
-    if (!byDate[e.date]) byDate[e.date] = [];
-    byDate[e.date].push(e);
-  });
 
   var first = new Date(year, month, 1);
   var jsDay = first.getDay();
@@ -11671,13 +11692,17 @@ function renderUeCalendar() {
     day.className = 'hb-cal-day';
     day.textContent = cellDate.getDate();
     cell.appendChild(day);
-    var events = byDate[iso] || [];
+    // An event shows on every day from its start date through its end date.
+    var events = upcomingEvents.filter(function(e) { return e.date <= iso && iso <= ueEventEnd(e); });
     events.sort(function(a, b) { return (a.time || '').localeCompare(b.time || ''); });
     events.forEach(function(ev) {
       var pill = document.createElement('span');
       pill.className = 'hb-cal-event';
       pill.textContent = ev.name;
       pill.title = ev.name;
+      var bg = ev.color || '#dbeafe';
+      pill.style.background = bg;
+      pill.style.color = ueTextOn(bg);
       pill.onclick = function() { openUeModal(ev); };
       cell.appendChild(pill);
     });
@@ -11688,7 +11713,7 @@ function renderUeCalendar() {
 function openUeModal(ev) {
   if (!ev) return;
   el('ue-modal-title').textContent = ev.name;
-  el('ue-modal-meta').textContent = ev.date + ' at ' + hbFmtTime(ev.time);
+  el('ue-modal-meta').textContent = ueFmtRange(ev) + ' at ' + hbFmtTime(ev.time);
   el('ue-modal-details').textContent = ev.details || 'No further details.';
   el('ue-modal').classList.add('open');
 }
@@ -11702,9 +11727,11 @@ function submitUpcomingEvent() {
   msg.textContent = '';
   var payload = {
     date:    el('ue-date').value,
+    endDate: el('ue-end-date').value,
     time:    el('ue-time').value,
     name:    el('ue-name').value.trim(),
-    details: el('ue-details').value.trim()
+    details: el('ue-details').value.trim(),
+    color:   el('ue-color').value
   };
   btn.disabled = true; btn.textContent = 'Adding…';
   fetch('/api/upcoming-events', {
@@ -11722,6 +11749,7 @@ function submitUpcomingEvent() {
     upcomingEvents.push(res.body.event);
     el('ue-name').value = '';
     el('ue-details').value = '';
+    el('ue-end-date').value = '';
     // Jump the calendar to the month of the new event
     var d = new Date(res.body.event.date + 'T00:00:00');
     if (!isNaN(d.getTime())) ueCalCursor = d;
@@ -11756,8 +11784,9 @@ function renderUeAdminList() {
     var row = document.createElement('div');
     row.className = 'ue-admin-row';
     row.innerHTML =
-      '<div><strong>' + lunchEsc(ev.name) + '</strong>' +
-      ' <span class="ue-row-meta">— ' + lunchEsc(ev.date) + ' ' + lunchEsc(hbFmtTime(ev.time)) + '</span></div>';
+      '<div><span style="display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:6px;background:' + lunchEsc(ev.color || '#dbeafe') + ';border:1px solid rgba(0,0,0,0.15);"></span>' +
+      '<strong>' + lunchEsc(ev.name) + '</strong>' +
+      ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(hbFmtTime(ev.time)) + '</span></div>';
     var del = document.createElement('button');
     del.type = 'button';
     del.className = 'ue-del-btn';

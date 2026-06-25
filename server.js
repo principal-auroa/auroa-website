@@ -1443,12 +1443,19 @@ app.delete('/api/hall-bookings/:id', (req, res) => {
 app.post('/api/upcoming-events', (req, res) => {
   const b = req.body || {};
   const date = String(b.date || '').trim();
+  let   endDate = String(b.endDate || '').trim();
   const time = String(b.time || '').trim();
   const name = String(b.name || '').trim();
   const details = String(b.details || '').trim();
+  let   color = String(b.color || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
   if (!/^\d{1,2}:\d{2}$/.test(time))    return res.status(400).json({ error: 'Pick a time.' });
   if (!name)                            return res.status(400).json({ error: 'Event name is required.' });
+  // End date is optional; ignore if blank/malformed, and never let it precede
+  // the start date (a single-day event just stores endDate === date).
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date) endDate = date;
+  // Highlight colour: accept #rgb or #rrggbb, else fall back to the default.
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
 
   const data = load();
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
@@ -1456,17 +1463,20 @@ app.post('/api/upcoming-events', (req, res) => {
   const event = {
     id: 'ue_' + now + '_' + Math.random().toString(36).slice(2, 8),
     date,
+    endDate,
     time,
     name: name.slice(0, 200),
     details: details.slice(0, 4000),
+    color,
     createdAt: now
   };
   data.upcomingEvents.push(event);
   save(data, { label: 'Upcoming Events' });
   // Notify subscribers of the new event.
+  const whenText = (endDate && endDate !== date) ? (date + ' – ' + endDate) : date;
   notifyAll({
     title: 'New event: ' + event.name,
-    body:  event.date + ' at ' + event.time + (event.details ? '\n\n' + event.details : ''),
+    body:  whenText + ' at ' + event.time + (event.details ? '\n\n' + event.details : ''),
     url:   '/',
     source: 'event'
   }).catch(e => console.warn('[notify] event trigger failed:', e.message));
