@@ -4417,6 +4417,7 @@ function fetchState() {
       newsletterData = data.newsletter || newsletterData;
       newsletterPublished = data.newsletterPublished || null;
       newsletterSnapshots = Array.isArray(data.newsletterSnapshots) ? data.newsletterSnapshots : [];
+      nlBaseRev = (newsletterData && newsletterData.rev) || 0;
       if (typeof renderNewsletter === 'function') renderNewsletter();
       hallBookings = Array.isArray(data.hallBookings) ? data.hallBookings : [];
       if (typeof renderHbCalendar === 'function') renderHbCalendar();
@@ -9619,6 +9620,10 @@ var newsletterData = {
 };
 var newsletterSnapshots = [];
 var newsletterPublished = null;
+// Version of the newsletter draft this page is editing. Sent with every save so
+// the server can reject a stale overwrite (see the stale-write guard). Updated
+// on every load and successful save.
+var nlBaseRev = 0;
 
 function nlSetImage(slotEl, imgEl, filename) {
   if (filename) {
@@ -9866,6 +9871,36 @@ window.addEventListener('pagehide', function() {
   if (typeof nlBeaconSave === 'function') nlBeaconSave();
 });
 
+// When an installed PWA is resumed from the background — iOS especially FREEZES
+// the page rather than reloading it — this page can still be holding a
+// newsletter draft from an old session. Pull the current version and, if the
+// server is newer AND the admin isn't mid-edit, refresh in place. This stops a
+// resumed phone from editing (or saving over) weeks-old content; the server's
+// stale-write guard is the backstop if a stale save still slips through.
+function nlMaybeRefreshOnResume() {
+  if (!window.isAdmin) return;
+  if (!el('nl-term-label')) return;               // newsletter not in the DOM
+  var ae = document.activeElement;
+  if (ae && ae.closest && ae.closest('#pg-newsletter')) return;  // actively typing — leave it
+  fetch('/api/newsletter/current', { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(b) {
+      if (!b) return;
+      var serverRev = (b.newsletter && b.newsletter.rev) || 0;
+      if (serverRev <= (nlBaseRev || 0)) return;  // we already have the latest
+      newsletterData = b.newsletter || newsletterData;
+      newsletterPublished = b.published || null;
+      if (Array.isArray(b.snapshots)) newsletterSnapshots = b.snapshots;
+      nlBaseRev = serverRev;
+      if (typeof renderNewsletter === 'function') renderNewsletter();
+    })
+    .catch(function() {});
+}
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') nlMaybeRefreshOnResume();
+});
+window.addEventListener('pageshow', function() { nlMaybeRefreshOnResume(); });
+
 function nlUploadImage(event, slot) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -10053,6 +10088,7 @@ function nlBuildDraft() {
   var campsEdEl = el('nl-camps');
   var sapEdEl   = el('nl-school-accounts');
   return {
+    baseRev: nlBaseRev,
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
     principalImage: newsletterData.principalImage || null,
@@ -10083,17 +10119,43 @@ function saveNewsletter() {
     body: JSON.stringify(draft)
   })
   .then(function(r) {
+    // 409 = stale-write guard: the server has a newer newsletter than this
+    // page was editing (edited elsewhere, or this page was resumed from an old
+    // session). Do NOT treat as a failure-to-retry — reload the latest so we
+    // never overwrite newer content, and tell the admin.
+    if (r.status === 409) {
+      return r.json().then(function(b) { nlHandleStale(b && b.rev); return { ok: true, stale: true }; });
+    }
     if (!r.ok) throw new Error('save failed (' + r.status + ')');
     return r.json();
   })
   .then(function(b) {
+    if (b && b.stale) return b;          // already handled above
     if (!b || b.ok !== true) throw new Error('save failed');
+    // Advance our version stamp so the next save is accepted.
+    if (typeof b.rev === 'number') { nlBaseRev = b.rev; if (newsletterData) newsletterData.rev = b.rev; }
     // DO NOT reassign newsletterData = draft here. The draft is a snapshot
     // taken when the save was built; any notices/images added during the
     // network round-trip would otherwise be silently wiped on the response.
     // The DOM and per-upload handlers keep newsletterData up to date as-is.
     return b;
   });
+}
+
+// Our save was rejected because the server holds a newer newsletter. Reload the
+// latest (so the good copy is never clobbered) and let the admin know.
+var _nlStaleAlerted = false;
+function nlHandleStale(serverRev) {
+  if (typeof fetchState === 'function') fetchState();   // pulls fresh draft + resets nlBaseRev
+  var status = el('nl-save-status');
+  if (status) { status.textContent = '⚠ Newsletter was updated elsewhere — reloaded the latest version.'; status.className = 'nl-save-status err'; }
+  if (!_nlStaleAlerted) {
+    _nlStaleAlerted = true;
+    try {
+      alert('This newsletter was edited more recently on another device or session.\n\nTo avoid overwriting that newer version, your latest change here was not saved. The newest version has now been loaded — please re-apply your change if it is still needed.');
+    } catch (e) {}
+    setTimeout(function() { _nlStaleAlerted = false; }, 4000);
+  }
 }
 
 // Unload-safe save via sendBeacon. Regular fetch() requests get aborted
@@ -10265,19 +10327,24 @@ function publishNewsletter() {
   // within the last 1.5s won't have hit the server yet — publish would read
   // a stale draft and the new image would be missing from the snapshot.
   nlCollectAllTextEdits();
-  saveNewsletter().then(function() {
+  saveNewsletter().then(function(saveRes) {
+    // If the draft save was rejected as stale, nlHandleStale has already
+    // reloaded the latest — don't publish the old content over it.
+    if (saveRes && saveRes.stale) return null;
     return fetch('/api/newsletter/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
   })
-  .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+  .then(function(r){ if (!r) return null; return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
   .then(function(res) {
+    if (!res) return;   // aborted (stale) — admin was already notified
     if (!res.ok || !res.body || !res.body.snapshot) {
       alert('Publish failed: ' + ((res.body && res.body.error) || 'unknown'));
       return;
     }
+    if (typeof res.body.rev === 'number') { nlBaseRev = res.body.rev; if (newsletterData) newsletterData.rev = res.body.rev; }
     var snap = res.body.snapshot;
     var i = newsletterSnapshots.findIndex(function(s) { return s.id === snap.id; });
     if (i >= 0) newsletterSnapshots[i] = snap; else newsletterSnapshots.push(snap);

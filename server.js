@@ -149,6 +149,9 @@ function load() {
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
     if (typeof data.newsletter.importantDatesImage === 'undefined') data.newsletter.importantDatesImage = null;
     if (!Array.isArray(data.newsletter.weekPhotos)) data.newsletter.weekPhotos = [];
+    // `rev` is a monotonically-increasing version stamp used by the stale-write
+    // guard so an old (e.g. frozen-PWA) client can't overwrite newer content.
+    if (typeof data.newsletter.rev !== 'number') data.newsletter.rev = 0;
   }
   // Published version visitors see, distinct from the draft that admins edit.
   // Only the Publish endpoint writes to this — no auto-seeding from the draft,
@@ -854,9 +857,64 @@ app.post('/api/upload/message', uploader('msg').single('image'), (req, res) => {
   res.json({ filename: req.file.filename });
 });
 
+// Timestamped backups of the newsletter draft, written to DATA_DIR/nl-backups
+// so a bad overwrite is always recoverable. Auto-save ('save') backups are
+// throttled to one per 5 min to avoid a flood while typing; 'publish' always
+// writes one. Pruned to the most recent 60 files.
+const NL_BACKUP_DIR = path.join(DATA_DIR, 'nl-backups');
+let _nlLastSaveBackup = 0;
+function nlBackup(prior, tag) {
+  try {
+    if (!prior) return;
+    const now = Date.now();
+    if (tag === 'save') {
+      if (now - _nlLastSaveBackup < 5 * 60 * 1000) return;
+      _nlLastSaveBackup = now;
+    }
+    if (!fs.existsSync(NL_BACKUP_DIR)) fs.mkdirSync(NL_BACKUP_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(NL_BACKUP_DIR, 'nl-' + now + '-' + (tag || 'save') + '.json'),
+      JSON.stringify(prior, null, 2)
+    );
+    const files = fs.readdirSync(NL_BACKUP_DIR).filter(n => n.endsWith('.json')).sort();
+    if (files.length > 60) {
+      files.slice(0, files.length - 60).forEach(n => { try { fs.unlinkSync(path.join(NL_BACKUP_DIR, n)); } catch (e) {} });
+    }
+  } catch (e) { console.warn('[nl-backup] failed:', e.message); }
+}
+
+// Lightweight fetch of the current newsletter draft + version, used by the
+// client to re-sync when an installed PWA is resumed from an old session.
+app.get('/api/newsletter/current', (req, res) => {
+  const data = load();
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    newsletter: data.newsletter || null,
+    published: data.newsletterPublished || null,
+    snapshots: data.newsletterSnapshots || [],
+    rev: (data.newsletter && data.newsletter.rev) || 0
+  });
+});
+
 // Save (or update) the current newsletter draft + create/update a public snapshot.
 app.post('/api/newsletter/save', (req, res) => {
   const b = req.body || {};
+  const data = load();
+  const curRev = (data.newsletter && typeof data.newsletter.rev === 'number') ? data.newsletter.rev : 0;
+  const baseRev = Number(b.baseRev);
+
+  // Stale-write guard. The newsletter draft is a single shared object; every
+  // admin browser overwrites it wholesale. A page resumed from an old session
+  // (classically an installed PWA frozen for days on a phone) still holds the
+  // newsletter as it looked when that page first loaded — its save would revert
+  // the draft, TEXT AND IMAGES, to that old state. A client may only overwrite
+  // the draft if it was editing the CURRENT version (baseRev >= stored rev).
+  // Pre-guard clients send no numeric baseRev and must reload before they can
+  // save again. Rejected saves return the current rev so the client can resync.
+  if (!Number.isFinite(baseRev) || baseRev < curRev) {
+    return res.status(409).json({ ok: false, stale: true, rev: curRev });
+  }
+
   const draft = {
     termLabel: String(b.termLabel || '').trim().slice(0, 200) || 'Newsletter',
     headerImage: b.headerImage || null,
@@ -876,10 +934,13 @@ app.post('/api/newsletter/save', (req, res) => {
       id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
       caption: String((n && n.caption) || '').slice(0, 500),
       filename: (n && n.filename) || null
-    })) : []
+    })) : [],
+    // New version stamp. Strictly increases (Date.now() > any prior rev), so
+    // the next save from this client must carry this value to be accepted.
+    rev: Math.max(Date.now(), curRev + 1)
   };
 
-  const data = load();
+  nlBackup(data.newsletter, 'save');   // keep the prior draft recoverable
   data.newsletter = draft;
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
 
@@ -893,7 +954,7 @@ app.post('/api/newsletter/save', (req, res) => {
   // not on every keystroke while an admin edits the draft. (Undo history is
   // still recorded — that's controlled by `skipHistory`, not `silent`.)
   save(data, { label: 'Newsletter', silent: true });
-  res.json({ ok: true });
+  res.json({ ok: true, rev: draft.rev });
 });
 
 // Explicit publish — creates a new shareable snapshot (or updates the
@@ -902,6 +963,7 @@ app.post('/api/newsletter/publish', (req, res) => {
   const data = load();
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
   const draft = data.newsletter || {};
+  nlBackup(data.newsletterPublished || draft, 'publish');  // checkpoint before going public
   const termLabel = String(draft.termLabel || '').trim() || 'Newsletter';
   const now = Date.now();
   let snap = data.newsletterSnapshots.find(s => s.termLabel === termLabel);
@@ -963,7 +1025,7 @@ app.post('/api/newsletter/publish', (req, res) => {
     url:   '/newsletter/' + snap.slug,
     source: 'newsletter'
   }).catch(e => console.warn('[notify] newsletter trigger failed:', e.message));
-  res.json({ ok: true, snapshot: snap, isNew });
+  res.json({ ok: true, snapshot: snap, isNew, rev: (data.newsletter && data.newsletter.rev) || 0 });
 });
 
 // Collect every image filename still referenced somewhere — used to decide
