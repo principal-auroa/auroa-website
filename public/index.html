@@ -2168,6 +2168,22 @@ body.is-admin .pm-groups-admin{display:block;}
 .pm-grp-name{color:#1a2b4a;font-size:14px;font-weight:700;}
 .pm-grp-desc{color:#555;font-size:12px;margin-top:2px;}
 .pm-grp-meta{color:#888;font-size:11px;margin-top:2px;}
+.pm-grp-members{margin-top:6px;}
+.pm-grp-members>summary{
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;list-style:none;
+  color:#1a2b4a;font-size:11px;font-weight:600;background:#eef1f6;
+  border:1px solid #d8deea;border-radius:6px;padding:3px 10px;width:max-content;
+}
+.pm-grp-members>summary::-webkit-details-marker{display:none;}
+.pm-grp-members>summary::after{content:'▾';font-size:10px;transition:transform .15s;}
+.pm-grp-members[open]>summary::after{transform:rotate(180deg);}
+.pm-grp-member-list{
+  list-style:none;margin:6px 0 0;padding:6px 10px;background:#f7f8fb;
+  border:1px solid #e6e6e6;border-radius:6px;max-height:220px;overflow:auto;
+}
+.pm-grp-member-list li{color:#333;font-size:12px;padding:3px 0;border-bottom:1px solid #ececec;}
+.pm-grp-member-list li:last-child{border-bottom:none;}
+.pm-grp-member-empty{color:#888;font-size:11px;margin-top:6px;}
 .pm-grp-del{
   background:none;border:1px solid #c0392b;color:#c0392b;
   padding:4px 10px;border-radius:6px;
@@ -10927,15 +10943,23 @@ function pmRenderGroupsAdmin() {
   parentGroups.forEach(function(g) {
     var row = document.createElement('div');
     row.className = 'pm-grp-row';
-    var memberPreview = (g.memberNames && g.memberNames.length)
-      ? ' — ' + g.memberNames.slice(0, 5).join(', ') + (g.memberNames.length > 5 ? ', …' : '')
-      : '';
+    var names = (g.memberNames || []).filter(function(n){ return n && String(n).trim(); });
+    var count = (typeof g.memberCount === 'number') ? g.memberCount : names.length;
+    // Full member list tucked into a collapsible "Members" box so every member
+    // is visible (names only — emails/devices are stripped server-side as PII).
+    var membersHtml = names.length
+      ? '<details class="pm-grp-members"><summary>Members</summary>' +
+          '<ul class="pm-grp-member-list">' +
+            names.map(function(n){ return '<li>' + lunchEsc(n) + '</li>'; }).join('') +
+          '</ul></details>'
+      : '<div class="pm-grp-member-empty">No members have joined yet.</div>';
     row.innerHTML =
       '<div class="pm-grp-dot" style="background:' + lunchEsc(g.color || '#1a2b4a') + '"></div>' +
       '<div class="pm-grp-info">' +
         '<div class="pm-grp-name">' + lunchEsc(g.name) + '</div>' +
         (g.description ? '<div class="pm-grp-desc">' + lunchEsc(g.description) + '</div>' : '') +
-        '<div class="pm-grp-meta">' + (g.memberCount || 0) + ' member' + ((g.memberCount === 1) ? '' : 's') + lunchEsc(memberPreview) + '</div>' +
+        '<div class="pm-grp-meta">' + count + ' member' + ((count === 1) ? '' : 's') + '</div>' +
+        membersHtml +
       '</div>';
     var del = document.createElement('button');
     del.type = 'button';
