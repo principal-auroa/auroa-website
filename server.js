@@ -1823,17 +1823,22 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
   const targetSubs = group
     ? data.pushSubscriptions.filter(s => groupEndpoints.has(s.endpoint))
     : data.pushSubscriptions;
+  // A post pushes if it explicitly asked to (pushOut, e.g. the manual admin
+  // send) OR if it lands on the Messages page (admin + newsletter). The latter
+  // is why publishing a newsletter notifies devices: an earlier change gated
+  // push on pushOut alone and accidentally silenced newsletter publishes.
+  const doPush = !!pushOut || showOnPage;
   // Delivery diagnostics so the admin can see whether a send actually reached
   // devices (returned to the Messages page after a manual send).
   const pushStats = {
     configured: !!wp,          // web-push library + VAPID keys ready
-    requested: !!pushOut,      // did this send ask to push?
+    requested: doPush,         // did this send push?
     targets: targetSubs.length,// devices we attempted
     sent: 0,                   // accepted by the push service
     failed: 0,                 // errored
     removed: 0                 // dead endpoints pruned
   };
-  if (pushOut && wp && targetSubs.length) {
+  if (doPush && wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
       title: msg.title,
