@@ -1875,7 +1875,9 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
   const targetEmails = group
     ? data.emailSubscribers.filter(e => groupEmails.has((e || '').toLowerCase()))
     : data.emailSubscribers;
-  if (pushOut && transport && targetEmails.length) {
+  // Same gate as push: manual admin sends (pushOut) and Messages-page posts
+  // (newsletter publishes) email subscribers; events/absences do not.
+  if (doPush && transport && targetEmails.length) {
     // Default to the live site so the email always has a working link even
     // when APP_URL isn't set in the environment.
     const appUrl   = envClean('APP_URL') || 'https://www.auroa.school.nz';
