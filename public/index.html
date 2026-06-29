@@ -10905,7 +10905,14 @@ function pmSendMessage() {
       else if (p.targets === 0) { report = '⚠ Saved, but no devices are currently subscribed to push, so no alerts were sent. Ask people to open the app and tap “Get notifications”.'; warn = true; }
       else {
         report = '✅ Pushed to ' + p.sent + ' of ' + p.targets + ' device' + (p.targets === 1 ? '' : 's') + '.';
-        if (p.failed) { report += ' ' + p.failed + ' failed' + (p.removed ? ' (' + p.removed + ' stale removed)' : '') + '.'; warn = true; }
+        if (p.failed) {
+          var temp = Math.max(0, p.failed - (p.removed || 0));
+          var bits = [];
+          if (p.removed) bits.push(p.removed + ' stale device' + (p.removed === 1 ? '' : 's') + ' removed — those people will get alerts again once they reopen the app');
+          if (temp) bits.push(temp + ' temporary (will retry on the next send)');
+          report += ' ' + p.failed + ' didn’t go through' + (bits.length ? ' — ' + bits.join('; ') : '') + '.';
+          warn = true;
+        }
       }
     }
     status.textContent = report;

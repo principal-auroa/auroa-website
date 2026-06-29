@@ -1851,21 +1851,42 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     const results = await Promise.allSettled(
       targetSubs.map(s => wp.sendNotification(s, payload))
     );
-    // Clean up dead subscriptions (410 Gone / 404 Not Found).
-    // Filter the full subs list, not just targetSubs.
+    // Clean up subscriptions that can no longer receive. Two cases:
+    //  - 410 Gone / 404 Not Found: the push service says it's dead → remove now.
+    //  - anything else (timeouts, 5xx, 429, 400…): could be transient, so we
+    //    count consecutive failures per device and only remove after 3 strikes.
+    //    A successful send resets the counter. This stops "zombie" subs that
+    //    fail every send (but never return 410) from inflating the fail count
+    //    forever. Filter the full subs list, not just targetSubs.
     const deadEndpoints = new Set();
+    const failBump = {};   // endpoint -> new failCount (0 = reset)
     targetSubs.forEach((s, i) => {
       const r = results[i];
-      if (r.status === 'fulfilled') { pushStats.sent++; return; }
+      if (r.status === 'fulfilled') { pushStats.sent++; failBump[s.endpoint] = 0; return; }
       pushStats.failed++;
       const code = r.reason && r.reason.statusCode;
-      if (code === 410 || code === 404) deadEndpoints.add(s.endpoint);
-      else console.warn('[push] failed', code || '', r.reason && r.reason.message);
+      if (code === 410 || code === 404) {
+        deadEndpoints.add(s.endpoint);
+      } else {
+        const n = (s.failCount || 0) + 1;
+        failBump[s.endpoint] = n;
+        if (n >= 3) deadEndpoints.add(s.endpoint);
+        console.warn('[push] failed', code || '', '(strike ' + n + ')', r.reason && r.reason.message);
+      }
     });
     pushStats.removed = deadEndpoints.size;
-    if (deadEndpoints.size) {
+    if (deadEndpoints.size || Object.keys(failBump).length) {
       const d2 = load();
-      d2.pushSubscriptions = (d2.pushSubscriptions || []).filter(s => !deadEndpoints.has(s.endpoint));
+      d2.pushSubscriptions = (d2.pushSubscriptions || [])
+        .filter(s => !deadEndpoints.has(s.endpoint))
+        .map(s => {
+          if (Object.prototype.hasOwnProperty.call(failBump, s.endpoint)) {
+            const n = failBump[s.endpoint];
+            if (n === 0) { delete s.failCount; }   // a success cleared the streak
+            else s.failCount = n;
+          }
+          return s;
+        });
       save(d2, { silent: true });
     }
   }
