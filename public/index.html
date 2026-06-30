@@ -4429,9 +4429,9 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===================== FETCH STATE =====================
-function fetchState() {
-  fetch('/api/state')
-    .then(function(r) { return r.json(); })
+function fetchState(_retry) {
+  fetch('/api/state', { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(data) {
       enrolLink = data.enrolLink || '';
       stationeryLink = data.stationeryLink || '';
@@ -4678,19 +4678,44 @@ function fetchState() {
 
       renderImpDropdown();
       applyHeaderToAllPages();
+      // State loaded — clear any "couldn't load" banner from a prior attempt.
+      var _sle = document.getElementById('state-load-error'); if (_sle) _sle.remove();
     })
     .catch(function(e) {
       console.warn('Could not load state:', e);
-      // Live data failed to load (offline, server hiccup, or a stale cached
-      // service-worker response). Fall back to the default navigation so the
-      // menu still works and isn't left empty.
+      // /api/state failed — most often a stale service worker intercepting the
+      // request inside an installed PWA, or a brief network blip. Retry a few
+      // times with the HTTP cache bypassed before giving up.
+      var n = _retry || 0;
+      if (n < 3) { setTimeout(function() { fetchState(n + 1); }, 600 * (n + 1)); return; }
+      // Still failing: keep the default navigation working so the menu isn't
+      // empty, AND show a visible Reload prompt so the app never sits blank.
       if (!pageConfig.length) {
         pageConfig = PAGE_CONFIG_DEFAULTS.map(function(p) {
           return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
         });
       }
       renderSidebarPages();
+      showStateLoadError();
     });
+}
+
+// Visible recovery when /api/state can't be loaded after retries, so an
+// installed app stuck on a bad cache shows a Reload button instead of blank
+// pages.
+function showStateLoadError() {
+  if (document.getElementById('state-load-error')) return;
+  var bar = document.createElement('div');
+  bar.id = 'state-load-error';
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#c0392b;color:#fff;font-family:Quicksand,sans-serif;font-size:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:center;box-shadow:0 -2px 10px rgba(0,0,0,0.25);';
+  var msg = document.createElement('span');
+  msg.textContent = 'Couldn’t load the latest content.';
+  var btn = document.createElement('button');
+  btn.textContent = 'Reload';
+  btn.style.cssText = 'background:#fff;color:#c0392b;border:none;border-radius:6px;padding:6px 16px;font-weight:700;cursor:pointer;font-family:inherit;';
+  btn.onclick = function() { location.reload(); };
+  bar.appendChild(msg); bar.appendChild(btn);
+  document.body.appendChild(bar);
 }
 
 // ===================== LOGIN =====================
@@ -11958,8 +11983,22 @@ body.is-admin #install-popup{display:none;}
 (function(){
   // Register service worker (needed for installability).
   if ('serviceWorker' in navigator) {
+    // When a new service worker takes control, reload ONCE so a fixed SW — and
+    // the fresh app it serves — replaces a stale one that was breaking the
+    // installed app (e.g. blank pages because /api/state was being mishandled).
+    // Guarded so it can only ever trigger a single reload.
+    var _swReloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if (_swReloaded) return;
+      _swReloaded = true;
+      window.location.reload();
+    });
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('/sw.js').catch(function(){});
+      navigator.serviceWorker.register('/sw.js').then(function(reg){
+        try { reg.update(); } catch(e){}
+        // Keep checking for a newer SW while the app stays open.
+        setInterval(function(){ try { reg.update(); } catch(e){} }, 60 * 60 * 1000);
+      }).catch(function(){});
     });
   }
 
