@@ -6687,18 +6687,26 @@ function renderPdfInto(container, url) {
       // The detail page is briefly hidden when this first runs, so fall back to
       // the viewport width; canvases are CSS width:100% so they fit once shown.
       var w = container.clientWidth || Math.min((window.innerWidth || 600) - 32, 800) || 600;
-      var dpr = window.devicePixelRatio || 1;
+      // Cap the device pixel ratio and the raw canvas dimensions. iOS Safari
+      // crashes the tab ("A problem repeatedly occurred") if a canvas exceeds
+      // its memory limits, which a big/high-DPR PDF page can easily do. The
+      // canvas still displays at full container width via CSS (width:100%).
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var MAX_DIM = 2200, MAX_AREA = 4.5e6;
       var renderPage = function(num) {
         return pdf.getPage(num).then(function(page) {
           if (container.getAttribute('data-pdf-url') !== url) return;
           var vp1 = page.getViewport({ scale: 1 });
-          var vp = page.getViewport({ scale: (w / vp1.width) * dpr });
+          var scale = (w / vp1.width) * dpr;
+          var vp = page.getViewport({ scale: scale });
+          var shrink = Math.min(1, MAX_DIM / Math.max(vp.width, vp.height), Math.sqrt(MAX_AREA / (vp.width * vp.height)));
+          if (shrink < 1) vp = page.getViewport({ scale: scale * shrink });
           var canvas = document.createElement('canvas');
           canvas.className = 'detail-pdf-page';
           canvas.width = Math.floor(vp.width);
           canvas.height = Math.floor(vp.height);
           container.appendChild(canvas);
-          return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise.then(function() {
+          return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function() {
             if (num < pdf.numPages) return renderPage(num + 1);
             container.setAttribute('data-pdf-done', '1');
           });
@@ -12042,16 +12050,12 @@ body.is-admin #install-popup{display:none;}
 (function(){
   // Register service worker (needed for installability).
   if ('serviceWorker' in navigator) {
-    // When a new service worker takes control, reload ONCE so a fixed SW — and
-    // the fresh app it serves — replaces a stale one that was breaking the
-    // installed app (e.g. blank pages because /api/state was being mishandled).
-    // Guarded so it can only ever trigger a single reload.
-    var _swReloaded = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function(){
-      if (_swReloaded) return;
-      _swReloaded = true;
-      window.location.reload();
-    });
+    // IMPORTANT: do NOT auto-reload on `controllerchange`. On iOS, the SW's
+    // clients.claim() fires controllerchange on essentially every load, so a
+    // reload-on-controllerchange becomes an infinite reload loop ("A problem
+    // repeatedly occurred on …"). The SW still updates in the background
+    // (skipWaiting + clients.claim + periodic update()), and the page picks up
+    // fresh content on the next navigation/relaunch — no forced reload needed.
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('/sw.js').then(function(reg){
         try { reg.update(); } catch(e){}
