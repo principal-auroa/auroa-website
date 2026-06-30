@@ -3207,16 +3207,6 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           + Add Image<input type="file" accept="image/*" style="display:none;" onchange="sdUploadImage(this)" />
         </label>
       </div>
-      <!-- PDF upload and viewer -->
-      <div id="sd-pdf-section" class="detail-pdf-section">
-        <div class="detail-pdf-admin-bar">
-          <label for="sd-pdf-input">⇧ Upload PDF</label>
-          <input type="file" id="sd-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadSdPdf(this)">
-          <button id="sd-pdf-remove-btn" onclick="removeSdPdf()">✕ Remove PDF</button>
-        </div>
-        <div id="sd-pdf-viewer" class="detail-pdf-viewer"></div>
-        <div id="sd-pdf-ph" class="detail-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
-      </div>
     </div>
   </div>
 
@@ -6430,7 +6420,6 @@ function openSportDetail(sportId) {
     sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000);
   };
   renderSdImages(sport.images || []);
-  renderSdPdf();
   if (isAdmin) {
     el('sd-table-admin').style.display = 'flex';
     el('sd-img-admin').style.display = 'block';
@@ -6715,37 +6704,6 @@ function renderPdfInto(container, url) {
       return renderPage(1);
     });
   }).catch(fallback);
-}
-
-function renderSdPdf() {
-  var sport = sportsData[currentSportId];
-  _renderDetailPdf('sd', sport ? sport.pdf : null);
-}
-
-function uploadSdPdf(input) {
-  if (!input.files[0] || !currentSportId) return;
-  var fd = new FormData();
-  fd.append('file', input.files[0]);
-  flashSave('<span class="spinner"></span>Uploading…');
-  fetch('/api/upload/ne', { method: 'POST', body: fd })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var sport = sportsData[currentSportId];
-      if (!d.filename || !sport) { flashSave('Upload failed.'); return; }
-      if (sport.pdf) fetch('/api/ne-image/' + encodeURIComponent(sport.pdf), { method: 'DELETE' });
-      sport.pdf = d.filename;
-      saveSportsToServer(function() { renderSdPdf(); flashSave('PDF uploaded!'); });
-    })
-    .catch(function() { flashSave('Upload failed.'); });
-  input.value = '';
-}
-
-function removeSdPdf() {
-  var sport = sportsData[currentSportId];
-  if (!sport || !sport.pdf) return;
-  fetch('/api/ne-image/' + encodeURIComponent(sport.pdf), { method: 'DELETE' });
-  sport.pdf = null;
-  saveSportsToServer(function() { renderSdPdf(); flashSave('PDF removed!'); });
 }
 
 // ===================== EVENTS =====================
