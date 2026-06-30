@@ -285,7 +285,18 @@ function uploader(prefix) {
 
 // ---- middleware ----
 app.use(express.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// The HTML shell and the service worker must NEVER be held in the browser's
+// HTTP cache — otherwise a bad build can get stuck on a device (a device that
+// caches old index.html/sw.js can loop or show stale UI and can't pick up a
+// fix). no-store guarantees every load fetches the current version from the
+// origin. Uploaded media + icons keep their default long-lived caching.
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: function (res, filePath) {
+    if (/\.html$/i.test(filePath) || /[\\/]sw\.js$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store, must-revalidate');
+    }
+  }
+}));
 app.use('/uploads', express.static(UPLOADS));
 
 // ---- API ----
@@ -1112,6 +1123,7 @@ app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
       if (err) return res.status(500).send('Error loading page');
       const inject = '<script>window.__autoPage="pg-lunch-orders";</script>';
       res.set('Content-Type', 'text/html; charset=utf-8')
+         .set('Cache-Control', 'no-store')
          .send(html.replace('</head>', inject + '</head>'));
     });
   });
@@ -1123,6 +1135,7 @@ app.post('/api/newsletter-snapshot/:id/hidden', (req, res) => {
       if (err) return res.status(500).send('Error loading page');
       const inject = '<script>window.__autoPage="pg-messages";</script>';
       res.set('Content-Type', 'text/html; charset=utf-8')
+         .set('Cache-Control', 'no-store')
          .send(html.replace('</head>', inject + '</head>'));
     });
   });
@@ -1134,6 +1147,7 @@ function serveSpaWithMarker(req, res, marker) {
   fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8', (err, html) => {
     if (err) return res.status(500).send('Error loading page');
     res.set('Content-Type', 'text/html; charset=utf-8')
+         .set('Cache-Control', 'no-store')
        .send(html.replace('</head>', marker + '</head>'));
   });
 }
@@ -1271,7 +1285,8 @@ app.get('/newsletter/:slug', (req, res) => {
 </body>
 </html>`;
 
-  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  res.set('Content-Type', 'text/html; charset=utf-8')
+         .set('Cache-Control', 'no-store').send(html);
 });
 
 // Batched save — accepts an array of { key, value } and writes them in ONE

@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v16';
+const CACHE = 'auroa-cache-v17';
 const SHELL = ['/', '/icon.svg', '/icon-192.png', '/badge-96.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -82,7 +82,9 @@ async function cacheFirst(req) {
 async function networkFirst(req) {
   const cache = await caches.open(CACHE);
   try {
-    const res = await fetch(req);
+    // Bypass the HTTP cache for the HTML shell so a fixed build is never
+    // blocked by a stale cached page.
+    const res = await fetch(req, { cache: 'no-store' });
     if (res && res.ok) cache.put(req, res.clone());
     return res;
   } catch (_) {
