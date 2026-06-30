@@ -1806,8 +1806,6 @@ body.is-admin .nl-admin-bar{display:flex;}
 body.is-admin .y78-pdf-admin-bar{display:flex;}
 .y78-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
 #y78-pdf-remove-btn{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
-#y78-pdf-viewer{width:100%;height:780px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
-#y78-pdf-viewer iframe{width:100%;height:100%;border:0;}
 #y78-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #y78-pdf-ph{display:none;}
 
@@ -1861,11 +1859,8 @@ body.is-admin .edu-foot-yt-box:not(.has-video) .edu-foot-yt-ph{display:flex;alig
 body.is-admin .edu-pdf-admin-bar{display:flex;}
 .edu-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
 #edu-pdf-remove-btn{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
-#edu-pdf-viewer{width:100%;height:860px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
-#edu-pdf-viewer iframe{width:100%;height:100%;border:0;}
 #edu-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) #edu-pdf-ph{display:none;}
-@media (max-width:768px){ #edu-pdf-viewer{height:70vh;min-height:440px;} }
 /* The embedded PDF can't render inside the generated About Us PDF, so hide it. */
 .is-pdf-export #edu-pdf-section{display:none !important;}
 
@@ -3167,7 +3162,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input type="file" id="edu-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadAboutPdf(this)">
           <button id="edu-pdf-remove-btn" type="button" onclick="removeAboutPdf()">✕ Remove PDF</button>
         </div>
-        <div id="edu-pdf-viewer"><iframe id="edu-pdf-frame" src="" title="PDF document"></iframe></div>
+        <div id="edu-pdf-viewer" class="detail-pdf-viewer"></div>
         <div id="edu-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
 
@@ -3418,7 +3413,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input type="file" id="y78-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadY78Pdf(this)">
           <button id="y78-pdf-remove-btn" onclick="removeY78Pdf()">✕ Remove PDF</button>
         </div>
-        <div id="y78-pdf-viewer"><iframe id="y78-pdf-frame" src=""></iframe></div>
+        <div id="y78-pdf-viewer" class="detail-pdf-viewer"></div>
         <div id="y78-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
     </div>
@@ -7764,17 +7759,17 @@ function clearY78Youtube(i) {
 // ===================== Y78 PDF =====================
 function renderY78Pdf() {
   var viewer = el('y78-pdf-viewer');
-  var frame = el('y78-pdf-frame');
   var ph = el('y78-pdf-ph');
   var removeBtn = el('y78-pdf-remove-btn');
   if (!viewer) return;
   if (y78PdfFile) {
-    if (frame) frame.src = '/uploads/' + y78PdfFile;
     viewer.style.display = 'block';
     if (ph) ph.style.display = 'none';
     if (removeBtn) removeBtn.style.display = '';
+    renderPdfInto(viewer, '/uploads/' + y78PdfFile);
   } else {
-    if (frame) frame.src = '';
+    viewer.innerHTML = '';
+    viewer.removeAttribute('data-pdf-url');
     viewer.style.display = 'none';
     if (ph) ph.style.display = '';
     if (removeBtn) removeBtn.style.display = 'none';
@@ -8131,19 +8126,17 @@ function removeWaiataAudio() {
 // ---- About Us bottom PDF ----
 function renderAboutPdf() {
   var viewer = el('edu-pdf-viewer');
-  var frame = el('edu-pdf-frame');
   var ph = el('edu-pdf-ph');
   var removeBtn = el('edu-pdf-remove-btn');
   if (!viewer) return;
   if (aboutPdfFile) {
-    // #view=FitH fits the page to the viewer width so the first page shows
-    // fully; the reader scrolls down for the remaining pages.
-    if (frame) frame.src = '/uploads/' + aboutPdfFile + '#view=FitH';
     viewer.style.display = 'block';
     if (ph) ph.style.display = 'none';
     if (removeBtn) removeBtn.style.display = '';
+    renderPdfInto(viewer, '/uploads/' + aboutPdfFile);
   } else {
-    if (frame) frame.src = '';
+    viewer.innerHTML = '';
+    viewer.removeAttribute('data-pdf-url');
     viewer.style.display = 'none';
     if (ph) ph.style.display = '';
     if (removeBtn) removeBtn.style.display = 'none';
