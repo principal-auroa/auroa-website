@@ -1817,8 +1817,11 @@ body:not(.is-admin) #y78-pdf-ph{display:none;}
 body.is-admin .detail-pdf-admin-bar{display:flex;}
 .detail-pdf-admin-bar label{background:#1a2b4a;color:#fff;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;}
 .detail-pdf-admin-bar button{background:#c0392b;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;display:none;}
-.detail-pdf-viewer{width:100%;height:780px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;}
-.detail-pdf-viewer iframe{width:100%;height:100%;border:0;}
+.detail-pdf-viewer{width:100%;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;display:none;background:#f4f5f7;padding:8px;}
+.detail-pdf-page{display:block;width:100%;height:auto;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);background:#fff;}
+.detail-pdf-page:last-child{margin-bottom:0;}
+.detail-pdf-loading,.detail-pdf-err{padding:24px;text-align:center;color:#888;font-family:'Quicksand',sans-serif;font-size:14px;}
+.detail-pdf-err a{color:#1a2b4a;font-weight:600;}
 .detail-pdf-ph{padding:28px;text-align:center;color:#aaa;font-family:'Quicksand',sans-serif;font-size:14px;background:#f9f9f9;border-radius:8px;border:1px dashed #ddd;}
 body:not(.is-admin) .detail-pdf-ph{display:none;}
 
@@ -3216,7 +3219,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input type="file" id="sd-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadSdPdf(this)">
           <button id="sd-pdf-remove-btn" onclick="removeSdPdf()">✕ Remove PDF</button>
         </div>
-        <div id="sd-pdf-viewer" class="detail-pdf-viewer"><iframe id="sd-pdf-frame" src=""></iframe></div>
+        <div id="sd-pdf-viewer" class="detail-pdf-viewer"></div>
         <div id="sd-pdf-ph" class="detail-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
     </div>
@@ -3247,7 +3250,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <input type="file" id="ev-pdf-input" accept=".pdf,application/pdf" class="file-in" onchange="uploadEvPdf(this)">
           <button id="ev-pdf-remove-btn" onclick="removeEvPdf()">✕ Remove PDF</button>
         </div>
-        <div id="ev-pdf-viewer" class="detail-pdf-viewer"><iframe id="ev-pdf-frame" src=""></iframe></div>
+        <div id="ev-pdf-viewer" class="detail-pdf-viewer"></div>
         <div id="ev-pdf-ph" class="detail-pdf-ph">No PDF uploaded yet — add one above to display it here.</div>
       </div>
     </div>
@@ -6631,21 +6634,84 @@ function sdReplaceImage(oldFilename, idx, input) {
 // persists with the rest of its data.
 function _renderDetailPdf(prefix, file) {
   var viewer    = el(prefix + '-pdf-viewer');
-  var frame     = el(prefix + '-pdf-frame');
   var ph        = el(prefix + '-pdf-ph');
   var removeBtn = el(prefix + '-pdf-remove-btn');
   if (!viewer) return;
   if (file) {
-    if (frame) frame.src = '/uploads/' + file;
     viewer.style.display = 'block';
     if (ph) ph.style.display = 'none';
     if (removeBtn) removeBtn.style.display = '';
+    renderPdfInto(viewer, '/uploads/' + file);
   } else {
-    if (frame) frame.src = '';
+    viewer.innerHTML = '';
+    viewer.removeAttribute('data-pdf-url');
     viewer.style.display = 'none';
     if (ph) ph.style.display = '';        // CSS hides it for non-admins
     if (removeBtn) removeBtn.style.display = 'none';
   }
+}
+
+// Lazily load PDF.js (same CDN already used for html2pdf/qrcode) so we can
+// render PDFs ourselves. An <iframe src=*.pdf> does NOT fit-to-width on mobile
+// (iOS Safari especially clips it), so we draw each page scaled to the
+// container width instead — readable on any screen.
+var _pdfJsPromise = null;
+function ensurePdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (_pdfJsPromise) return _pdfJsPromise;
+  _pdfJsPromise = new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function() {
+      if (window.pdfjsLib) {
+        try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) {}
+        resolve(window.pdfjsLib);
+      } else { reject(new Error('pdf.js missing')); }
+    };
+    s.onerror = function() { _pdfJsPromise = null; reject(new Error('pdf.js load failed')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsPromise;
+}
+
+// Render every page of `url` into `container` as canvases that fit its width.
+function renderPdfInto(container, url) {
+  if (!container) return;
+  // Already showing this exact PDF — don't re-render on repeat opens.
+  if (container.getAttribute('data-pdf-url') === url && container.getAttribute('data-pdf-done') === '1') return;
+  container.setAttribute('data-pdf-url', url);
+  container.setAttribute('data-pdf-done', '');
+  container.innerHTML = '<div class="detail-pdf-loading">Loading PDF…</div>';
+  var fallback = function() {
+    container.innerHTML = '<div class="detail-pdf-err">Couldn’t display the PDF here. <a href="' + url + '" target="_blank" rel="noopener">Tap to open it</a>.</div>';
+  };
+  ensurePdfJs().then(function(pdfjsLib) {
+    return pdfjsLib.getDocument(url).promise.then(function(pdf) {
+      if (container.getAttribute('data-pdf-url') !== url) return;  // a newer render replaced us
+      container.innerHTML = '';
+      // The detail page is briefly hidden when this first runs, so fall back to
+      // the viewport width; canvases are CSS width:100% so they fit once shown.
+      var w = container.clientWidth || Math.min((window.innerWidth || 600) - 32, 800) || 600;
+      var dpr = window.devicePixelRatio || 1;
+      var renderPage = function(num) {
+        return pdf.getPage(num).then(function(page) {
+          if (container.getAttribute('data-pdf-url') !== url) return;
+          var vp1 = page.getViewport({ scale: 1 });
+          var vp = page.getViewport({ scale: (w / vp1.width) * dpr });
+          var canvas = document.createElement('canvas');
+          canvas.className = 'detail-pdf-page';
+          canvas.width = Math.floor(vp.width);
+          canvas.height = Math.floor(vp.height);
+          container.appendChild(canvas);
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise.then(function() {
+            if (num < pdf.numPages) return renderPage(num + 1);
+            container.setAttribute('data-pdf-done', '1');
+          });
+        });
+      };
+      return renderPage(1);
+    });
+  }).catch(fallback);
 }
 
 function renderSdPdf() {
