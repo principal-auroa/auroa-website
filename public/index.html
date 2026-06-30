@@ -4,6 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Auroa School</title>
+<script>
+/* Reload-loop breaker — runs first, before anything else. If the page reloads
+   many times in quick succession (the signature of a stuck service-worker /
+   reload loop that bricked an earlier build into "A problem repeatedly
+   occurred"), tear down the service worker and caches so the next load is
+   clean. Never reloads here itself — that would risk a new loop. */
+(function(){
+  try {
+    var KEY = 'auroa_reload_guard', now = Date.now();
+    var rec = JSON.parse(sessionStorage.getItem(KEY) || '{"n":0,"t":0}');
+    if (now - rec.t > 10000) rec = { n: 0, t: now };   // reset after 10s of calm
+    rec.n++; rec.t = now;
+    sessionStorage.setItem(KEY, JSON.stringify(rec));
+    if (rec.n >= 4) {
+      sessionStorage.setItem(KEY, JSON.stringify({ n: 0, t: now }));
+      if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); }).catch(function(){});
+      }
+      if (window.caches && caches.keys) {
+        caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); }).catch(function(){});
+      }
+    }
+  } catch (e) {}
+})();
+</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#1a2b4a">
 <link rel="apple-touch-icon" href="/icon.svg">
