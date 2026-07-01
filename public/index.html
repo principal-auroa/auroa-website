@@ -2147,6 +2147,9 @@ body.is-admin .pm-sub-counts{display:flex;}
 .pm-msg-body{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
 .pm-msg-img{display:block;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #e6e6e6;cursor:zoom-in;}
 .pm-msg-link{display:inline-block;margin-top:8px;color:#1a2b4a;font-size:13px;font-weight:600;}
+/* Inline "View" expander for regular messages (not newsletter/group links). */
+.pm-msg-toggle{background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-align:left;text-decoration:underline;}
+.pm-msg-body.pm-clamped{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
 .pm-msg-del{
   display:none;position:absolute;top:8px;right:8px;
   background:none;border:1px solid #c0392b;color:#c0392b;
@@ -10848,16 +10851,40 @@ function pmRenderList() {
     } else if (isNewsletter) {
       tagHtml = '<span class="pm-msg-newsletter-tag">Newsletter</span>';
     }
+    // Newsletter + group-invite messages point to a genuinely separate page, so
+    // they keep a real link. Every other message just has more text, so "View"
+    // expands it inline (opening /messages in a new tab showed nothing useful).
+    var isExternalLink = !!(m.url && (m.url.indexOf('/join-group/') === 0 || m.url.indexOf('/newsletter/') === 0));
     var linkText = 'View →';
     if (m.url && m.url.indexOf('/join-group/') === 0) linkText = 'Join group →';
     else if (m.url && m.url.indexOf('/newsletter/') === 0) linkText = 'Read newsletter →';
+    // Long bodies start collapsed with a "View" toggle; short ones show in full.
+    var bodyIsLong = !!(m.body && (m.body.length > 220 || m.body.split('\n').length > 5));
+    var bodyClass = 'pm-msg-body' + ((!isExternalLink && bodyIsLong) ? ' pm-clamped' : '');
+    var actionHtml = '';
+    if (isExternalLink) {
+      actionHtml = '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">' + linkText + '</a>';
+    } else if (bodyIsLong) {
+      actionHtml = '<button type="button" class="pm-msg-link pm-msg-toggle">View →</button>';
+    }
     card.innerHTML =
       tagHtml +
       '<h4>' + lunchEsc(m.title) + '</h4>' +
       '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
-      '<div class="pm-msg-body">' + lunchEsc(m.body) + '</div>' +
+      '<div class="' + bodyClass + '">' + lunchEsc(m.body) + '</div>' +
       (m.image ? '<img class="pm-msg-img" src="/uploads/' + lunchEsc(m.image) + '" alt="" loading="lazy" onclick="event.stopPropagation(); if(typeof openLightbox===\'function\') openLightbox(this.src);">' : '') +
-      (m.url && m.url !== '/' ? '<a class="pm-msg-link" href="' + lunchEsc(m.url) + '" target="_blank" rel="noopener">' + linkText + '</a>' : '');
+      actionHtml;
+    // Wire the inline expander (regular long messages only).
+    if (!isExternalLink && bodyIsLong) {
+      var toggleEl = card.querySelector('.pm-msg-toggle');
+      var bodyEl = card.querySelector('.pm-msg-body');
+      if (toggleEl && bodyEl) {
+        toggleEl.onclick = function() {
+          var collapsed = bodyEl.classList.toggle('pm-clamped');
+          toggleEl.textContent = collapsed ? 'View →' : 'Show less';
+        };
+      }
+    }
     var del = document.createElement('button');
     del.type = 'button';
     del.className = 'pm-msg-del';
