@@ -6709,6 +6709,7 @@ function renderPdfInto(container, url) {
       // its memory limits, which a big/high-DPR PDF page can easily do. The
       // canvas still displays at full container width via CSS (width:100%).
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (pdf.numPages > 12) dpr = 1;  // page-heavy PDFs: keep total decoded size down
       var MAX_DIM = 2200, MAX_AREA = 4.5e6;
       var renderPage = function(num) {
         return pdf.getPage(num).then(function(page) {
@@ -6719,11 +6720,40 @@ function renderPdfInto(container, url) {
           var shrink = Math.min(1, MAX_DIM / Math.max(vp.width, vp.height), Math.sqrt(MAX_AREA / (vp.width * vp.height)));
           if (shrink < 1) vp = page.getViewport({ scale: scale * shrink });
           var canvas = document.createElement('canvas');
-          canvas.className = 'detail-pdf-page';
           canvas.width = Math.floor(vp.width);
           canvas.height = Math.floor(vp.height);
-          container.appendChild(canvas);
           return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function() {
+            // iOS budgets ALL live canvases against a hard per-tab memory cap,
+            // so a multi-page PDF held as canvases crashes the tab ("A problem
+            // repeatedly occurred") even when each page is individually small.
+            // Swap each rendered page to a compressed JPEG <img> and free the
+            // canvas, so only one canvas exists at a time no matter how many
+            // pages the PDF has.
+            return new Promise(function(done) {
+              var finish = function(node) {
+                if (container.getAttribute('data-pdf-url') === url) container.appendChild(node);
+                if (node !== canvas) { canvas.width = 0; canvas.height = 0; }  // release backing store now
+                try { page.cleanup(); } catch (e) {}   // free pdf.js decoded images
+                done();
+              };
+              try {
+                canvas.toBlob(function(blob) {
+                  if (!blob) { canvas.className = 'detail-pdf-page'; finish(canvas); return; }
+                  var img = document.createElement('img');
+                  img.className = 'detail-pdf-page';
+                  img.alt = 'PDF page ' + num;
+                  var objUrl = URL.createObjectURL(blob);
+                  img.onload = function() { URL.revokeObjectURL(objUrl); };
+                  img.src = objUrl;
+                  finish(img);
+                }, 'image/jpeg', 0.85);
+              } catch (e) {
+                canvas.className = 'detail-pdf-page';
+                finish(canvas);
+              }
+            });
+          }).then(function() {
+            if (container.getAttribute('data-pdf-url') !== url) return;
             if (num < pdf.numPages) return renderPage(num + 1);
             container.setAttribute('data-pdf-done', '1');
           });
