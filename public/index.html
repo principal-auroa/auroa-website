@@ -2086,10 +2086,16 @@ body.is-admin .lunch-admin{display:block;}
   margin:28px 0 12px;letter-spacing:0.3px;
 }
 .pm-unsub-btn{
-  margin-left:auto;background:none;border:1.5px solid #c0392b;color:#c0392b;
+  background:none;border:1.5px solid #c0392b;color:#c0392b;
   padding:6px 14px;border-radius:18px;cursor:pointer;
   font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;white-space:nowrap;
 }
+/* The shared .pg-title is absolutely centred and ignores the buttons, so on
+   this page (two wide buttons on the right) it overlapped them. Let the title
+   flex between the buttons instead — it can then never sit on top of them. */
+#pg-messages .pg-title-row{gap:8px;flex-wrap:wrap;}
+#pg-messages .pg-title{position:static;flex:1;min-width:0;}
+#pg-messages .pg-title-btns{margin-left:auto;}
 .pm-unsub-btn:hover{background:#c0392b;color:#fff;}
 .pm-subscribe{
   background:#fff7ed;border:1.5px solid #f59e0b;border-radius:12px;
@@ -2852,6 +2858,13 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   .pg-title-row .pg-title-btns{
     display:flex;gap:6px;flex-wrap:wrap;
     max-width:calc(100% - 16px);
+  }
+  /* Messages page: the Back button is a separate element also pinned top-left,
+     so its test/unsubscribe group pins top-RIGHT to avoid stacking on it. */
+  #pg-messages .pg-title-btns{
+    left:auto;right:8px;
+    max-width:calc(100% - 96px);
+    justify-content:flex-end;
   }
   /* Style buttons for visibility against the white space / banner */
   .pg-title-row > .back-btn,
@@ -3896,8 +3909,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div class="pg-title-row">
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">Messages</h1>
-        <button type="button" id="pm-test-btn" class="pm-unsub-btn" onclick="pmSendTest()" style="display:none;">Send test to this device</button>
-        <button type="button" id="pm-unsub-btn" class="pm-unsub-btn" onclick="pmUnsubscribe()" style="display:none;">Unsubscribe</button>
+        <div class="pg-title-btns">
+          <button type="button" id="pm-test-btn" class="pm-unsub-btn" onclick="pmSendTest()" style="display:none;">Send test to this device</button>
+          <button type="button" id="pm-unsub-btn" class="pm-unsub-btn" onclick="pmUnsubscribe()" style="display:none;">Unsubscribe</button>
+        </div>
       </div>
       <div id="pm-test-status" class="pm-subscribe-status" style="text-align:right;"></div>
 
