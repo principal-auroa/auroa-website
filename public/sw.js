@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v21';
+const CACHE = 'auroa-cache-v22';
 const SHELL = ['/', '/icon.svg', '/icon-192.png', '/badge-96.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -188,15 +188,25 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = (event.notification.data && event.notification.data.url) || '/messages';
   const targetUrl = new URL(target, self.location.origin).href;
+  const isMessages = new URL(targetUrl).pathname === '/messages';
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     // A window already on the target page — just focus it.
     for (const c of all) {
       if (c.url === targetUrl && 'focus' in c) return c.focus();
     }
-    // Otherwise navigate an existing window to the target page.
     const c = all.find((w) => 'focus' in w);
     if (c) {
+      // For the in-app Messages view, don't navigate the window — a SW-driven
+      // navigate() reloads the whole app and can kill an installed PWA on some
+      // phones. Focus it and let the page switch views itself (the app listens
+      // for this message and calls showPage).
+      if (isMessages) {
+        try { await c.focus(); } catch (_) {}
+        try { c.postMessage({ type: 'open-page', page: 'pg-messages' }); } catch (_) {}
+        return;
+      }
+      // Genuinely separate pages (newsletter, join-group) still navigate.
       try { await c.navigate(targetUrl); } catch (_) {}
       return c.focus();
     }

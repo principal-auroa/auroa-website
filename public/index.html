@@ -5411,6 +5411,7 @@ function showPage(id) {
     });
   }
   currentPageId = id;
+  if (typeof pmSentinelPageChanged === 'function') pmSentinelPageChanged();
   updateSidebarAudio(id);
   if (id === 'pg-lunch-orders' && typeof renderLunchAdmin === 'function') renderLunchAdmin();
   if (id === 'pg-newsletter' && typeof renderNewsletter === 'function') renderNewsletter();
@@ -12102,6 +12103,63 @@ body.is-admin #install-popup{display:none;}
 </div>
 
 <script>
+// ===================== CRASH / ERROR TELEMETRY =====================
+// Some installed apps "shut down" on certain pages and a crashed page can't
+// tell the server anything. So: (1) every JS error is beaconed to
+// /api/client-log; (2) while the app is visibly open a sentinel records the
+// current page, cleared again on any normal hide/close — if the next launch
+// finds it still set, the app died in the foreground and we report which
+// page it was on. Read the log with POST /api/client-log/read (admin pw).
+(function() {
+  var SENT_KEY = 'crash_sentinel';
+  var sent = 0;
+  function beacon(kind, page, detail) {
+    if (sent >= 5) return;   // a broken page shouldn't flood the log
+    sent++;
+    var body = JSON.stringify({
+      kind: kind,
+      page: page || (typeof currentPageId !== 'undefined' ? currentPageId : ''),
+      detail: String(detail || '').slice(0, 500),
+      standalone: !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true)
+    });
+    try {
+      if (navigator.sendBeacon) { navigator.sendBeacon('/api/client-log', new Blob([body], { type: 'application/json' })); return; }
+    } catch (e) {}
+    try { fetch('/api/client-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function(){}); } catch (e) {}
+  }
+  window.pmBeacon = beacon;
+  window.addEventListener('error', function(e) {
+    beacon('js-error', null, (e.message || 'error') + ' @ ' + (e.filename || '') + ':' + (e.lineno || 0));
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var r = e && e.reason;
+    beacon('js-rejection', null, String((r && (r.stack || r.message)) || r).slice(0, 300));
+  });
+  function armSentinel() {
+    var pg = (typeof currentPageId !== 'undefined' && currentPageId) || 'pg-home';
+    try { localStorage.setItem(SENT_KEY, JSON.stringify({ page: pg, ts: Date.now() })); } catch (e) {}
+  }
+  function clearSentinel() {
+    try { localStorage.removeItem(SENT_KEY); } catch (e) {}
+  }
+  // A sentinel surviving from a previous run = that run ended while visibly
+  // open on the recorded page, without a normal hide/close first.
+  try {
+    var prev = localStorage.getItem(SENT_KEY);
+    if (prev) {
+      var p = {}; try { p = JSON.parse(prev) || {}; } catch (e) {}
+      beacon('abnormal-end', p.page || '?', 'app died in foreground on ' + (p.page || '?') + ' at ' + new Date(p.ts || 0).toISOString());
+      clearSentinel();
+    }
+  } catch (e) {}
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') armSentinel(); else clearSentinel();
+  });
+  window.addEventListener('pagehide', clearSentinel);
+  if (document.visibilityState === 'visible') armSentinel();
+  // showPage calls this so the sentinel always names the page the user is on.
+  window.pmSentinelPageChanged = function() { if (document.visibilityState === 'visible') armSentinel(); };
+})();
 (function(){
   // Register service worker (needed for installability).
   if ('serviceWorker' in navigator) {
@@ -12117,6 +12175,15 @@ body.is-admin #install-popup{display:none;}
         // Keep checking for a newer SW while the app stays open.
         setInterval(function(){ try { reg.update(); } catch(e){} }, 60 * 60 * 1000);
       }).catch(function(){});
+    });
+    // Notification taps: the SW asks the already-open app to switch views
+    // instead of navigating the whole window (a SW-driven navigate can kill
+    // an installed app on some phones).
+    navigator.serviceWorker.addEventListener('message', function(e){
+      var d = e && e.data;
+      if (d && d.type === 'open-page' && d.page && el(d.page) && typeof showPage === 'function') {
+        showPage(d.page);
+      }
     });
   }
 

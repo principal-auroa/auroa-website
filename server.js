@@ -744,6 +744,44 @@ app.post('/api/absences/delete', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Client crash/error telemetry ----
+// Installed apps that crash can't be debugged from here: the page dies before
+// it can say anything. The client beacons JS errors and "the app died while
+// open on page X" sentinels to this endpoint; the log is a capped JSON file
+// on the data volume so it survives restarts.
+const CLIENT_LOG_FILE = path.join(DATA_DIR, 'client-log.json');
+app.post('/api/client-log', (req, res) => {
+  const b = req.body || {};
+  const entry = {
+    ts: Date.now(),
+    kind: String(b.kind || '').slice(0, 40),
+    page: String(b.page || '').slice(0, 60),
+    detail: String(b.detail || '').slice(0, 500),
+    standalone: !!b.standalone,
+    ua: String(req.get('user-agent') || '').slice(0, 220),
+  };
+  if (!entry.kind) return res.status(400).json({ error: 'kind required' });
+  fs.readFile(CLIENT_LOG_FILE, 'utf8', (err, raw) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(raw) || []; } catch (e) {} }
+    list.push(entry);
+    if (list.length > 400) list = list.slice(-400);
+    fs.writeFile(CLIENT_LOG_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+
+// Admin: read the client telemetry log (password-gated, newest first).
+app.post('/api/client-log/read', (req, res) => {
+  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+  fs.readFile(CLIENT_LOG_FILE, 'utf8', (err, raw) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(raw) || []; } catch (e) {} }
+    res.json({ entries: list.slice().reverse() });
+  });
+});
+
 app.delete('/api/lunch-order/:id', (req, res) => {
   const id = req.params.id;
   const data = load();
