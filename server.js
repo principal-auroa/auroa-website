@@ -1895,7 +1895,9 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
     const payloadObj = {
       title: msg.title,
-      body:  msg.body,
+      // The notification preview is plain text, so show link markup as just
+      // its visible words: "[school site](https://…)" -> "school site".
+      body:  msg.body.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1'),
       url:   msg.url
     };
     if (msg.image) payloadObj.image = '/uploads/' + msg.image;
