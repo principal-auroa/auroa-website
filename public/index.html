@@ -1278,8 +1278,9 @@ body.is-admin .ev-img-cell:hover .ev-img-replace{display:block;}
 body.is-admin .ev-add-img-cell{display:flex;}
 
 /* ---- NEW ENTRANT PAGE ---- */
-.ne-main-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;align-items:start;}
-.ne-left-col{display:flex;flex-direction:column;gap:12px;}
+/* Full-width stack: intro text, then the buttons across the page, then the
+   second text box underneath. */
+.ne-main-row{display:flex;flex-direction:column;gap:20px;margin-bottom:28px;}
 .ne-text-box{
   border:1.5px solid #e0e0e0;border-radius:8px;
   padding:14px 16px;
@@ -1288,7 +1289,7 @@ body.is-admin .ev-add-img-cell{display:flex;}
 }
 .ne-text-box:focus{border-color:#1a2b4a;}
 .ne-text-box[contenteditable="false"]{border-color:transparent;background:transparent;padding:2px 0;}
-.ne-btn-grid{display:flex;flex-direction:column;gap:10px;}
+.ne-btn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
 .ne-btn{
   position:relative;background:#d6eaf8;border-radius:10px;
   min-height:60px;display:flex;align-items:center;justify-content:center;
@@ -1387,7 +1388,7 @@ body.is-admin .ne-thumb.has-img{display:block;}
 #ne-popup-link{background:#c0642b;color:#fff;}
 #ne-popup-link.show{display:block;}
 #ne-popup-link:hover{background:#9e4e1f;}
-.ne-admin-bar{display:none;gap:8px;margin-top:14px;}
+.ne-admin-bar{display:none;gap:8px;}
 body.is-admin .ne-admin-bar{display:flex;}
 
 /* ---- STAFF PAGE ---- */
@@ -2813,7 +2814,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   .cal-frame-wrap{min-height:0;}
   .cal-frame-wrap iframe,.cal-empty{height:420px;}
   .ev-img-grid{grid-template-columns:1fr;gap:12px;}
-  .ne-main-row{grid-template-columns:1fr;gap:16px;}
+  .ne-main-row{gap:16px;}
   .staff-grid{grid-template-columns:1fr;gap:14px;}
   #hit-grid{grid-template-columns:1fr;max-height:none;}
   .hit-text-cell{border-right:none;border-bottom:1.5px solid #ddd;}
@@ -3291,12 +3292,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <h1 class="pg-title">New Entrant Info</h1>
       </div>
       <div class="ne-main-row">
-        <div class="ne-left-col">
-          <div class="ne-text-box editable" id="ec-ne1"><p>Welcome to Auroa School. Here you will find everything you need to know as a new family joining our school.</p></div>
-          <div id="ne-btn-grid" class="ne-btn-grid"></div>
-          <div class="ne-admin-bar">
-            <button class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="neAddBtn()">+ Add Button</button>
-          </div>
+        <div class="ne-text-box editable" id="ec-ne1"><p>Welcome to Auroa School. Here you will find everything you need to know as a new family joining our school.</p></div>
+        <div id="ne-btn-grid" class="ne-btn-grid"></div>
+        <div class="ne-admin-bar">
+          <button class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="neAddBtn()">+ Add Button</button>
         </div>
         <div class="ne-text-box editable" id="ec-ne2"><p></p></div>
       </div>
