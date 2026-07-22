@@ -264,6 +264,68 @@ function deleteFile(filename) {
   if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch(e) {}
 }
 
+// ---- image shrinking ----
+// Parents' phones upload raw camera photos (48-megapixel iPhone shots are
+// 5712x4284 ≈ 93 MB of RAM once decoded). A newsletter full of them is
+// several hundred MB of image memory — phones kill the tab ("A problem
+// repeatedly occurred" / the app shutting down). No photo on this site is
+// ever shown larger than ~1600 CSS px, so cap everything at 1800px.
+let sharp = null;
+try { sharp = require('sharp'); }
+catch (e) { console.error('[img] sharp unavailable — images will not be shrunk:', e.message); }
+const MAX_IMG_DIM = 1800;
+const RESIZABLE = /\.(jpe?g|png|webp)$/i;
+
+async function shrinkImage(filePath) {
+  if (!sharp) return false;                      // native lib missing: serve as-is
+  if (!RESIZABLE.test(filePath)) return false;   // svg/gif/pdf etc: leave alone
+  try {
+    const meta = await sharp(filePath).metadata();
+    if (!meta.width || !meta.height) return false;
+    if (Math.max(meta.width, meta.height) <= MAX_IMG_DIM) return false;
+    const isPng = /\.png$/i.test(filePath);
+    const tmp = filePath + '.resizing';
+    const pipe = sharp(filePath)
+      .rotate()   // bake in EXIF orientation before it's lost
+      .resize(MAX_IMG_DIM, MAX_IMG_DIM, { fit: 'inside', withoutEnlargement: true });
+    if (isPng) await pipe.png({ compressionLevel: 9 }).toFile(tmp);
+    else if (/\.webp$/i.test(filePath)) await pipe.webp({ quality: 84 }).toFile(tmp);
+    else await pipe.jpeg({ quality: 84, mozjpeg: true }).toFile(tmp);
+    fs.renameSync(tmp, filePath);
+    return true;
+  } catch (e) {
+    console.error('[img] shrink failed for', path.basename(filePath), e.message);
+    try { fs.unlinkSync(filePath + '.resizing'); } catch (_) {}
+    return false;
+  }
+}
+
+// Route middleware: shrink whatever multer just saved before replying.
+function resizeUpload(req, res, next) {
+  if (!req.file || !req.file.path) return next();
+  shrinkImage(req.file.path).then(() => next(), () => next());
+}
+
+// One-time (idempotent) boot migration: shrink oversized images already on the
+// volume. Runs in the background after startup; a marker file skips the scan
+// on later boots. Sequential so a Railway container never holds more than one
+// decode at a time.
+const IMG_MIGRATION_MARKER = path.join(DATA_DIR, 'img-shrink-v1.done');
+async function migrateOversizedImages() {
+  if (fs.existsSync(IMG_MIGRATION_MARKER)) return;
+  let files = [];
+  try { files = fs.readdirSync(UPLOADS).filter(f => RESIZABLE.test(f)); } catch (e) { return; }
+  let shrunk = 0;
+  for (const f of files) {
+    if (await shrinkImage(path.join(UPLOADS, f))) {
+      shrunk++;
+      console.log('[img] shrunk', f);
+    }
+  }
+  fs.writeFileSync(IMG_MIGRATION_MARKER, new Date().toISOString() + ' shrunk ' + shrunk + ' of ' + files.length + '\n');
+  console.log('[img] migration done:', shrunk, 'of', files.length, 'images shrunk');
+}
+
 // ---- multer factory ----
 function uploader(prefix) {
   return multer({
@@ -361,7 +423,7 @@ app.get('/api/version', (req, res) => {
   res.json({ version: data.lastUpdate || 0, label: data.lastUpdateLabel || '' });
 });
 
-app.post('/api/upload/header', uploader('header').single('image'), (req, res) => {
+app.post('/api/upload/header', uploader('header').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   deleteFile(data.headerImage);
@@ -370,7 +432,7 @@ app.post('/api/upload/header', uploader('header').single('image'), (req, res) =>
   res.json({ filename: req.file.filename });
 });
 
-app.post('/api/upload/educate', uploader('educate').single('image'), (req, res) => {
+app.post('/api/upload/educate', uploader('educate').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   deleteFile(data.educateImage);
@@ -380,7 +442,7 @@ app.post('/api/upload/educate', uploader('educate').single('image'), (req, res) 
 });
 
 // Centred image on the Apple Distinguished School page.
-app.post('/api/upload/apple', uploader('apple').single('image'), (req, res) => {
+app.post('/api/upload/apple', uploader('apple').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   deleteFile(data.appleImage);
@@ -390,7 +452,7 @@ app.post('/api/upload/apple', uploader('apple').single('image'), (req, res) => {
 });
 
 // Second image on the Apple Distinguished School page (under the video).
-app.post('/api/upload/apple2', uploader('apple2').single('image'), (req, res) => {
+app.post('/api/upload/apple2', uploader('apple2').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   deleteFile(data.appleImage2);
@@ -401,7 +463,7 @@ app.post('/api/upload/apple2', uploader('apple2').single('image'), (req, res) =>
 
 // Full-width image at the bottom of the home page (replaces the old
 // text + image info table).
-app.post('/api/upload/homefooter', uploader('homefooter').single('image'), (req, res) => {
+app.post('/api/upload/homefooter', uploader('homefooter').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   deleteFile(data.homeFooterImage);
@@ -410,7 +472,7 @@ app.post('/api/upload/homefooter', uploader('homefooter').single('image'), (req,
   res.json({ filename: req.file.filename });
 });
 
-app.post('/api/upload/carousel', uploader('carousel').single('image'), (req, res) => {
+app.post('/api/upload/carousel', uploader('carousel').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   data.carouselImages.push(req.file.filename);
@@ -428,7 +490,7 @@ app.delete('/api/carousel/:filename', (req, res) => {
 });
 
 // Upload a sport image
-app.post('/api/upload/sport/:sportId', uploader('sport').single('image'), (req, res) => {
+app.post('/api/upload/sport/:sportId', uploader('sport').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (!data.sports[req.params.sportId]) return res.status(404).json({ error: 'Unknown sport' });
@@ -448,7 +510,7 @@ app.delete('/api/sport-image/:filename', (req, res) => {
 });
 
 // Upload a pride slot image
-app.post('/api/upload/pride/:slotId', uploader('pride').single('image'), (req, res) => {
+app.post('/api/upload/pride/:slotId', uploader('pride').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (data.prideImages[req.params.slotId]) deleteFile(data.prideImages[req.params.slotId]);
@@ -467,7 +529,7 @@ app.delete('/api/pride-image/:slotId', (req, res) => {
 
 // Upload an About Us footer image (slot '1'..'4', full-width boxes at the
 // bottom of the About Us page).
-app.post('/api/upload/educatefooter/:slot', uploader('educatefooter').single('image'), (req, res) => {
+app.post('/api/upload/educatefooter/:slot', uploader('educatefooter').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const slot = String(req.params.slot);
   const data = load();
@@ -481,7 +543,7 @@ app.post('/api/upload/educatefooter/:slot', uploader('educatefooter').single('im
 });
 
 // Upload a homeinfo image (slot '1' or '2')
-app.post('/api/upload/homeinfo/:slot', uploader('homeinfo').single('image'), (req, res) => {
+app.post('/api/upload/homeinfo/:slot', uploader('homeinfo').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (data.homeinfoImages[req.params.slot]) deleteFile(data.homeinfoImages[req.params.slot]);
@@ -502,7 +564,7 @@ app.delete('/api/homeinfo-image/:slot', (req, res) => {
 });
 
 // Upload a classroom full-width image (slot '1' or '2')
-app.post('/api/upload/classroom/:slot', uploader('classroom').single('image'), (req, res) => {
+app.post('/api/upload/classroom/:slot', uploader('classroom').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (!data.classroomImages) data.classroomImages = {};
@@ -521,7 +583,7 @@ app.delete('/api/classroom-image/:slot', (req, res) => {
 });
 
 // Upload a staff slot image
-app.post('/api/upload/staff/:slotId', uploader('staff').single('image'), (req, res) => {
+app.post('/api/upload/staff/:slotId', uploader('staff').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (!data.staffSlots[req.params.slotId]) data.staffSlots[req.params.slotId] = { images: [], locks: {} };
@@ -554,7 +616,7 @@ app.post('/api/upload/ne', multer({
     }
   }),
   limits: { fileSize: 25 * 1024 * 1024 }
-}).single('file'), (req, res) => {
+}).single('file'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file received' });
   res.json({ filename: req.file.filename });
 });
@@ -567,7 +629,7 @@ app.delete('/api/ne-image/:filename', (req, res) => {
 });
 
 // Upload contact button image
-app.post('/api/upload/contact', uploader('contact').single('image'), (req, res) => {
+app.post('/api/upload/contact', uploader('contact').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (data.contactImage) deleteFile(data.contactImage);
@@ -617,7 +679,7 @@ app.delete('/api/audio/:pageId', (req, res) => {
 });
 
 // Upload an event image
-app.post('/api/upload/event/:eventId', uploader('event').single('image'), (req, res) => {
+app.post('/api/upload/event/:eventId', uploader('event').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (!data.eventsData[req.params.eventId]) return res.status(404).json({ error: 'Unknown event' });
@@ -894,14 +956,14 @@ function sanitiseRich(s) {
 // Single image upload for the newsletter (header, principal, notice).
 // Files persist forever so saved snapshots keep working even when the
 // admin replaces the editing draft's images.
-app.post('/api/upload/newsletter', uploader('nl').single('image'), (req, res) => {
+app.post('/api/upload/newsletter', uploader('nl').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   res.json({ filename: req.file.filename });
 });
 
 // Single image upload for an admin-composed Messages-page message.
 // Files persist forever so the message keeps rendering its image.
-app.post('/api/upload/message', uploader('msg').single('image'), (req, res) => {
+app.post('/api/upload/message', uploader('msg').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   res.json({ filename: req.file.filename });
 });
@@ -1546,7 +1608,7 @@ app.delete('/api/upcoming-events/:id', (req, res) => {
 });
 
 // Upload one or more event images
-app.post('/api/upcoming-events/image', uploader('ue').single('image'), (req, res) => {
+app.post('/api/upcoming-events/image', uploader('ue').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
   if (!Array.isArray(data.upcomingEventImages)) data.upcomingEventImages = [];
@@ -2007,4 +2069,6 @@ app.post('/api/save', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Auroa Website running at http://localhost:${PORT}`);
+  // Shrink any oversized images already on the volume (idempotent, background).
+  migrateOversizedImages().catch(e => console.error('[img] migration error:', e.message));
 });

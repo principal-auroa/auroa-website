@@ -9781,6 +9781,11 @@ var nlBaseRev = 0;
 
 function nlSetImage(slotEl, imgEl, filename) {
   if (filename) {
+    // Newsletter photos are the biggest images on the site and this runs at
+    // boot on every page. Lazy + async decode keeps them from all being
+    // fetched/decoded at once (raw camera photos have crashed phones).
+    imgEl.loading = 'lazy';
+    imgEl.decoding = 'async';
     imgEl.src = '/uploads/' + filename;
     imgEl.classList.add('loaded');
   } else {
