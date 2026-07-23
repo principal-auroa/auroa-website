@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v25';
+const CACHE = 'auroa-cache-v26';
 const SHELL = ['/', '/icon.svg', '/icon-192.png', '/badge-96.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

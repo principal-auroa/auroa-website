@@ -1677,18 +1677,41 @@ app.post('/api/push/subscribe', (req, res) => {
   const b = req.body || {};
   const sub = b.subscription;
   const email = String(b.email || '').trim();
+  const name = String(b.name || '').trim().slice(0, 60);
   if (!sub || !sub.endpoint) return res.status(400).json({ error: 'Missing subscription' });
   const data = load();
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
   if (!Array.isArray(data.emailSubscribers)) data.emailSubscribers = [];
-  // Dedupe by endpoint
+  // Dedupe by endpoint. The daily re-sync POSTs without any form input, so a
+  // replacement record must KEEP the stored name (and the zombie strike count
+  // — otherwise every re-sync resets strikes and dead-but-2xx endpoints are
+  // never pruned).
+  const prevSub = data.pushSubscriptions.find(s => s.endpoint === sub.endpoint);
   data.pushSubscriptions = data.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
-  data.pushSubscriptions.push(sub);
+  const record = Object.assign({}, sub);
+  if (name) record.name = name;
+  else if (prevSub && prevSub.name) record.name = prevSub.name;
+  if (prevSub && prevSub.failCount) record.failCount = prevSub.failCount;
+  record.lastSeen = Date.now();
+  data.pushSubscriptions.push(record);
   if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && data.emailSubscribers.indexOf(email) === -1) {
     data.emailSubscribers.push(email);
   }
   save(data, { silent: true });
   res.json({ ok: true });
+});
+
+// Admin: who is subscribed on which device — names only (no endpoints/keys),
+// same names-only exposure as group member lists in /api/state.
+app.get('/api/push/subscribers', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const data = load();
+  const subscribers = (data.pushSubscriptions || []).map(s => ({
+    name: s.name || null,
+    lastSeen: s.lastSeen || null,
+    strikes: s.failCount || 0
+  })).sort((a, b) => (a.name || 'zzz').localeCompare(b.name || 'zzz'));
+  res.json({ subscribers });
 });
 
 app.post('/api/push/unsubscribe', (req, res) => {
@@ -1951,7 +1974,8 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     targets: targetSubs.length,// devices we attempted
     sent: 0,                   // accepted by the push service
     failed: 0,                 // errored
-    removed: 0                 // dead endpoints pruned
+    removed: 0,                // dead endpoints pruned
+    failures: []               // per-failure {name, removed} so the admin sees WHO
   };
   if (doPush && wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
@@ -1990,6 +2014,7 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
         if (n >= 3) deadEndpoints.add(s.endpoint);
         console.warn('[push] failed', code || '', '(strike ' + n + ')', r.reason && r.reason.message);
       }
+      pushStats.failures.push({ name: s.name || null, removed: deadEndpoints.has(s.endpoint) });
     });
     pushStats.removed = deadEndpoints.size;
     if (deadEndpoints.size || Object.keys(failBump).length) {

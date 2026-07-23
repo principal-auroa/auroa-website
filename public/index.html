@@ -3919,25 +3919,40 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div id="pm-subscribe" class="pm-subscribe">
         <div class="pm-subscribe-text">
           <strong>Get school notifications</strong>
-          <p>Turn on notifications to get an alert when there's a new newsletter, event, or other school news. Add your email too if you'd like a copy of each message in your inbox.</p>
+          <p>Turn on notifications to get an alert when there's a new newsletter, event, or other school news. Add your name so the school can check this device is receiving messages, and your email if you'd like a copy of each message in your inbox.</p>
         </div>
         <div class="pm-subscribe-row">
+          <input id="pm-name" type="text" placeholder="Your name" maxlength="60" autocomplete="name" class="pm-email-input">
           <input id="pm-email" type="email" placeholder="Email (optional)" class="pm-email-input">
           <button type="button" id="pm-subscribe-btn" class="pm-subscribe-btn" onclick="pmToggleSubscribe()">Get notifications</button>
         </div>
         <div id="pm-subscribe-status" class="pm-subscribe-status"></div>
       </div>
 
+      <!-- Already-subscribed devices that never gave a name: collect it here so
+           the admin's delivery report can say WHOSE phone didn't get a message. -->
+      <div id="pm-name-nag" class="pm-subscribe" style="display:none;">
+        <div class="pm-subscribe-text">
+          <strong>Whose phone is this?</strong>
+          <p>Notifications are on for this device. Add your name so the school can check messages are reaching you.</p>
+        </div>
+        <div class="pm-subscribe-row">
+          <input id="pm-name-nag-input" type="text" placeholder="Your name" maxlength="60" autocomplete="name" class="pm-email-input">
+          <button type="button" class="pm-subscribe-btn" onclick="pmSaveName()">Save name</button>
+        </div>
+      </div>
+
       <div id="pm-sub-counts" class="pm-sub-counts">
-        <div class="pm-sub-count-tile">
+        <div class="pm-sub-count-tile" onclick="pmToggleSubscriberList()" style="cursor:pointer;" title="Tap to see who's subscribed">
           <div class="pm-sub-count-num" id="pm-push-count">0</div>
-          <div class="pm-sub-count-label">📲 devices subscribed to push notifications</div>
+          <div class="pm-sub-count-label">📲 devices subscribed to push notifications — tap for names</div>
         </div>
         <div class="pm-sub-count-tile">
           <div class="pm-sub-count-num" id="pm-email-count">0</div>
           <div class="pm-sub-count-label">📧 email subscribers</div>
         </div>
       </div>
+      <div id="pm-sub-list" style="display:none;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#333;line-height:1.9;"></div>
 
       <div id="pm-groups-admin" class="pm-groups-admin">
         <h3>Create a group</h3>
@@ -10559,6 +10574,35 @@ function pmSetSubscribed(v, endpoint) {
 function pmGetEndpoint() {
   try { return localStorage.getItem('pm_endpoint') || null; } catch (e) { return null; }
 }
+// The name attached to this device's push subscription, so the admin's
+// delivery report can name the phones a message didn't reach.
+function pmGetDeviceName() {
+  try { return (localStorage.getItem('pm_device_name') || '').trim(); } catch (e) { return ''; }
+}
+function pmSetDeviceName(name) {
+  try { localStorage.setItem('pm_device_name', (name || '').trim()); } catch (e) {}
+}
+// Save a name for an already-subscribed device (the "Whose phone is this?" bar).
+async function pmSaveName() {
+  var input = el('pm-name-nag-input');
+  var name = input ? input.value.trim() : '';
+  if (!name) return;
+  pmSetDeviceName(name);
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), name: name })
+      });
+    }
+  } catch (e) {}
+  pmUpdateSubscribeButton();
+  pmStatus('Thanks ' + name + ' — this device is now named.', 'ok');
+}
+
 function pmGetLastSeenId() {
   try { return localStorage.getItem('pm_last_seen_id') || ''; } catch (e) { return ''; }
 }
@@ -10582,6 +10626,9 @@ function pmUpdateSubscribeButton() {
   // (or have turned notifications off), show the big sign-up box again.
   var box = el('pm-subscribe');
   if (box) box.style.display = subbed ? 'none' : '';
+  // Subscribed but nameless: ask whose phone this is (once named, stays hidden).
+  var nag = el('pm-name-nag');
+  if (nag) nag.style.display = (subbed && !pmGetDeviceName()) ? '' : 'none';
   var unsub = el('pm-unsub-btn');
   if (unsub) unsub.style.display = subbed ? 'inline-block' : 'none';
   var test = el('pm-test-btn');
@@ -10636,6 +10683,9 @@ async function pmSubscribe() {
   }
   var emailInput = el('pm-email');
   var email = emailInput ? emailInput.value.trim() : '';
+  var nameInput = el('pm-name');
+  var name = (nameInput ? nameInput.value.trim() : '') || pmGetDeviceName();
+  if (name) pmSetDeviceName(name);
 
   pmStatus('Asking for permission…');
   var perm = await Notification.requestPermission();
@@ -10665,7 +10715,7 @@ async function pmSubscribe() {
   var res = await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON(), email: email })
+    body: JSON.stringify({ subscription: sub.toJSON(), email: email, name: name })
   });
   if (!res.ok) { pmStatus('Server rejected the subscription.', 'err'); return; }
   pmSetSubscribed(true, sub.endpoint);
@@ -10815,10 +10865,12 @@ async function pmResyncSubscription() {
   }
   if (!sub) return;
   try {
+    // Include this device's stored name so it survives endpoint rotations
+    // (a rotated endpoint creates a fresh server record).
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON() })
+      body: JSON.stringify({ subscription: sub.toJSON(), name: pmGetDeviceName() })
     });
     pmSetSubscribed(true, sub.endpoint);
     pmUpdateSubscribeButton();
@@ -11071,6 +11123,35 @@ function pmClearImage() {
   if (prev) prev.style.display = 'none';
 }
 
+// Admin: toggle the list of subscribed devices by name (names only — the
+// server never exposes endpoints). Unnamed devices are counted, not listed.
+function pmToggleSubscriberList() {
+  var box = el('pm-sub-list');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.textContent = 'Loading…';
+  fetch('/api/push/subscribers')
+    .then(function(r){ return r.json(); })
+    .then(function(b){
+      var subs = (b && b.subscribers) || [];
+      var named = subs.filter(function(s){ return s.name; });
+      var unnamed = subs.length - named.length;
+      var html = '<strong>Subscribed devices (' + subs.length + ')</strong><br>';
+      named.forEach(function(s){
+        var seen = s.lastSeen ? new Date(s.lastSeen).toLocaleDateString() : '';
+        html += '• ' + lunchEsc(s.name)
+          + (seen ? ' <span style="color:#888;">— last seen ' + seen + '</span>' : '')
+          + (s.strikes ? ' <span style="color:#c0392b;">⚠ ' + s.strikes + ' failed send' + (s.strikes === 1 ? '' : 's') + '</span>' : '')
+          + '<br>';
+      });
+      if (unnamed) html += '<span style="color:#888;">+ ' + unnamed + ' device' + (unnamed === 1 ? '' : 's') + ' with no name yet (they’ll be asked next time they open Messages)</span>';
+      if (!subs.length) html = 'No devices subscribed yet.';
+      box.innerHTML = html;
+    })
+    .catch(function(){ box.textContent = 'Couldn’t load the list.'; });
+}
+
 function pmSendMessage() {
   var title = el('pm-title').value.trim();
   var body  = el('pm-body').value;
@@ -11108,11 +11189,17 @@ function pmSendMessage() {
       else {
         report = '✅ Pushed to ' + p.sent + ' of ' + p.targets + ' device' + (p.targets === 1 ? '' : 's') + '.';
         if (p.failed) {
+          // Name the phones that didn't get it, so the office knows who to chase.
+          var failures = Array.isArray(p.failures) ? p.failures : [];
+          var named = failures.map(function(f){ return f && f.name; }).filter(Boolean);
+          var unnamed = p.failed - named.length;
+          var whoBits = named.slice();
+          if (unnamed > 0) whoBits.push(unnamed + ' unnamed device' + (unnamed === 1 ? '' : 's'));
           var temp = Math.max(0, p.failed - (p.removed || 0));
           var bits = [];
           if (p.removed) bits.push(p.removed + ' stale device' + (p.removed === 1 ? '' : 's') + ' removed — those people will get alerts again once they reopen the app');
           if (temp) bits.push(temp + ' temporary (will retry on the next send)');
-          report += ' ' + p.failed + ' didn’t go through' + (bits.length ? ' — ' + bits.join('; ') : '') + '.';
+          report += ' ⚠ Didn’t reach: ' + whoBits.join(', ') + (bits.length ? ' (' + bits.join('; ') + ')' : '') + '.';
           warn = true;
         }
       }
