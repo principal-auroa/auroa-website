@@ -4001,6 +4001,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
             <span id="pm-send-status" class="hb-err"></span>
           </div>
         </form>
+        <!-- Full per-device delivery breakdown for the last send (named devices). -->
+        <div id="pm-send-report" style="display:none;margin-top:12px;background:#f9fafb;border:1px solid #e6e6e6;border-radius:10px;padding:12px 14px;font-size:13px;color:#333;line-height:1.7;max-height:260px;overflow-y:auto;"></div>
       </div>
 
       <h2 class="pm-section-h">All messages</h2>
@@ -11152,6 +11154,37 @@ function pmToggleSubscriberList() {
     .catch(function(){ box.textContent = 'Couldn’t load the list.'; });
 }
 
+// After a send, show the full per-device breakdown: who the push service
+// accepted the message for, and who it failed for. Stays visible until the
+// next send so the office can work through the failed list.
+function pmRenderSendReport(p) {
+  var box = el('pm-send-report');
+  if (!box) return;
+  if (!p || !p.requested || (!p.sent && !p.failed)) { box.style.display = 'none'; return; }
+  function nameList(names) {
+    var named = names.filter(Boolean).sort(function(a, b){ return a.localeCompare(b); });
+    var unnamed = names.length - named.length;
+    var parts = named.map(lunchEsc);
+    if (unnamed > 0) parts.push('<span style="color:#888;">' + unnamed + ' unnamed device' + (unnamed === 1 ? '' : 's') + '</span>');
+    return parts.join(', ');
+  }
+  var html = '<strong>Delivery report — ' + new Date().toLocaleTimeString() + '</strong><br>';
+  var sentNames = Array.isArray(p.sentNames) ? p.sentNames : [];
+  if (p.sent) {
+    html += '<span style="color:#16a34a;">✅ Sent to ' + p.sent + ' device' + (p.sent === 1 ? '' : 's') + ':</span> ' + nameList(sentNames) + '<br>';
+  }
+  var failures = Array.isArray(p.failures) ? p.failures : [];
+  if (p.failed) {
+    html += '<span style="color:#c0392b;">⚠ Didn’t reach ' + p.failed + ' device' + (p.failed === 1 ? '' : 's') + ':</span> '
+      + nameList(failures.map(function(f){ return f && f.name; }));
+    if (p.removed) html += ' <span style="color:#888;">(' + p.removed + ' stale — removed; they’ll re-register when they next open the app)</span>';
+    html += '<br>';
+  }
+  html += '<span style="color:#888;font-size:12px;">“Sent” means the phone’s push service accepted the message — the phone itself can still block it in its notification settings.</span>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
 function pmSendMessage() {
   var title = el('pm-title').value.trim();
   var body  = el('pm-body').value;
@@ -11207,6 +11240,7 @@ function pmSendMessage() {
     status.textContent = report;
     status.style.color = warn ? '#c0392b' : '#16a34a';
     setTimeout(function(){ status.textContent = ''; status.style.color = ''; }, warn ? 12000 : 5000);
+    pmRenderSendReport(p);
     parentMessages.push(res.body.message);
     pmRenderList();
   })

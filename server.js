@@ -1975,7 +1975,8 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     sent: 0,                   // accepted by the push service
     failed: 0,                 // errored
     removed: 0,                // dead endpoints pruned
-    failures: []               // per-failure {name, removed} so the admin sees WHO
+    failures: [],              // per-failure {name, removed} so the admin sees WHO
+    sentNames: []              // names of devices the push service accepted (null = unnamed)
   };
   if (doPush && wp && targetSubs.length) {
     const pageCount = data.parentMessages.filter(m => showsOnMessagesPage(m.source)).length;
@@ -2003,7 +2004,7 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     const failBump = {};   // endpoint -> new failCount (0 = reset)
     targetSubs.forEach((s, i) => {
       const r = results[i];
-      if (r.status === 'fulfilled') { pushStats.sent++; failBump[s.endpoint] = 0; return; }
+      if (r.status === 'fulfilled') { pushStats.sent++; pushStats.sentNames.push(s.name || null); failBump[s.endpoint] = 0; return; }
       pushStats.failed++;
       const code = r.reason && r.reason.statusCode;
       if (code === 410 || code === 404) {
