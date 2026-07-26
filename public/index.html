@@ -4999,7 +4999,7 @@ function renderAppleVideo() {
   if (inp) inp.value = url;
   var embedUrl = getYoutubeEmbedUrl(url);
   if (embedUrl) {
-    embedDiv.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embedDiv.innerHTML = embedMarkup(embedUrl); embedActivateIfVisible(embedDiv);
     embedDiv.style.display = 'block';
     if (box) box.classList.add('has-video');
   } else {
@@ -5082,7 +5082,7 @@ function updateAboutVideoEmbed(box, v) {
   if (!embed) return;
   var embedUrl = getYoutubeEmbedUrl(v.url || '');
   if (embedUrl) {
-    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.innerHTML = embedMarkup(embedUrl); embedActivateIfVisible(embed);
     embed.style.display = 'block';
     box.classList.remove('av-empty');
   } else {
@@ -5419,6 +5419,33 @@ function renderCarouselThumbs() {
   });
 }
 
+// ===================== LAZY EMBEDS =====================
+// YouTube/calendar/Drive iframes are full embedded web apps (tens to hundreds
+// of MB each). 24 of them were loading at boot into HIDDEN pages — the main
+// reason phones ran out of memory and the app "shut down". Embeds are now
+// created with data-live-src only; the real src is set when their page is
+// shown and reset when the user leaves it, so at most one page's embeds are
+// alive at a time (and loading="lazy" keeps off-screen ones idle even then).
+function embedMarkup(embedUrl) {
+  return '<iframe loading="lazy" data-live-src="' + lunchEsc(embedUrl) + '" allowfullscreen></iframe>';
+}
+function syncPageEmbeds(activePg) {
+  document.querySelectorAll('.page iframe[data-live-src]').forEach(function(f) {
+    var want = f.getAttribute('data-live-src');
+    if (activePg && activePg.contains(f)) {
+      if (f.getAttribute('src') !== want) f.setAttribute('src', want);
+    } else if (f.getAttribute('src') && f.getAttribute('src') !== 'about:blank') {
+      f.setAttribute('src', 'about:blank');   // unload the embedded app, free its memory
+    }
+  });
+}
+// After (re)rendering an embed, load it immediately if its page is showing.
+function embedActivateIfVisible(container) {
+  if (!container || !container.closest) return;
+  var pg = container.closest('.page');
+  if (pg && pg.classList.contains('active')) syncPageEmbeds(pg);
+}
+
 // ===================== NAVIGATION =====================
 function goHome() { showPage('pg-home'); }
 function showPage(id) {
@@ -5434,6 +5461,7 @@ function showPage(id) {
   }
   currentPageId = id;
   if (typeof pmSentinelPageChanged === 'function') pmSentinelPageChanged();
+  syncPageEmbeds(pg);
   updateSidebarAudio(id);
   if (id === 'pg-lunch-orders' && typeof renderLunchAdmin === 'function') renderLunchAdmin();
   if (id === 'pg-newsletter' && typeof renderNewsletter === 'function') renderNewsletter();
@@ -5598,10 +5626,12 @@ function renderCalendars() {
     if (cal.url) {
       if (empty) empty.style.display = 'none';
       var iframe = document.createElement('iframe');
-      iframe.src = buildCalendarSrc(cal.url);
+      iframe.loading = 'lazy';
+      iframe.setAttribute('data-live-src', buildCalendarSrc(cal.url));
       iframe.setAttribute('frameborder', '0');
       iframe.setAttribute('scrolling', 'no');
       wrap.appendChild(iframe);
+      embedActivateIfVisible(wrap);
       if (nameEl) nameEl.textContent = cal.label ? '— ' + cal.label : '';
     } else {
       if (empty) empty.style.display = 'flex';
@@ -7791,7 +7821,7 @@ function renderY78Youtube() {
     if (inp) inp.value = url;
     var embedUrl = getYoutubeEmbedUrl(url);
     if (embedUrl) {
-      embedDiv.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+      embedDiv.innerHTML = embedMarkup(embedUrl); embedActivateIfVisible(embedDiv);
       embedDiv.style.display = 'block';
       if (ph) ph.style.display = 'none';
     } else {
@@ -7895,7 +7925,7 @@ function renderEduFooterVideo(i) {
   if (inp) inp.value = url;
   var embedUrl = getYoutubeEmbedUrl(url);
   if (embedUrl) {
-    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.innerHTML = embedMarkup(embedUrl); embedActivateIfVisible(embed);
     embed.style.display = 'block';
     if (box) box.classList.add('has-video');
   } else {
@@ -7935,7 +7965,7 @@ function renderHomeVideo() {
   if (inp) inp.value = url;
   var embedUrl = getYoutubeEmbedUrl(url);
   if (embedUrl) {
-    embed.innerHTML = '<iframe src="' + embedUrl + '" allowfullscreen></iframe>';
+    embed.innerHTML = embedMarkup(embedUrl); embedActivateIfVisible(embed);
     embed.style.display = 'block';
     if (box) box.classList.add('has-video');
   } else {
