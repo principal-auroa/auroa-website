@@ -471,6 +471,15 @@ app.post('/api/upload/homeabove', uploader('homeabove').single('image'), resizeU
   res.json({ filename: req.file.filename });
 });
 
+// Remove the above-video home image (the ✕ button).
+app.delete('/api/homeabove-image', (req, res) => {
+  const data = load();
+  deleteFile(data.homeAboveImage);
+  data.homeAboveImage = null;
+  save(data);
+  res.json({ ok: true });
+});
+
 // Full-width image at the bottom of the home page (replaces the old
 // text + image info table).
 app.post('/api/upload/homefooter', uploader('homefooter').single('image'), resizeUpload, (req, res) => {

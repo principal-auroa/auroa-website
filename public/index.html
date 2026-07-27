@@ -632,6 +632,17 @@ body.is-admin .box-lock-btn{display:flex;}
   cursor:pointer;justify-content:center;align-items:center;font-size:13px;
 }
 .img-link-btn.show{display:flex;}
+/* Remove-image cross (top-right); shown to admins only when an image is set.
+   The habove replace pill moves top-left to make room for it. */
+.img-remove-btn{
+  display:none;position:absolute;top:6px;right:6px;z-index:11;
+  width:26px;height:26px;border-radius:50%;border:none;
+  background:rgba(192,57,43,0.92);color:#fff;font-size:13px;line-height:1;
+  cursor:pointer;justify-content:center;align-items:center;
+}
+.img-remove-btn:hover{background:#a93226;}
+body.is-admin #habove-box.has-img .img-remove-btn{display:flex;}
+#habove-overlay{right:auto;left:6px;}
 .img-link-btn.has-link{background:rgba(192,100,43,0.9);}
 
 /* ---- IMG LINK EDITOR ---- */
@@ -3047,6 +3058,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </label>
         <input class="file-in" id="habove-file" type="file" accept="image/*" onchange="uploadImg('homeabove',this)" />
         <button class="img-link-btn" id="lb-habove-box" onclick="event.stopPropagation();openImgLinkEditor('habove-box',this)">🔗</button>
+        <button class="img-remove-btn" id="rm-habove" onclick="event.stopPropagation();removeHomeAboveImg()" title="Remove image">✕</button>
       </div>
       <label id="habove-upload-btn" for="habove-file">&#8679; Upload Image</label>
 
@@ -5016,7 +5028,20 @@ function applyHomeAboveImg(src) {
   if (!img) return;
   img.src = src; img.style.display = 'block';
   var ph = el('habove-placeholder'); if (ph) ph.style.display = 'none';
-  var box = el('habove-box'); if (box) box.style.border = 'none';
+  var box = el('habove-box'); if (box) { box.style.border = 'none'; box.classList.add('has-img'); }
+}
+
+function removeHomeAboveImg() {
+  if (!confirm('Remove this image from the home page?')) return;
+  fetch('/api/homeabove-image', { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+      var img = el('habove-img'); if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+      var ph = el('habove-placeholder'); if (ph) ph.style.display = '';
+      var box = el('habove-box'); if (box) { box.classList.remove('has-img'); box.style.border = ''; }
+      flashSave('Image removed');
+    })
+    .catch(function() { flashSave('Remove failed.'); });
 }
 
 function applyHomeFooterImg(src) {
