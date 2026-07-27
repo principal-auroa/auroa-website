@@ -303,6 +303,57 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-green{background:#27ae60;}
 .sidebar-btn.group-green:hover{background:#1f8b4d;color:#fff;border-left-color:transparent;}
 .sidebar-btn.last-in-group{margin-bottom:18px;}
+/* ---- 3D themed sidebar pills ----
+   Overrides the flat colours above: deeper tones that sit with the navy
+   sidebar + terracotta accent, lit-from-above gradient, a solid bottom
+   ledge + drop shadow for depth, letterpress text, press-down on tap. */
+.sidebar-btn.enrol{--bt:#d0793f;--bb:#b95f2a;--bl:#9d4f22;--be:#7c3d1a;}
+.sidebar-btn.contact{--bt:#43a06b;--bb:#2e8654;--bl:#256e45;--be:#1b5434;}
+.sidebar-btn.stationery{--bt:#4a7fb0;--bb:#33648f;--bl:#2a5378;--be:#1f405d;}
+.sidebar-btn.parent-portal{--bt:#2d9484;--bb:#1f7d6f;--bl:#19685c;--be:#124f46;}
+.sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
+.sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
+.sidebar-btn.group-green{--bt:#43a06b;--bb:#2e8654;--bl:#256e45;--be:#1b5434;}
+.sidebar-btn.sb-grey,
+.sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,
+.sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
+.sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green{
+  background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.25),
+             inset 0 -1px 0 rgba(0,0,0,0.12),
+             0 3px 0 var(--be),
+             0 6px 12px rgba(0,0,0,0.35);
+  text-shadow:0 1px 2px rgba(0,0,0,0.35);
+  font-weight:600;
+  transform:translateY(0);
+  transition:filter 0.13s,transform 0.13s,box-shadow 0.13s;
+}
+/* Grey pills read as navy-on-light with a top-light emboss instead */
+.sidebar-btn.sb-grey,
+.sidebar-btn[data-page="pg-absence"]{
+  color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.5);
+}
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,
+.sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
+.sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover{
+  background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
+  filter:brightness(1.08);
+  transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.28),
+             inset 0 -1px 0 rgba(0,0,0,0.12),
+             0 4px 0 var(--be),
+             0 8px 16px rgba(0,0,0,0.4);
+}
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,
+.sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
+.sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active{
+  filter:brightness(0.97);
+  transform:translateY(2px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.15),
+             0 1px 0 var(--be),
+             0 2px 5px rgba(0,0,0,0.3);
+}
 #stationery-editor{
   display:none;
   margin:-4px 16px 12px;
