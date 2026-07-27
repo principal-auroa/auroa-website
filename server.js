@@ -461,6 +461,16 @@ app.post('/api/upload/apple2', uploader('apple2').single('image'), resizeUpload,
   res.json({ filename: req.file.filename });
 });
 
+// Full-width image above the video on the home page.
+app.post('/api/upload/homeabove', uploader('homeabove').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.homeAboveImage);
+  data.homeAboveImage = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+
 // Full-width image at the bottom of the home page (replaces the old
 // text + image info table).
 app.post('/api/upload/homefooter', uploader('homefooter').single('image'), resizeUpload, (req, res) => {

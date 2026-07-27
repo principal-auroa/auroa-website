@@ -512,7 +512,7 @@ body.is-admin #sidebar-audio-none{display:block;}
 #hdr-box{
   width:100%;margin:28px 0 22px;
 }
-#hfoot-box{
+#hfoot-box,#habove-box{
   width:100%;margin:18px 0 22px;
 }
 #edu-footer-imgs{margin-top:14px;}
@@ -559,21 +559,21 @@ body.is-admin .edu-foot-box .upload-overlay span{
   margin-bottom:16px;
 }
 body.is-admin .edu-foot-upload-btn{display:inline-block;}
-body.is-admin #hfoot-overlay{display:flex;}
-#hfoot-overlay{
+body.is-admin #hfoot-overlay,body.is-admin #habove-overlay{display:flex;}
+#hfoot-overlay,#habove-overlay{
   inset:unset !important;top:6px;right:6px;
   width:auto;height:auto;padding:4px 10px;border-radius:6px;
   background:rgba(26,43,74,0.75) !important;font-size:11px;font-weight:600;cursor:pointer;
 }
-#hfoot-overlay span{background:none !important;padding:0 !important;font-size:11px;}
-#hfoot-upload-btn{
+#hfoot-overlay span,#habove-overlay span{background:none !important;padding:0 !important;font-size:11px;}
+#hfoot-upload-btn,#habove-upload-btn{
   display:none;
   background:#1a2b4a;color:#fff;
   padding:8px 20px;border-radius:6px;cursor:pointer;
   font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
   margin-bottom:14px;
 }
-body.is-admin #hfoot-upload-btn{display:inline-block;}
+body.is-admin #hfoot-upload-btn,body.is-admin #habove-upload-btn{display:inline-block;}
 .img-box img{width:100%;display:block;}
 #hdr-img{transform-origin:center center;pointer-events:none;user-select:none;-webkit-user-drag:none;}
 .img-box .placeholder{
@@ -3038,6 +3038,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="editable" id="ec-welcome"><p>Welcome to Auroa School. We are a small, proud rural school in the heart of South Taranaki, committed to nurturing confident, curious learners in a safe and supportive environment.</p></div>
       </div>
 
+      <!-- Full-width image above the video -->
+      <div class="img-box" id="habove-box">
+        <div class="placeholder" id="habove-placeholder">No image — upload one as admin</div>
+        <img loading="lazy" decoding="async" id="habove-img" style="display:none;" alt="" />
+        <label class="upload-overlay" id="habove-overlay" for="habove-file">
+          <span>Click to replace image</span>
+        </label>
+        <input class="file-in" id="habove-file" type="file" accept="image/*" onchange="uploadImg('homeabove',this)" />
+        <button class="img-link-btn" id="lb-habove-box" onclick="event.stopPropagation();openImgLinkEditor('habove-box',this)">🔗</button>
+      </div>
+      <label id="habove-upload-btn" for="habove-file">&#8679; Upload Image</label>
+
       <!-- Full-width video under the welcome text (YouTube or Google Drive) -->
       <div id="home-video" class="home-video-box">
         <div class="home-video-admin-bar">
@@ -4508,6 +4520,8 @@ window.addEventListener('DOMContentLoaded', function() {
     // Non-admin hfoot-box link click
     if (!isAdmin && !e.target.closest('#hfoot-overlay') && e.target.closest('#hfoot-box') && imgLinks['hfoot-box'])
       window.open(imgLinks['hfoot-box'], '_blank');
+    if (!isAdmin && !e.target.closest('#habove-overlay') && e.target.closest('#habove-box') && imgLinks['habove-box'])
+      window.open(imgLinks['habove-box'], '_blank');
     // Non-admin edu-foot-box-N link click
     if (!isAdmin && !e.target.closest('.upload-overlay')) {
       for (var i = 1; i <= 6; i++) {
@@ -4616,6 +4630,7 @@ function fetchState(_retry) {
       if (data.headerImage)  applyHdrImg('/uploads/' + data.headerImage);
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
       if (data.homeFooterImage) applyHomeFooterImg('/uploads/' + data.homeFooterImage);
+      if (data.homeAboveImage) applyHomeAboveImg('/uploads/' + data.homeAboveImage);
       var eduFooterImgs = data.educateFooterImages || {};
       ['1','2','3','4','5','6'].forEach(function(slot) {
         if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
@@ -4981,6 +4996,8 @@ function uploadImg(type, input) {
         applyHeaderToAllPages();
       } else if (type === 'homefooter') {
         applyHomeFooterImg('/uploads/' + data.filename);
+      } else if (type === 'homeabove') {
+        applyHomeAboveImg('/uploads/' + data.filename);
       } else if (type === 'apple') {
         applyAppleImg('/uploads/' + data.filename);
       } else if (type === 'apple2') {
@@ -4992,6 +5009,14 @@ function uploadImg(type, input) {
     })
     .catch(function() { flashSave('Upload failed.'); });
   input.value = '';
+}
+
+function applyHomeAboveImg(src) {
+  var img = el('habove-img');
+  if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var ph = el('habove-placeholder'); if (ph) ph.style.display = 'none';
+  var box = el('habove-box'); if (box) box.style.border = 'none';
 }
 
 function applyHomeFooterImg(src) {
