@@ -2399,7 +2399,7 @@ textarea.hb-input{resize:vertical;min-height:60px;line-height:1.4;}
 .hb-cal-nav:hover{background:rgba(255,255,255,0.15);}
 .hb-cal-month{font-size:15px;font-weight:700;letter-spacing:0.4px;}
 .hb-cal-dow{
-  display:grid;grid-template-columns:repeat(7,1fr);
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
   background:#f5f6f8;color:#555;font-size:11px;font-weight:700;
   text-transform:uppercase;letter-spacing:0.5px;
   border-left:1px solid #e6e6e6;border-right:1px solid #e6e6e6;
@@ -2407,11 +2407,12 @@ textarea.hb-input{resize:vertical;min-height:60px;line-height:1.4;}
 }
 .hb-cal-dow span{padding:6px 4px;}
 .hb-cal-grid{
-  display:grid;grid-template-columns:repeat(7,1fr);
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
   border:1px solid #e6e6e6;border-radius:0 0 10px 10px;overflow:hidden;
 }
 .hb-cal-cell{
   min-height:74px;padding:4px 5px;
+  min-width:0;overflow:hidden;
   border-right:1px solid #ececec;border-bottom:1px solid #ececec;
   font-size:11px;color:#333;background:#fff;
 }
@@ -2423,6 +2424,7 @@ textarea.hb-input{resize:vertical;min-height:60px;line-height:1.4;}
   display:block;border-radius:4px;padding:2px 4px;
   font-size:10px;font-weight:600;line-height:1.25;
   margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .hb-cal-booking.hb-pending{background:#fde68a;color:#78350f;}
 .hb-cal-booking.hb-confirmed{background:#bbf7d0;color:#14532d;}
@@ -2513,6 +2515,7 @@ body.is-admin .abs-admin{display:block;}
   font-size:10px;font-weight:600;line-height:1.25;
   margin-top:2px;cursor:pointer;
   background:#dbeafe;color:#1e3a8a;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .hb-cal-grid .hb-cal-cell .hb-cal-event:hover{background:#bfdbfe;}
 .ue-admin{display:none;margin-top:8px;padding:18px;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;}
@@ -12165,7 +12168,10 @@ function renderUeCalendar() {
     events.forEach(function(ev) {
       var pill = document.createElement('span');
       pill.className = 'hb-cal-event';
-      pill.textContent = ev.name;
+      // Keep the calendar tidy on phones: first three words + … (tap for full
+      // details in the popup).
+      var words = String(ev.name || '').trim().split(/\s+/);
+      pill.textContent = words.length > 3 ? words.slice(0, 3).join(' ') + '…' : (ev.name || '');
       pill.title = ev.name;
       var bg = ev.color || '#dbeafe';
       pill.style.background = bg;
