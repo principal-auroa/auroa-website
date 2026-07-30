@@ -1347,6 +1347,43 @@ body.is-admin .ev-img-cell:hover .ev-img-replace{display:block;}
 }
 body.is-admin .ev-add-img-cell{display:flex;}
 
+/* ---- SCHOOL SURVEY PAGE ---- */
+.sv-section{background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:18px 20px;margin-bottom:16px;}
+.sv-goal-h{color:#1a2b4a;font-size:18px;font-weight:700;margin:0 0 4px;}
+.sv-prompt{color:#555;font-size:13px;margin:0 0 10px;line-height:1.5;}
+.sv-intro{color:#333;font-size:14px;line-height:1.7;}
+.sv-item{margin:14px 0 6px;font-weight:600;color:#333;font-size:14px;line-height:1.4;}
+.sv-opts{display:flex;flex-wrap:wrap;gap:6px;}
+.sv-opt{display:inline-flex;align-items:center;gap:5px;border:1.5px solid #dcdcdc;border-radius:15px;
+  padding:4px 10px;font-size:12px;color:#444;cursor:pointer;background:#fafafa;user-select:none;}
+.sv-opt input{accent-color:#1a2b4a;margin:0;cursor:pointer;}
+.sv-opt:has(input:checked){background:#1a2b4a;border-color:#1a2b4a;color:#fff;}
+.sv-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-top:8px;}
+.sv-check{display:flex;align-items:center;gap:7px;border:1.5px solid #dcdcdc;border-radius:8px;
+  padding:7px 10px;font-size:13px;color:#333;cursor:pointer;background:#fafafa;user-select:none;}
+.sv-check input{accent-color:#1a2b4a;margin:0;cursor:pointer;flex-shrink:0;}
+.sv-check:has(input:checked){background:#eef3fb;border-color:#1a2b4a;}
+.sv-check input:disabled{cursor:not-allowed;}
+.sv-check:has(input:disabled){opacity:0.45;cursor:not-allowed;}
+.sv-other-in{margin-top:8px;}
+.sv-text-q{margin:14px 0 6px;font-weight:600;color:#333;font-size:14px;}
+.sv-thanks{background:#f0fdf4;border:1.5px solid #16a34a;border-radius:12px;padding:22px;
+  text-align:center;color:#14532d;font-size:15px;line-height:1.6;}
+.sv-note{font-size:12px;color:#888;margin:0 0 14px;}
+.survey-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+body.is-admin .survey-admin{display:block;}
+.sv-res-table-wrap{overflow-x:auto;margin:8px 0 16px;}
+.sv-res-table{border-collapse:collapse;font-size:12px;min-width:100%;}
+.sv-res-table th,.sv-res-table td{border:1px solid #e6e6e6;padding:5px 8px;text-align:center;white-space:nowrap;}
+.sv-res-table td:first-child,.sv-res-table th:first-child{text-align:left;white-space:normal;min-width:180px;}
+.sv-res-table th{background:#f5f6f8;color:#1a2b4a;}
+.sv-res-table td.sv-max{background:#eef3fb;font-weight:700;color:#1a2b4a;}
+.sv-res-h{color:#1a2b4a;font-size:14px;font-weight:700;margin:16px 0 4px;}
+.sv-res-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:#333;margin:3px 0;}
+.sv-res-bar .bar{height:12px;background:#3d74a8;border-radius:3px;min-width:2px;}
+.sv-res-texts{margin:4px 0 0 0;padding-left:18px;font-size:13px;color:#333;}
+.sv-res-texts li{margin:4px 0;line-height:1.5;}
+
 /* ---- NEW ENTRANT PAGE ---- */
 /* Full-width stack: intro text, then the buttons across the page, then the
    second text box underneath. */
@@ -3389,6 +3426,26 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== SCHOOL SURVEY PAGE ======== -->
+  <div id="pg-survey" class="page">
+    <div class="pg-header" id="ph-survey"></div>
+    <div class="pg-body" style="max-width:840px;margin:0 auto;">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">School Survey</h1>
+      </div>
+      <div id="survey-admin" class="survey-admin">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Survey results (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="svLoadResults()">↻ Refresh</button>
+          <span id="sv-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="sv-results"></div>
+      </div>
+      <div id="survey-body"></div>
+    </div>
+  </div>
+
   <!-- ======== BUSES PAGE ======== -->
   <div id="pg-buses" class="page">
     <div class="pg-header" id="ph-buses"></div>
@@ -4644,6 +4701,11 @@ function fetchState(_retry) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-absence'; })) {
         pageConfig.push({ id:'pg-absence', label:'Student Absence Notification', hidden:false });
       }
+      // School Survey page: starts HIDDEN (admin publishes it with the 👁 Show
+      // toggle in the sidebar when ready).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-survey'; })) {
+        pageConfig.push({ id:'pg-survey', label:'School Survey', hidden:true });
+      }
       renderSidebarPages();
       pageAudio = data.pageAudio || {};
       updateSidebarAudio('pg-home');
@@ -5397,7 +5459,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -5569,6 +5631,249 @@ function saveCarouselOrder() {
   apiSave('carouselImages', carouselImages, function() { flashSave('Order saved!'); });
 }
 
+// ===================== SCHOOL SURVEY =====================
+// Strategic Planning Survey 2027-2029. The form is built from SURVEY_DEF so
+// questions, storage keys and the admin aggregation all stay in sync.
+var SV_AGREE = ['Strongly Agree','Agree','Neutral','Disagree','Strongly Disagree'];
+var SV_IMP   = ['Very Important','Important','Neutral','Less Important','Not Important'];
+var SURVEY_DEF = [
+  { type:'intro', title:'Auroa School — Strategic Planning Survey 2027–2029',
+    text:"Section 1 – Our School's Future. This survey will help determine Auroa School's priorities for the next three years. Your answers are anonymous — thank you for taking the time to share your views." },
+  { type:'scale', id:'g1_now', title:'Goal 1 — Hauora and Wellbeing',
+    prompt:'How well do you think Auroa School currently provides opportunities for students to…', opts:SV_AGREE,
+    items:['Feel safe and supported at school.','Develop positive friendships and relationships.','Build resilience and confidence.','Develop healthy habits and positive wellbeing.','Feel connected to their school and community.','Develop a strong sense of belonging.'] },
+  { type:'scale', id:'g1_ahead', title:'Looking Ahead',
+    prompt:'How important should each of these be over the next three years?', opts:SV_IMP,
+    items:['Student wellbeing','Mental health and resilience','Positive behaviour','Student voice','Attendance','Partnerships with families','Cultural identity','Sense of belonging'] },
+  { type:'text', id:'g1_open', label:'What should Auroa School focus on most to improve student wellbeing?' },
+  { type:'scale', id:'g2_now', title:'Goal 2 — Curriculum and Learning',
+    prompt:'How well do you think Auroa School currently provides opportunities for students to…', opts:SV_AGREE,
+    items:['Achieve success in literacy.','Achieve success in mathematics.','Think creatively and solve problems.','Learn through authentic, hands-on experiences.','Develop digital skills.','Become confident, independent learners.','Learn through local contexts and experiences.','Be challenged to achieve their potential.'] },
+  { type:'scale', id:'g2_ahead', title:'Looking Ahead',
+    prompt:'How important should the following be over the next three years?', opts:SV_IMP,
+    items:['Literacy','Mathematics','Science','Technology','Artificial Intelligence','Agriculture','Outdoor Education','Environmental Education','Financial Literacy','Te Reo Māori','Arts','Hands-on learning','Critical Thinking'] },
+  { type:'text', id:'g2_open', label:'What learning opportunities would you most like to see expanded?' },
+  { type:'scale', id:'g3_now', title:'Goal 3 — Equitable Opportunity',
+    prompt:'How well do you think Auroa School currently provides opportunities for students to…', opts:SV_AGREE,
+    items:['Experience success.','Participate in sport.','Participate in cultural activities.','Participate in leadership.','Participate in the arts.','Learn through technology.','Receive support that meets their needs.','Develop their individual strengths.'] },
+  { type:'checks', id:'g3_expand', title:'Looking Ahead',
+    label:'Which opportunities should the school expand over the next three years?',
+    options:['Sport','Music','Drama','Robotics','Coding','Agriculture','Outdoor Education','Leadership','Community Service','STEM','Cultural Opportunities'], other:true },
+  { type:'intro', title:'Section 4 — Our School Values',
+    text:"The following questions relate to Auroa School's values of Pride, Innovation, Respect and Initiative. These values underpin everything we do. We would like to know how important you believe they are as we develop our next Strategic Plan." },
+  { type:'scale', id:'val_pride', title:'Pride', prompt:'Auroa School provides opportunities for students to…', opts:SV_AGREE,
+    items:['Take pride in their work.','Aim for excellence.','Improve through feedback.','Represent the school positively.'] },
+  { type:'single', id:'val_pride_imp', label:'How important should Pride continue to be over the next three years?', opts:SV_IMP },
+  { type:'scale', id:'val_innovation', title:'Innovation', prompt:'Auroa School provides opportunities for students to…', opts:SV_AGREE,
+    items:['Think creatively.','Solve real-world problems.','Create and improve ideas.','Use technology meaningfully.'] },
+  { type:'single', id:'val_innovation_imp', label:'How important should Innovation continue to be over the next three years?', opts:SV_IMP },
+  { type:'scale', id:'val_respect', title:'Respect', prompt:'Auroa School provides opportunities for students to…', opts:SV_AGREE,
+    items:['Respect themselves.','Respect others.','Respect their environment.','Build positive relationships.'] },
+  { type:'single', id:'val_respect_imp', label:'How important should Respect continue to be over the next three years?', opts:SV_IMP },
+  { type:'scale', id:'val_initiative', title:'Initiative', prompt:'Auroa School provides opportunities for students to…', opts:SV_AGREE,
+    items:['Make independent decisions.','Take responsibility for learning.','Show perseverance.','Develop leadership.'] },
+  { type:'single', id:'val_initiative_imp', label:'How important should Initiative continue to be over the next three years?', opts:SV_IMP },
+  { type:'checks', id:'final_top3', title:'Final Questions',
+    label:"Thinking about everything you've considered, what are the THREE most important priorities for Auroa School over the next three years? (choose up to three)",
+    options:['Student wellbeing','Literacy','Mathematics','Technology','Artificial Intelligence','Outdoor Education','Agriculture','Student leadership','Environmental Education','Cultural Opportunities','Sport','Arts','Inclusive Education','Community Partnerships','Future-focused learning'], other:true, max:3 },
+  { type:'text', id:'final_improve', label:'If Auroa School could improve one thing over the next three years, what would you choose?' },
+  { type:'text', id:'final_keep', label:'What is one thing you hope Auroa School never loses?' }
+];
+
+var _svBuilt = false;
+function renderSurveyPage() {
+  var body = el('survey-body');
+  if (!body || _svBuilt) return;
+  _svBuilt = true;
+  var done = false;
+  try { done = localStorage.getItem('sv2027_done') === '1'; } catch (e) {}
+  var html = '';
+  if (done) {
+    html += '<p class="sv-note">You have already submitted this survey on this device — thank you! ' +
+            'If someone else in your family would like to respond, they can fill it in below.</p>';
+  }
+  SURVEY_DEF.forEach(function(q) {
+    html += '<div class="sv-section">';
+    if (q.title) html += '<h2 class="sv-goal-h">' + lunchEsc(q.title) + '</h2>';
+    if (q.type === 'intro') {
+      html += '<p class="sv-intro">' + lunchEsc(q.text) + '</p>';
+    } else if (q.type === 'scale') {
+      html += '<p class="sv-prompt">' + lunchEsc(q.prompt) + '</p>';
+      q.items.forEach(function(item, i) {
+        var name = q.id + '_' + i;
+        html += '<div class="sv-item">' + lunchEsc(item) + '</div><div class="sv-opts">';
+        q.opts.forEach(function(opt) {
+          html += '<label class="sv-opt"><input type="radio" name="' + name + '" value="' + lunchEsc(opt) + '">' + lunchEsc(opt) + '</label>';
+        });
+        html += '</div>';
+      });
+    } else if (q.type === 'single') {
+      html += '<div class="sv-item">' + lunchEsc(q.label) + '</div><div class="sv-opts">';
+      q.opts.forEach(function(opt) {
+        html += '<label class="sv-opt"><input type="radio" name="' + q.id + '" value="' + lunchEsc(opt) + '">' + lunchEsc(opt) + '</label>';
+      });
+      html += '</div>';
+    } else if (q.type === 'checks') {
+      html += '<div class="sv-item">' + lunchEsc(q.label) + '</div><div class="sv-check-grid" id="grid-' + q.id + '">';
+      q.options.forEach(function(opt) {
+        html += '<label class="sv-check"><input type="checkbox" name="' + q.id + '" value="' + lunchEsc(opt) + '"' +
+                (q.max ? ' onchange="svEnforceMax(\'' + q.id + '\',' + q.max + ')"' : '') + '>' + lunchEsc(opt) + '</label>';
+      });
+      if (q.other) {
+        html += '<label class="sv-check"><input type="checkbox" name="' + q.id + '" value="__other__"' +
+                (q.max ? ' onchange="svEnforceMax(\'' + q.id + '\',' + q.max + ')"' : '') + '>Other…</label>';
+      }
+      html += '</div>';
+      if (q.other) html += '<input type="text" class="hb-input sv-other-in" id="other-' + q.id + '" maxlength="200" placeholder="Other — tell us what">';
+    } else if (q.type === 'text') {
+      html += '<div class="sv-text-q">' + lunchEsc(q.label) + '</div>' +
+              '<textarea class="hb-input" id="txt-' + q.id + '" rows="3" maxlength="2000"></textarea>';
+    }
+    html += '</div>';
+  });
+  html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:30px;">' +
+          '<button type="button" id="sv-submit-btn" class="hb-submit-btn" style="flex:1;" onclick="svSubmit()">Submit survey</button>' +
+          '<span id="sv-submit-msg" class="hb-err"></span></div>';
+  body.innerHTML = html;
+}
+
+// Cap multi-choice questions (e.g. pick THREE priorities): once the limit is
+// reached the remaining boxes grey out until one is unticked.
+function svEnforceMax(qid, max) {
+  var boxes = document.querySelectorAll('#grid-' + qid + ' input[type="checkbox"]');
+  var checked = 0;
+  boxes.forEach(function(b) { if (b.checked) checked++; });
+  boxes.forEach(function(b) { b.disabled = (!b.checked && checked >= max); });
+}
+
+function svSubmit() {
+  var answers = {};
+  SURVEY_DEF.forEach(function(q) {
+    if (q.type === 'intro') return;
+    if (q.type === 'scale') {
+      q.items.forEach(function(item, i) {
+        var sel = document.querySelector('input[name="' + q.id + '_' + i + '"]:checked');
+        if (sel) answers[q.id + '_' + i] = sel.value;
+      });
+    } else if (q.type === 'single') {
+      var sel = document.querySelector('input[name="' + q.id + '"]:checked');
+      if (sel) answers[q.id] = sel.value;
+    } else if (q.type === 'checks') {
+      var vals = [];
+      document.querySelectorAll('input[name="' + q.id + '"]:checked').forEach(function(b) {
+        if (b.value === '__other__') {
+          var other = el('other-' + q.id);
+          vals.push('Other: ' + ((other && other.value.trim()) || '(unspecified)'));
+        } else vals.push(b.value);
+      });
+      if (vals.length) answers[q.id] = vals;
+    } else if (q.type === 'text') {
+      var t = el('txt-' + q.id);
+      if (t && t.value.trim()) answers[q.id] = t.value.trim().slice(0, 2000);
+    }
+  });
+  if (!Object.keys(answers).length) {
+    var m = el('sv-submit-msg'); if (m) m.textContent = 'Please answer at least one question first.';
+    return;
+  }
+  var btn = el('sv-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  fetch('/api/survey/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answers: answers })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (!b || !b.ok) throw new Error('rejected');
+    try { localStorage.setItem('sv2027_done', '1'); } catch (e) {}
+    el('survey-body').innerHTML =
+      '<div class="sv-thanks"><strong>Thank you!</strong><br>Your response has been recorded and will help shape ' +
+      "Auroa School's priorities for 2027–2029.</div>";
+    _svBuilt = false;   // allow another family member to fill it in on a revisit
+  })
+  .catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit survey'; }
+    var m = el('sv-submit-msg'); if (m) m.textContent = 'Could not submit — please try again.';
+  });
+}
+
+// ---- Admin results ----
+function svLoadResults() {
+  var out = el('sv-results');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/survey/results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    var resp = (b && b.responses) || [];
+    var cnt = el('sv-admin-count');
+    if (cnt) cnt.textContent = resp.length + ' response' + (resp.length === 1 ? '' : 's');
+    if (!resp.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No responses yet.</span>'; return; }
+    var html = '';
+    SURVEY_DEF.forEach(function(q) {
+      if (q.type === 'intro') return;
+      html += '<div class="sv-res-h">' + lunchEsc((q.title ? q.title + ' — ' : '') + (q.prompt || q.label || '')) + '</div>';
+      if (q.type === 'scale') {
+        html += '<div class="sv-res-table-wrap"><table class="sv-res-table"><tr><th></th>';
+        q.opts.forEach(function(o) { html += '<th>' + lunchEsc(o) + '</th>'; });
+        html += '</tr>';
+        q.items.forEach(function(item, i) {
+          var counts = q.opts.map(function(o) {
+            return resp.filter(function(r2) { return (r2.answers || {})[q.id + '_' + i] === o; }).length;
+          });
+          var maxC = Math.max.apply(null, counts);
+          html += '<tr><td>' + lunchEsc(item) + '</td>';
+          counts.forEach(function(c) {
+            html += '<td' + (c && c === maxC ? ' class="sv-max"' : '') + '>' + (c || '') + '</td>';
+          });
+          html += '</tr>';
+        });
+        html += '</table></div>';
+      } else if (q.type === 'single') {
+        var total = 0;
+        var counts = q.opts.map(function(o) {
+          var c = resp.filter(function(r2) { return (r2.answers || {})[q.id] === o; }).length;
+          total = Math.max(total, c); return c;
+        });
+        q.opts.forEach(function(o, i) {
+          html += '<div class="sv-res-bar"><span style="min-width:120px;">' + lunchEsc(o) + '</span>' +
+                  '<span class="bar" style="width:' + (total ? Math.round(counts[i] / total * 160) : 0) + 'px"></span>' + counts[i] + '</div>';
+        });
+      } else if (q.type === 'checks') {
+        var tally = {};
+        resp.forEach(function(r2) {
+          ((r2.answers || {})[q.id] || []).forEach(function(v) {
+            var key = String(v).indexOf('Other: ') === 0 ? v : v;
+            tally[key] = (tally[key] || 0) + 1;
+          });
+        });
+        var entries = Object.keys(tally).map(function(k) { return [k, tally[k]]; })
+          .sort(function(a, b2) { return b2[1] - a[1]; });
+        var top = entries.length ? entries[0][1] : 0;
+        entries.forEach(function(e2) {
+          html += '<div class="sv-res-bar"><span style="min-width:160px;">' + lunchEsc(e2[0]) + '</span>' +
+                  '<span class="bar" style="width:' + (top ? Math.round(e2[1] / top * 160) : 0) + 'px"></span>' + e2[1] + '</div>';
+        });
+        if (!entries.length) html += '<div class="sv-res-bar" style="color:#888;">No selections yet.</div>';
+      } else if (q.type === 'text') {
+        var texts = resp.map(function(r2) { return (r2.answers || {})[q.id]; }).filter(Boolean);
+        if (texts.length) {
+          html += '<ul class="sv-res-texts">';
+          texts.forEach(function(t) { html += '<li>' + lunchEsc(t) + '</li>'; });
+          html += '</ul>';
+        } else html += '<div class="sv-res-bar" style="color:#888;">No answers yet.</div>';
+      }
+    });
+    out.innerHTML = html;
+  })
+  .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load results.</span>'; });
+}
+
 // ===================== LAZY EMBEDS =====================
 // YouTube/calendar/Drive iframes are full embedded web apps (tens to hundreds
 // of MB each). 24 of them were loading at boot into HIDDEN pages — the main
@@ -5635,6 +5940,10 @@ function showPage(id) {
   if (id === 'pg-absence') {
     if (typeof absInitEntries === 'function') absInitEntries();
     if (isAdmin && typeof absRenderAdmin === 'function') absRenderAdmin();
+  }
+  if (id === 'pg-survey') {
+    if (typeof renderSurveyPage === 'function') renderSurveyPage();
+    if (isAdmin && typeof svLoadResults === 'function') svLoadResults();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -6073,7 +6382,7 @@ function renderImpDropdown() {
 var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
-  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses',
+  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',

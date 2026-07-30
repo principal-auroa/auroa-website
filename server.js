@@ -863,6 +863,37 @@ app.post('/api/client-log/read', (req, res) => {
   });
 });
 
+// ---- School survey (Strategic Planning 2027-2029) ----
+// Anonymous responses stored in their own capped file on the data volume;
+// results are read back with the admin password (same gate as absences).
+const SURVEY_FILE = path.join(DATA_DIR, 'survey-responses.json');
+app.post('/api/survey/submit', (req, res) => {
+  const answers = (req.body || {}).answers;
+  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
+    return res.status(400).json({ error: 'Missing answers' });
+  }
+  const raw = JSON.stringify(answers);
+  if (raw.length > 30000) return res.status(400).json({ error: 'Response too large' });
+  fs.readFile(SURVEY_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    list.push({ ts: Date.now(), answers: JSON.parse(raw) });
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(SURVEY_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+
+app.post('/api/survey/results', (req, res) => {
+  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+  fs.readFile(SURVEY_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    res.json({ responses: list });
+  });
+});
+
 app.delete('/api/lunch-order/:id', (req, res) => {
   const id = req.params.id;
   const data = load();
