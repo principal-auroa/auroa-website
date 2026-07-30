@@ -723,7 +723,9 @@ body.is-admin #carousel-empty{display:block;}
 }
 #carousel-admin.show{display:flex;}
 #c-thumbs{display:flex;gap:8px;flex-wrap:wrap;}
-.c-thumb-wrap{position:relative;display:inline-block;}
+.c-thumb-wrap{position:relative;display:inline-block;cursor:grab;}
+.c-thumb-wrap.c-dragging{opacity:0.4;}
+.c-thumb-wrap.c-drag-over{outline:2px dashed #c0642b;outline-offset:2px;border-radius:4px;}
 .c-thumb-wrap img{width:64px;height:44px;object-fit:cover;border-radius:5px;border:2px solid #ddd;}
 .c-thumb-del{
   position:absolute;top:-7px;right:-7px;width:18px;height:18px;
@@ -5515,11 +5517,41 @@ function advanceCarousel() {
   setTimeout(function() { cBusy = false; }, 3100);
 }
 
+// Admin thumbs are drag-and-droppable: drop a thumb onto another to move it
+// there. The new order is saved and the live carousel restarts from slide 1.
+var cDragIdx = null;
 function renderCarouselThumbs() {
   var tc = el('c-thumbs'); tc.innerHTML = '';
-  carouselImages.forEach(function(filename) {
+  carouselImages.forEach(function(filename, idx) {
     var w = document.createElement('div'); w.className = 'c-thumb-wrap';
+    w.draggable = true;
+    w.title = 'Drag to reorder';
+    w.addEventListener('dragstart', function(e) {
+      cDragIdx = idx;
+      w.classList.add('c-dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); } catch (err) {}
+    });
+    w.addEventListener('dragend', function() {
+      w.classList.remove('c-dragging');
+      tc.querySelectorAll('.c-drag-over').forEach(function(x) { x.classList.remove('c-drag-over'); });
+    });
+    w.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = 'move'; } catch (err) {}
+      if (idx !== cDragIdx) w.classList.add('c-drag-over');
+    });
+    w.addEventListener('dragleave', function() { w.classList.remove('c-drag-over'); });
+    w.addEventListener('drop', function(e) {
+      e.preventDefault();
+      w.classList.remove('c-drag-over');
+      if (cDragIdx === null || cDragIdx === idx) { cDragIdx = null; return; }
+      var moved = carouselImages.splice(cDragIdx, 1)[0];
+      carouselImages.splice(idx, 0, moved);
+      cDragIdx = null;
+      saveCarouselOrder();
+    });
     var img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.src = '/uploads/' + filename;
+    img.draggable = false;   // drag the wrap, not the raw image
     var del = document.createElement('button'); del.className = 'c-thumb-del';
     del.textContent = '×'; del.title = 'Remove';
     (function(fn) {
@@ -5527,6 +5559,14 @@ function renderCarouselThumbs() {
     })(filename);
     w.appendChild(img); w.appendChild(del); tc.appendChild(w);
   });
+}
+
+function saveCarouselOrder() {
+  stopCarousel(); cIdx = 0;
+  renderCarousel();
+  renderCarouselThumbs();
+  if (carouselImages.length > 1) startCarousel();
+  apiSave('carouselImages', carouselImages, function() { flashSave('Order saved!'); });
 }
 
 // ===================== LAZY EMBEDS =====================
