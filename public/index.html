@@ -288,7 +288,8 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 /* Grouped colour buttons in the sidebar */
 .sidebar-btn.group-blue,
 .sidebar-btn.group-red,
-.sidebar-btn.group-green{
+.sidebar-btn.group-green,
+.sidebar-btn.group-gold{
   color:#fff;font-weight:400;font-size:15px;
   border:none;border-left:none;border-radius:8px;
   margin:0 16px 8px;padding:10px 18px;
@@ -314,11 +315,12 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
 .sidebar-btn.group-green{--bt:#43a06b;--bb:#2e8654;--bl:#256e45;--be:#1b5434;}
+.sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
 .sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
-.sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green{
+.sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.25),
              inset 0 -1px 0 rgba(0,0,0,0.12),
@@ -334,9 +336,13 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn[data-page="pg-absence"]{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.5);
 }
+/* Gold pills: navy text with a soft top-light emboss */
+.sidebar-btn.group-gold{
+  color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
+}
 .sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
-.sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover{
+.sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
   filter:brightness(1.08);
   transform:translateY(-1px);
@@ -347,7 +353,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 }
 .sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
-.sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active{
+.sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
   transform:translateY(2px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.15),
@@ -5899,8 +5905,17 @@ function renderSidebarPages() {
     wrap.appendChild(div);
   })();
 
+  // Buses + Hall Bookings — grey pills under Messages.
+  renderPage(findPage('pg-buses'), 'sb-grey');
+  renderSynthetic('Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); }, null, true);
+
+  // Year 7/8 Program + Apple Distinguished School — gold pills.
+  renderPage(findPage('pg-year78'), 'group-gold');
+  renderPage(findPage('pg-apple'),  'group-gold', true);
+
   // Remaining pages — plain style, original order
-  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1 };
+  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1,
+                          'pg-buses':1, 'pg-year78':1, 'pg-apple':1 };
   pageConfig.forEach(function(pg) {
     if (!alreadyRendered[pg.id]) renderPage(pg, null);
   });
@@ -9285,11 +9300,6 @@ document.addEventListener('click', function(e) {
       style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.6);margin-left:6px;">Cancel</button>
   </div>
   <div id="sidebar-imp-links"></div>
-
-  <button class="sidebar-btn"
-          onclick="bubbleGo(event, 'pg-hall-bookings')">
-    Hall Bookings
-  </button>
 
   <button class="sidebar-btn parent-portal"
           onclick="window.open('https://auroa-students-production.up.railway.app/parent','_blank','noopener')">
