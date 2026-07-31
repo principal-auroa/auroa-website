@@ -1353,11 +1353,14 @@ body.is-admin .ev-add-img-cell{display:flex;}
 .sv-prompt{color:#555;font-size:13px;margin:0 0 10px;line-height:1.5;}
 .sv-intro{color:#333;font-size:14px;line-height:1.7;}
 .sv-item{margin:14px 0 6px;font-weight:600;color:#333;font-size:14px;line-height:1.4;}
-.sv-opts{display:flex;flex-wrap:wrap;gap:6px;}
-.sv-opt{display:inline-flex;align-items:center;gap:5px;border:1.5px solid #dcdcdc;border-radius:15px;
-  padding:4px 10px;font-size:12px;color:#444;cursor:pointer;background:#fafafa;user-select:none;}
-.sv-opt input{accent-color:#1a2b4a;margin:0;cursor:pointer;}
-.sv-opt:has(input:checked){background:#1a2b4a;border-color:#1a2b4a;color:#fff;}
+.sv-scale-row{display:flex;align-items:flex-start;gap:8px;margin-top:4px;}
+.sv-scale-end{font-size:10px;color:#777;line-height:1.25;width:64px;flex:0 0 auto;padding-top:4px;}
+.sv-end-r{text-align:right;}
+.sv-dots{display:flex;gap:12px;flex:0 0 auto;align-items:flex-start;}
+.sv-dot{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
+.sv-dot input{width:22px;height:22px;accent-color:#1a2b4a;cursor:pointer;margin:0;}
+.sv-dot-cap{font-size:9px;color:#999;white-space:nowrap;}
+@media (max-width:380px){ .sv-dots{gap:8px;} .sv-scale-end{width:56px;} }
 .sv-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-top:8px;}
 .sv-check{display:flex;align-items:center;gap:7px;border:1.5px solid #dcdcdc;border-radius:8px;
   padding:7px 10px;font-size:13px;color:#333;cursor:pointer;background:#fafafa;user-select:none;}
@@ -5634,8 +5637,9 @@ function saveCarouselOrder() {
 // ===================== SCHOOL SURVEY =====================
 // Strategic Planning Survey 2027-2029. The form is built from SURVEY_DEF so
 // questions, storage keys and the admin aggregation all stay in sync.
-var SV_AGREE = ['Strongly Agree','Agree','Neutral','Disagree','Strongly Disagree'];
-var SV_IMP   = ['Very Important','Important','Neutral','Less Important','Not Important'];
+// Ordered left-to-right as displayed: negative end first, positive end last.
+var SV_AGREE = ['Strongly Disagree','Disagree','Neutral','Agree','Strongly Agree'];
+var SV_IMP   = ['Not Important','Less Important','Neutral','Important','Very Important'];
 var SURVEY_DEF = [
   { type:'intro', title:'Auroa School — Strategic Planning Survey 2027–2029',
     text:"Section 1 – Our School's Future. This survey will help determine Auroa School's priorities for the next three years. Your answers are anonymous — thank you for taking the time to share your views." },
@@ -5680,6 +5684,19 @@ var SURVEY_DEF = [
   { type:'text', id:'final_keep', label:'What is one thing you hope Auroa School never loses?' }
 ];
 
+// One-line rating row: end labels + five dots (tiny caption under the middle
+// dot) so the options never wrap onto two rows, even on narrow phones.
+function svScaleRow(name, opts) {
+  var mid = Math.floor(opts.length / 2);
+  var h = '<div class="sv-scale-row"><span class="sv-scale-end">' + lunchEsc(opts[0]) + '</span><div class="sv-dots">';
+  opts.forEach(function(opt, i) {
+    h += '<label class="sv-dot" title="' + lunchEsc(opt) + '"><input type="radio" name="' + name + '" value="' + lunchEsc(opt) + '">' +
+         (i === mid ? '<span class="sv-dot-cap">' + lunchEsc(opt) + '</span>' : '') + '</label>';
+  });
+  h += '</div><span class="sv-scale-end sv-end-r">' + lunchEsc(opts[opts.length - 1]) + '</span></div>';
+  return h;
+}
+
 var _svBuilt = false;
 function renderSurveyPage() {
   var body = el('survey-body');
@@ -5700,19 +5717,10 @@ function renderSurveyPage() {
     } else if (q.type === 'scale') {
       html += '<p class="sv-prompt">' + lunchEsc(q.prompt) + '</p>';
       q.items.forEach(function(item, i) {
-        var name = q.id + '_' + i;
-        html += '<div class="sv-item">' + lunchEsc(item) + '</div><div class="sv-opts">';
-        q.opts.forEach(function(opt) {
-          html += '<label class="sv-opt"><input type="radio" name="' + name + '" value="' + lunchEsc(opt) + '">' + lunchEsc(opt) + '</label>';
-        });
-        html += '</div>';
+        html += '<div class="sv-item">' + lunchEsc(item) + '</div>' + svScaleRow(q.id + '_' + i, q.opts);
       });
     } else if (q.type === 'single') {
-      html += '<div class="sv-item">' + lunchEsc(q.label) + '</div><div class="sv-opts">';
-      q.opts.forEach(function(opt) {
-        html += '<label class="sv-opt"><input type="radio" name="' + q.id + '" value="' + lunchEsc(opt) + '">' + lunchEsc(opt) + '</label>';
-      });
-      html += '</div>';
+      html += '<div class="sv-item">' + lunchEsc(q.label) + '</div>' + svScaleRow(q.id, q.opts);
     } else if (q.type === 'checks') {
       html += '<div class="sv-item">' + lunchEsc(q.label) + '</div><div class="sv-check-grid" id="grid-' + q.id + '">';
       q.options.forEach(function(opt) {
