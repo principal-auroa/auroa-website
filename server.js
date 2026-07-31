@@ -894,6 +894,22 @@ app.post('/api/survey/results', (req, res) => {
   });
 });
 
+// Admin: wipe all survey responses (e.g. clearing test submissions before
+// the survey goes live). A timestamped backup is kept next to the file.
+app.post('/api/survey/clear', (req, res) => {
+  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+  fs.readFile(SURVEY_FILE, 'utf8', (err, txt) => {
+    let count = 0;
+    if (!err && txt) {
+      try { count = (JSON.parse(txt) || []).length; } catch (e) {}
+      try { fs.writeFileSync(SURVEY_FILE + '.cleared-' + Date.now() + '.bak', txt); } catch (e) {}
+    }
+    fs.writeFile(SURVEY_FILE, '[]', () => res.json({ ok: true, cleared: count }));
+  });
+});
+
 app.delete('/api/lunch-order/:id', (req, res) => {
   const id = req.params.id;
   const data = load();
