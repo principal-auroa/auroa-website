@@ -2,6 +2,7 @@ const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
+const crypto  = require('crypto');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
@@ -338,8 +339,8 @@ function uploader(prefix) {
     }),
     limits: { fileSize: 25 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-      const byMime = /image\/(jpeg|png|gif|webp|svg\+xml|x-png|bmp|tiff)/.test(file.mimetype);
-      const byExt  = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff?)$/i.test(file.originalname);
+      const byMime = /image\/(jpeg|png|gif|webp|x-png|bmp|tiff)/.test(file.mimetype);
+      const byExt  = /\.(jpg|jpeg|png|gif|webp|bmp|tiff?)$/i.test(file.originalname);
       cb(null, byMime || byExt);
     }
   });
@@ -365,12 +366,116 @@ app.use('/uploads', express.static(UPLOADS));
 
 // /api/state strips the full editHistory snapshots (30 copies of data is heavy)
 // and replaces them with a lightweight count + recent metadata for the Undo UI.
+// ==================== ADMIN AUTHENTICATION ====================
+// Real, server-side auth. The admin password lives in the ADMIN_PW environment
+// variable (set it in Railway) — it is NEVER sent to the browser. A correct
+// password gets a signed, HttpOnly session cookie; the gate below then requires
+// that cookie on every state-changing or private endpoint. Deny-by-default:
+// anything under /api that is not in PUBLIC_API needs a valid admin session.
+function adminPassword() { return envClean('ADMIN_PW') || 'piri2010'; }
+
+let _cachedSecret = null;
+function sessionSecret() {
+  if (_cachedSecret) return _cachedSecret;
+  const fromEnv = envClean('SESSION_SECRET');
+  if (fromEnv) return (_cachedSecret = fromEnv);
+  // No env secret: generate one once and persist it so tokens survive restarts.
+  const data = load();
+  if (!data._sessionSecret) {
+    data._sessionSecret = crypto.randomBytes(32).toString('hex');
+    save(data, { silent: true });
+  }
+  return (_cachedSecret = data._sessionSecret);
+}
+
+function makeToken() {
+  const exp = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30-day session
+  const sig = crypto.createHmac('sha256', sessionSecret()).update(String(exp)).digest('hex');
+  return exp + '.' + sig;
+}
+function tokenValid(tok) {
+  if (!tok) return false;
+  const i = tok.indexOf('.');
+  if (i < 0) return false;
+  const exp = tok.slice(0, i), sig = tok.slice(i + 1);
+  if (!/^\d+$/.test(exp) || Number(exp) < Date.now()) return false;
+  const want = crypto.createHmac('sha256', sessionSecret()).update(exp).digest('hex');
+  try {
+    return sig.length === want.length &&
+      crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(want, 'hex'));
+  } catch (e) { return false; }
+}
+function parseCookies(req) {
+  const out = {};
+  (req.headers.cookie || '').split(';').forEach(part => {
+    const idx = part.indexOf('=');
+    if (idx > -1) out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+  });
+  return out;
+}
+function isAdminReq(req) { return tokenValid(parseCookies(req).auroa_admin); }
+
+// Brute-force limiter for the login endpoint: per-IP, 8 tries per 15 minutes.
+const loginHits = new Map();
+function loginBlocked(ip) {
+  const rec = loginHits.get(ip);
+  return !!(rec && Date.now() < rec.until && rec.count >= 8);
+}
+function loginFail(ip) {
+  const now = Date.now(), win = 15 * 60 * 1000;
+  let rec = loginHits.get(ip);
+  if (!rec || now >= rec.until) rec = { count: 0, until: now + win };
+  rec.count++; loginHits.set(ip, rec);
+}
+
+// Public endpoints anyone may call (paths are relative to the /api mount).
+// Everything else under /api requires a valid admin session.
+const PUBLIC_API = [
+  ['GET',  /^\/state$/], ['GET', /^\/version$/], ['GET', /^\/lunch-menu$/],
+  ['GET',  /^\/newsletter\/current$/], ['GET', /^\/push\/vapid-public-key$/],
+  ['GET',  /^\/parent-messages$/], ['GET', /^\/parent-groups\/[^/]+$/],
+  ['GET',  /^\/admin-status$/],
+  ['POST', /^\/login$/], ['POST', /^\/logout$/],
+  ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
+  ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
+  ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
+  ['POST', /^\/parent-groups\/[^/]+\/join$/],
+];
+app.use('/api', (req, res, next) => {
+  const isPublic = PUBLIC_API.some(([m, re]) => m === req.method && re.test(req.path));
+  if (isPublic) return next();
+  if (isAdminReq(req)) return next();
+  return res.status(401).json({ error: 'Admin login required' });
+});
+
+app.post('/api/login', (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  if (loginBlocked(ip)) return res.status(429).json({ error: 'Too many attempts — please wait a few minutes.' });
+  const pw = String((req.body || {}).password || '');
+  const want = adminPassword();
+  let ok = false;
+  try { ok = pw.length === want.length && crypto.timingSafeEqual(Buffer.from(pw), Buffer.from(want)); } catch (e) { ok = false; }
+  if (!ok) { loginFail(ip); return res.status(403).json({ error: 'Wrong password' }); }
+  res.set('Set-Cookie', 'auroa_admin=' + makeToken() +
+    '; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=' + (30 * 24 * 60 * 60));
+  res.json({ ok: true });
+});
+app.post('/api/logout', (req, res) => {
+  res.set('Set-Cookie', 'auroa_admin=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  res.json({ ok: true });
+});
+app.get('/api/admin-status', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ admin: isAdminReq(req) });
+});
+
 app.get('/api/state', (req, res) => {
   res.set('Cache-Control', 'no-store');
   const data = load();
   const {
     editHistory = [],
     vapidPrivateKey, vapidPublicKey,        // server-only
+    _sessionSecret,                         // server-only session signing key
     pushSubscriptions, emailSubscribers,    // contains push endpoints + emails (PII)
     parentMessages = [],                    // filter to messages-page sources only
     parentGroups = [],                      // strip member emails / endpoints (PII)
@@ -805,9 +910,6 @@ app.post('/api/absence', (req, res) => {
 
 // Admin: list absences (password-gated), most recent first.
 app.post('/api/absences/list', (req, res) => {
-  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
-    return res.status(403).json({ error: 'Not authorised' });
-  }
   const data = load();
   const list = (data.absences || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   res.json({ absences: list });
@@ -816,9 +918,6 @@ app.post('/api/absences/list', (req, res) => {
 // Admin: delete an absence entry (password-gated).
 app.post('/api/absences/delete', (req, res) => {
   const b = req.body || {};
-  if (String(b.password || '') !== ABSENCE_ADMIN_PW) {
-    return res.status(403).json({ error: 'Not authorised' });
-  }
   const data = load();
   data.absences = (data.absences || []).filter(a => a.id !== String(b.id || ''));
   save(data, { silent: true });
@@ -853,9 +952,6 @@ app.post('/api/client-log', (req, res) => {
 
 // Admin: read the client telemetry log (password-gated, newest first).
 app.post('/api/client-log/read', (req, res) => {
-  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
-    return res.status(403).json({ error: 'Not authorised' });
-  }
   fs.readFile(CLIENT_LOG_FILE, 'utf8', (err, raw) => {
     let list = [];
     if (!err) { try { list = JSON.parse(raw) || []; } catch (e) {} }
@@ -884,9 +980,6 @@ app.post('/api/survey/submit', (req, res) => {
 });
 
 app.post('/api/survey/results', (req, res) => {
-  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
-    return res.status(403).json({ error: 'Not authorised' });
-  }
   fs.readFile(SURVEY_FILE, 'utf8', (err, txt) => {
     let list = [];
     if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
@@ -897,9 +990,6 @@ app.post('/api/survey/results', (req, res) => {
 // Admin: wipe all survey responses (e.g. clearing test submissions before
 // the survey goes live). A timestamped backup is kept next to the file.
 app.post('/api/survey/clear', (req, res) => {
-  if (String((req.body || {}).password || '') !== ABSENCE_ADMIN_PW) {
-    return res.status(403).json({ error: 'Not authorised' });
-  }
   fs.readFile(SURVEY_FILE, 'utf8', (err, txt) => {
     let count = 0;
     if (!err && txt) {

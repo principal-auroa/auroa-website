@@ -3049,7 +3049,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     <div id="login-err">Incorrect username or password.</div>
     <input id="lu" type="text" placeholder="Username" />
     <input id="lp" type="password" placeholder="Password" />
-    <button class="btn-primary" onclick="tryLogin()">Login</button>
+    <button class="btn-primary" id="login-submit-btn" onclick="tryLogin()">Login</button>
     <button class="btn-cancel" onclick="closeLogin()">Cancel</button>
   </div>
 </div>
@@ -4936,20 +4936,51 @@ function openLogin() {
 }
 function closeLogin() { el('login-modal').classList.remove('open'); }
 function tryLogin() {
-  if (el('lu').value.trim() === 'admin' && el('lp').value === 'piri2010') {
+  // The password is verified on the SERVER, which sets a signed session cookie.
+  // It is never checked or stored in the browser.
+  el('login-err').style.display = 'none';
+  var btn = el('login-submit-btn');
+  if (btn) btn.disabled = true;
+  fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: el('lp').value })
+  })
+  .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
+  .then(function(res) {
+    if (btn) btn.disabled = false;
+    if (!res.ok || !res.b || !res.b.ok) { el('login-err').style.display = 'block'; return; }
     isAdmin = true;
-    window.__adminPw = el('lp').value; // used to fetch the admin-only absence list
     closeLogin(); enterAdmin();
     if (typeof absRenderAdmin === 'function') absRenderAdmin();
     // Pull the latest server state so any edits another admin made since
-    // this tab was opened become visible — otherwise we'd keep showing
-    // the stale snapshot loaded when the page first opened.
+    // this tab was opened become visible.
     if (typeof fetchState === 'function') fetchState();
-  } else {
+  })
+  .catch(function() {
+    if (btn) btn.disabled = false;
     el('login-err').style.display = 'block';
-  }
+  });
 }
-function doLogout() { isAdmin = false; exitAdmin(); }
+function doLogout() {
+  fetch('/api/logout', { method: 'POST' }).catch(function() {});
+  isAdmin = false; exitAdmin();
+}
+// On load, restore admin mode if this device still holds a valid session cookie.
+function svRestoreAdmin() {
+  fetch('/api/admin-status', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      if (b && b.admin && !isAdmin) {
+        isAdmin = true;
+        enterAdmin();
+        if (typeof absRenderAdmin === 'function') absRenderAdmin();
+        if (typeof fetchState === 'function') fetchState();
+      }
+    })
+    .catch(function() {});
+}
+window.addEventListener('DOMContentLoaded', svRestoreAdmin);
 
 function enterAdmin() {
   document.body.classList.add('is-admin');
