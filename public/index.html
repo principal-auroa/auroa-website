@@ -6370,9 +6370,9 @@ function renderSidebarPages() {
     wrap.appendChild(div);
   })();
 
-  // Buses + Hall Bookings — grey pills under Messages.
-  renderPage(findPage('pg-buses'), 'sb-grey');
-  renderSynthetic('Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); }, null, true);
+  // Hall Bookings (grey) then Buses (gold) under Messages.
+  renderSynthetic('Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); });
+  renderPage(findPage('pg-buses'), 'group-gold', true);
 
   // Year 7/8 Program + Apple Distinguished School — gold pills.
   renderPage(findPage('pg-year78'), 'group-gold');
