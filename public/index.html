@@ -3441,6 +3441,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Survey results (admin)</h3>
           <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="svLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="svRenameYears()">✏ Rename survey years</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#c0392b;" onclick="svClearResults()">🗑 Clear results</button>
           <span id="sv-admin-count" style="font-size:12px;color:#555;"></span>
         </div>
         <div id="sv-results"></div>
@@ -4653,6 +4655,7 @@ function fetchState(_retry) {
       if (typeof renderUeAdminList === 'function') renderUeAdminList();
       upcomingEventImages = Array.isArray(data.upcomingEventImages) ? data.upcomingEventImages : [];
       if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
+      if (data.surveyYears) surveyYears = String(data.surveyYears);
       parentMessages = Array.isArray(data.parentMessages) ? data.parentMessages : [];
       parentGroups   = Array.isArray(data.parentGroups)   ? data.parentGroups   : [];
       if (typeof pmRenderList === 'function') pmRenderList();
@@ -5637,6 +5640,10 @@ function saveCarouselOrder() {
 // ===================== SCHOOL SURVEY =====================
 // Strategic Planning Survey 2027-2029. The form is built from SURVEY_DEF so
 // questions, storage keys and the admin aggregation all stay in sync.
+// The year range shown in the survey title — admin-renamable so the survey
+// can be reused (stored as surveyYears in the site data).
+var surveyYears = '2027\u20132029';
+
 // Ordered left-to-right as displayed: negative end first, positive end last.
 var SV_AGREE = ['Strongly Disagree','Disagree','Neutral','Agree','Strongly Agree'];
 var SV_IMP   = ['Not Important','Less Important','Neutral','Important','Very Important'];
@@ -5702,6 +5709,7 @@ function renderSurveyPage() {
   var body = el('survey-body');
   if (!body || _svBuilt) return;
   _svBuilt = true;
+  SURVEY_DEF[0].title = 'Auroa School \u2014 Strategic Planning Survey ' + surveyYears;
   var done = false;
   try { done = localStorage.getItem('sv2027_done') === '1'; } catch (e) {}
   var html = '';
@@ -5797,7 +5805,7 @@ function svSubmit() {
     try { localStorage.setItem('sv2027_done', '1'); } catch (e) {}
     el('survey-body').innerHTML =
       '<div class="sv-thanks"><strong>Thank you!</strong><br>Your response has been recorded and will help shape ' +
-      "Auroa School's priorities for 2027–2029.</div>";
+      "Auroa School's priorities for " + lunchEsc(surveyYears) + '.</div>';
     _svBuilt = false;   // allow another family member to fill it in on a revisit
   })
   .catch(function() {
@@ -5819,6 +5827,7 @@ function svLoadResults() {
   .then(function(r) { return r.json(); })
   .then(function(b) {
     var resp = (b && b.responses) || [];
+    _svLastResponses = resp;
     var cnt = el('sv-admin-count');
     if (cnt) cnt.textContent = resp.length + ' response' + (resp.length === 1 ? '' : 's');
     if (!resp.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No responses yet.</span>'; return; }
@@ -5877,9 +5886,77 @@ function svLoadResults() {
         } else html += '<div class="sv-res-bar" style="color:#888;">No answers yet.</div>';
       }
     });
+    html += '<div style="margin-top:16px;"><button type="button" class="hb-submit-btn" onclick="svDownloadCsv()">⬇ Download results (spreadsheet)</button></div>';
     out.innerHTML = html;
   })
   .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load results.</span>'; });
+}
+
+// Rename the year range in the survey title (e.g. reuse the survey in 2030).
+function svRenameYears() {
+  var v = prompt('Years shown in the survey title:', surveyYears);
+  if (!v || !v.trim()) return;
+  surveyYears = v.trim().slice(0, 40);
+  apiSave('surveyYears', surveyYears, function() { flashSave('Survey years updated!'); });
+  _svBuilt = false;
+  renderSurveyPage();
+}
+
+// Wipe all responses (server keeps a timestamped backup file).
+function svClearResults() {
+  var n = _svLastResponses.length;
+  if (!confirm('Delete ALL ' + n + ' survey response' + (n === 1 ? '' : 's') + '? A backup copy is kept on the server.')) return;
+  fetch('/api/survey/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Cleared ' + b.cleared + ' response' + (b.cleared === 1 ? '' : 's')); svLoadResults(); }
+    else flashSave('Could not clear results.');
+  })
+  .catch(function() { flashSave('Could not clear results.'); });
+}
+
+// Download every response as a spreadsheet: one row per response, one column
+// per question. Named "Parent Survey <date saved>.csv"; BOM so Excel shows
+// macrons correctly.
+var _svLastResponses = [];
+function svCsvCell(v) {
+  return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+}
+function svDownloadCsv() {
+  var cols = [{ key: '__ts', label: 'Submitted' }];
+  SURVEY_DEF.forEach(function(q) {
+    if (q.type === 'intro') return;
+    if (q.type === 'scale') {
+      q.items.forEach(function(item, i) {
+        cols.push({ key: q.id + '_' + i, label: (q.title ? q.title + ' — ' : '') + item });
+      });
+    } else {
+      cols.push({ key: q.id, label: q.label || q.title || q.id });
+    }
+  });
+  var lines = [cols.map(function(c) { return svCsvCell(c.label); }).join(',')];
+  _svLastResponses.forEach(function(r) {
+    lines.push(cols.map(function(c) {
+      if (c.key === '__ts') return svCsvCell(new Date(r.ts).toLocaleString());
+      var v = (r.answers || {})[c.key];
+      if (Array.isArray(v)) v = v.join('; ');
+      return svCsvCell(v);
+    }).join(','));
+  });
+  var d = new Date();
+  var fname = 'Parent Survey ' + String(d.getDate()).padStart(2, '0') + '-' +
+              String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 // ===================== LAZY EMBEDS =====================
