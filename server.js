@@ -1917,7 +1917,7 @@ app.post('/api/push/test', async (req, res) => {
     url:   '/messages'
   });
   try {
-    await wp.sendNotification(sub, payload);
+    await wp.sendNotification(sub, payload, { urgency: 'high', TTL: 60 * 60 });
     return res.json({ ok: true });
   } catch (e) {
     const code = e && e.statusCode;
@@ -2164,8 +2164,14 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     if (msg.image) payloadObj.image = '/uploads/' + msg.image;
     if (showOnPage) payloadObj.count = pageCount;
     const payload = JSON.stringify(payloadObj);
+    // urgency:'high' tells Apple/Google to deliver NOW. Without it the default
+    // is "normal", which iOS batches and can hold for hours (delivering only
+    // when the person next wakes their phone) — that was the "messages arrive
+    // late in the day" symptom. TTL 3 days: if a phone is off longer than that
+    // the alert has gone stale, so it expires rather than popping up days later.
+    const sendOpts = { urgency: 'high', TTL: 3 * 24 * 60 * 60 };
     const results = await Promise.allSettled(
-      targetSubs.map(s => wp.sendNotification(s, payload))
+      targetSubs.map(s => wp.sendNotification(s, payload, sendOpts))
     );
     // Clean up subscriptions that can no longer receive. Two cases:
     //  - 410 Gone / 404 Not Found: the push service says it's dead → remove now.
