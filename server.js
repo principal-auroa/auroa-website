@@ -480,8 +480,20 @@ app.get('/api/state', (req, res) => {
     parentMessages = [],                    // filter to messages-page sources only
     parentGroups = [],                      // strip member emails / endpoints (PII)
     absences,                               // student names + medical reasons — admin-only, never public
+    newsletterSnapshots = [],               // heavy archived bodies — send metadata only
+    lunchOrders = [],                       // other families' orders (PII) — admins only
+    newsletter: newsletterDraft,            // unpublished draft — admins only
     ...rest
   } = data;
+  const isAdmin = isAdminReq(req);
+  // Past newsletters: the client only needs the archive link metadata (the full
+  // content is served by the /newsletter/:slug page). Stripping the bodies here
+  // cut ~130KB off every page load, which was leaving phones on weak signal
+  // stuck on a blank screen while /api/state downloaded.
+  const snapshotMeta = newsletterSnapshots.map(s => ({
+    id: s.id, slug: s.slug, termLabel: s.termLabel,
+    createdAt: s.createdAt, updatedAt: s.updatedAt, hidden: !!s.hidden
+  }));
   const recent = editHistory.slice(-5).reverse().map(h => ({
     id: h.id, savedAt: h.savedAt, label: h.label || ''
   }));
@@ -499,6 +511,12 @@ app.get('/api/state', (req, res) => {
   res.json(Object.assign({}, rest, {
     parentMessages: parentMessages.filter(m => showsOnMessagesPage(m.source)),
     parentGroups: publicGroups,
+    newsletterSnapshots: snapshotMeta,
+    // Lunch orders carry other families' names — send them only to a logged-in
+    // admin (the parent order form doesn't need anyone else's orders).
+    lunchOrders: isAdmin ? lunchOrders : [],
+    // The newsletter DRAFT is admin-only; parents see the published version.
+    newsletter: isAdmin ? newsletterDraft : undefined,
     editHistoryCount: editHistory.length,
     editHistoryRecent: recent,
     pushSubscriberCount: Array.isArray(data.pushSubscriptions) ? data.pushSubscriptions.length : 0,
