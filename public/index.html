@@ -2586,6 +2586,12 @@ body.is-admin .ue-admin{display:block;}
   font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
 }
 #ue-admin-list .ue-del-btn:hover{background:#c0392b;color:#fff;}
+#ue-admin-list .ue-edit-btn{
+  flex-shrink:0;background:none;border:1px solid #1a2b4a;color:#1a2b4a;
+  border-radius:6px;padding:5px 12px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:12px;font-weight:700;
+}
+#ue-admin-list .ue-edit-btn:hover{background:#1a2b4a;color:#fff;}
 .ue-section-h{
   color:#1a2b4a;font-size:18px;font-weight:600;
   margin:28px 0 12px;letter-spacing:0.3px;
@@ -3620,7 +3626,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       </div>
 
       <div id="ue-admin" class="ue-admin">
-        <h3 class="ue-admin-h">Add an event</h3>
+        <h3 class="ue-admin-h" id="ue-form-heading">Add an event</h3>
         <form id="ue-form" onsubmit="event.preventDefault(); submitUpcomingEvent();">
           <div class="hb-row">
             <div class="hb-field">
@@ -3648,6 +3654,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <textarea id="ue-details" class="hb-input" rows="3" placeholder="Anything parents should know about this event…"></textarea>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
             <button id="ue-submit-btn" class="hb-submit-btn" type="submit" style="flex:1;">+ Add event</button>
+            <button id="ue-cancel-btn" class="hb-submit-btn" type="button" style="display:none;background:#888;" onclick="ueCancelEdit()">Cancel</button>
             <span id="ue-form-msg" class="hb-err"></span>
           </div>
         </form>
@@ -12669,6 +12676,41 @@ function closeUeModal() {
   el('ue-modal').classList.remove('open');
 }
 
+// When set, the Add form is editing this existing event instead of adding.
+var ueEditingId = null;
+
+// Load an event into the form for editing.
+function ueStartEdit(id) {
+  var ev = upcomingEvents.find(function(x) { return x.id === id; });
+  if (!ev) return;
+  ueEditingId = id;
+  el('ue-date').value = ev.date || '';
+  el('ue-end-date').value = (ev.endDate && ev.endDate !== ev.date) ? ev.endDate : '';
+  el('ue-time').value = ev.time || '';
+  el('ue-color').value = ev.color || '#dbeafe';
+  el('ue-name').value = ev.name || '';
+  el('ue-details').value = ev.details || '';
+  var h = el('ue-form-heading'); if (h) h.textContent = 'Edit event';
+  var btn = el('ue-submit-btn'); if (btn) btn.textContent = 'Save changes';
+  var cancel = el('ue-cancel-btn'); if (cancel) cancel.style.display = '';
+  var form = el('ue-form'); if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Leave edit mode and reset the form back to "add".
+function ueCancelEdit() {
+  ueEditingId = null;
+  el('ue-date').value = '';
+  el('ue-end-date').value = '';
+  el('ue-time').value = '';
+  el('ue-color').value = '#dbeafe';
+  el('ue-name').value = '';
+  el('ue-details').value = '';
+  var h = el('ue-form-heading'); if (h) h.textContent = 'Add an event';
+  var btn = el('ue-submit-btn'); if (btn) btn.textContent = '+ Add event';
+  var cancel = el('ue-cancel-btn'); if (cancel) cancel.style.display = 'none';
+  var msg = el('ue-form-msg'); if (msg) msg.textContent = '';
+}
+
 function submitUpcomingEvent() {
   var msg = el('ue-form-msg');
   var btn = el('ue-submit-btn');
@@ -12681,33 +12723,38 @@ function submitUpcomingEvent() {
     details: el('ue-details').value.trim(),
     color:   el('ue-color').value
   };
-  btn.disabled = true; btn.textContent = 'Adding…';
-  fetch('/api/upcoming-events', {
-    method: 'POST',
+  var editing = ueEditingId;
+  btn.disabled = true; btn.textContent = editing ? 'Saving…' : 'Adding…';
+  fetch('/api/upcoming-events' + (editing ? '/' + encodeURIComponent(editing) : ''), {
+    method: editing ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   })
   .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, body: b }; }); })
   .then(function(res) {
-    btn.disabled = false; btn.textContent = '+ Add event';
+    btn.disabled = false;
     if (!res.ok || !res.body || !res.body.event) {
-      msg.textContent = (res.body && res.body.error) || 'Could not add event.';
+      btn.textContent = editing ? 'Save changes' : '+ Add event';
+      msg.textContent = (res.body && res.body.error) || 'Could not save event.';
       return;
     }
-    upcomingEvents.push(res.body.event);
-    el('ue-name').value = '';
-    el('ue-details').value = '';
-    el('ue-end-date').value = '';
-    // Jump the calendar to the month of the new event
+    if (editing) {
+      var i = upcomingEvents.findIndex(function(x) { return x.id === editing; });
+      if (i > -1) upcomingEvents[i] = res.body.event; else upcomingEvents.push(res.body.event);
+    } else {
+      upcomingEvents.push(res.body.event);
+    }
+    // Jump the calendar to the month of the saved event.
     var d = new Date(res.body.event.date + 'T00:00:00');
     if (!isNaN(d.getTime())) ueCalCursor = d;
+    ueCancelEdit();
     renderUeCalendar();
     renderUeAdminList();
-    msg.textContent = 'Added.';
+    msg.textContent = editing ? 'Saved.' : 'Added.';
     setTimeout(function() { msg.textContent = ''; }, 1500);
   })
   .catch(function() {
-    btn.disabled = false; btn.textContent = '+ Add event';
+    btn.disabled = false; btn.textContent = editing ? 'Save changes' : '+ Add event';
     msg.textContent = 'Network error.';
   });
 }
@@ -12735,12 +12782,20 @@ function renderUeAdminList() {
       '<div><span style="display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:6px;background:' + lunchEsc(ev.color || '#dbeafe') + ';border:1px solid rgba(0,0,0,0.15);"></span>' +
       '<strong>' + lunchEsc(ev.name) + '</strong>' +
       ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(hbFmtTime(ev.time)) + '</span></div>';
+    var actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+    var edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'ue-edit-btn';
+    edit.textContent = 'Edit';
+    edit.onclick = function() { ueStartEdit(ev.id); };
     var del = document.createElement('button');
     del.type = 'button';
     del.className = 'ue-del-btn';
     del.textContent = 'Delete';
     del.onclick = function() { deleteUpcomingEvent(ev.id); };
-    row.appendChild(del);
+    actions.appendChild(edit); actions.appendChild(del);
+    row.appendChild(actions);
     wrap.appendChild(row);
   });
 }

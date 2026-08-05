@@ -1772,6 +1772,37 @@ app.post('/api/upcoming-events', (req, res) => {
   res.json({ ok: true, event });
 });
 
+// Edit an existing event (admin — gated by the /api middleware). Same
+// validation as add, but keeps the id + createdAt and does NOT re-notify
+// subscribers (editing shouldn't fire a "new event" push).
+app.put('/api/upcoming-events/:id', (req, res) => {
+  const b = req.body || {};
+  const date = String(b.date || '').trim();
+  let   endDate = String(b.endDate || '').trim();
+  const time = String(b.time || '').trim();
+  const name = String(b.name || '').trim();
+  const details = String(b.details || '').trim();
+  let   color = String(b.color || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
+  if (!/^\d{1,2}:\d{2}$/.test(time))    return res.status(400).json({ error: 'Pick a time.' });
+  if (!name)                            return res.status(400).json({ error: 'Event name is required.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date) endDate = date;
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
+
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  const ev = data.upcomingEvents.find(e => e.id === req.params.id);
+  if (!ev) return res.status(404).json({ error: 'Event not found' });
+  ev.date = date;
+  ev.endDate = endDate;
+  ev.time = time;
+  ev.name = name.slice(0, 200);
+  ev.details = details.slice(0, 4000);
+  ev.color = color;
+  save(data, { label: 'Upcoming Events' });
+  res.json({ ok: true, event: ev });
+});
+
 app.delete('/api/upcoming-events/:id', (req, res) => {
   const data = load();
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
