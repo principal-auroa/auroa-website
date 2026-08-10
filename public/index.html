@@ -11537,6 +11537,24 @@ async function pmTryAutoSubscribe() {
   }
   document.addEventListener('click',      onFirstClick, true);
   document.addEventListener('touchstart', onFirstClick, true);
+
+  // CRITICAL for iOS: opening an installed home-screen app usually RESUMES it
+  // from the background rather than reloading, so DOMContentLoaded never fires
+  // and the subscription would never refresh — that is the main reason
+  // registrations silently go stale. Re-sync whenever the app is brought back
+  // to the foreground too (throttled to at most once every 5 min so a quick
+  // tab-switch doesn't hammer the server).
+  var lastResync = 0;
+  function resyncOnResume() {
+    if (document.visibilityState !== 'visible') return;
+    var now = Date.now();
+    if (now - lastResync < 5 * 60 * 1000) return;
+    lastResync = now;
+    try { pmResyncSubscription(); } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', resyncOnResume);
+  window.addEventListener('pageshow', resyncOnResume);
+  window.addEventListener('focus', resyncOnResume);
 })();
 
 function pmFmtDate(ms) {
