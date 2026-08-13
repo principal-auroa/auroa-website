@@ -2507,6 +2507,19 @@ body.is-admin .hb-admin{display:block;}
 .abs-add-btn:hover{background:#1a2b4a;color:#fff;}
 .abs-submit-row{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
 .abs-submit-row .hb-submit-btn{flex:1;}
+/* Full-width images under the submit button */
+.abs-img-admin{display:none;margin:20px 0 10px;align-items:center;gap:10px;flex-wrap:wrap;}
+body.is-admin .abs-img-admin{display:flex;}
+.abs-img-list{display:flex;flex-direction:column;gap:14px;margin:14px 0 24px;}
+.abs-img-item{position:relative;}
+.abs-img-item img{width:100%;display:block;border-radius:10px;border:1px solid #e6e6e6;cursor:zoom-in;}
+.abs-img-del{
+  position:absolute;top:8px;right:8px;display:none;
+  background:rgba(192,57,43,0.92);color:#fff;border:none;border-radius:50%;
+  width:28px;height:28px;font-size:15px;line-height:1;cursor:pointer;
+}
+body.is-admin .abs-img-del{display:block;}
+.abs-img-del:hover{background:rgba(192,57,43,1);}
 .abs-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
 body.is-admin .abs-admin{display:block;}
 .abs-admin-h{color:#1a2b4a;font-size:16px;font-weight:700;margin-bottom:14px;}
@@ -4312,6 +4325,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </form>
 
+      <!-- Full-width images under the submit button (admin adds them) -->
+      <div id="abs-img-admin" class="abs-img-admin">
+        <label class="ue-add-images-btn">
+          + Add images
+          <input type="file" accept="image/*" multiple style="display:none" onchange="uploadAbsenceImages(event)">
+        </label>
+        <span class="nl-add-hint">Hold Shift or Cmd in the file picker to select more than one image.</span>
+      </div>
+      <div id="abs-img-list" class="abs-img-list"></div>
+
       <!-- Admin: list of submitted absences (most recent first) -->
       <div id="abs-admin" class="abs-admin">
         <h2 class="abs-admin-h">Absence notifications</h2>
@@ -4662,6 +4685,8 @@ function fetchState(_retry) {
       if (typeof renderUeAdminList === 'function') renderUeAdminList();
       upcomingEventImages = Array.isArray(data.upcomingEventImages) ? data.upcomingEventImages : [];
       if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
+      absenceImages = Array.isArray(data.absenceImages) ? data.absenceImages : [];
+      if (typeof renderAbsenceImages === 'function') renderAbsenceImages();
       if (data.surveyYears) surveyYears = String(data.surveyYears);
       parentMessages = Array.isArray(data.parentMessages) ? data.parentMessages : [];
       parentGroups   = Array.isArray(data.parentGroups)   ? data.parentGroups   : [];
@@ -6062,6 +6087,7 @@ function showPage(id) {
   }
   if (id === 'pg-absence') {
     if (typeof absInitEntries === 'function') absInitEntries();
+    if (typeof renderAbsenceImages === 'function') renderAbsenceImages();
     if (isAdmin && typeof absRenderAdmin === 'function') absRenderAdmin();
   }
   if (id === 'pg-survey') {
@@ -12881,6 +12907,55 @@ function uploadUpcomingEventImages(event) {
       });
   });
   Promise.all(uploads).then(renderUpcomingEventImages);
+  event.target.value = '';
+}
+
+// ---- Full-width images on the Student Absence page (admin-managed) ----
+var absenceImages = [];
+
+function renderAbsenceImages() {
+  var wrap = el('abs-img-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  absenceImages.forEach(function(filename) {
+    var item = document.createElement('div');
+    item.className = 'abs-img-item';
+    var img = document.createElement('img');
+    img.loading = 'lazy'; img.decoding = 'async';
+    img.src = '/uploads/' + filename;
+    img.alt = '';
+    img.onclick = function() { if (typeof openLightbox === 'function') openLightbox(img.src); };
+    item.appendChild(img);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'abs-img-del';
+    del.title = 'Remove image';
+    del.textContent = '×';
+    del.onclick = function(e) {
+      e.stopPropagation();
+      if (!confirm('Remove this image?')) return;
+      fetch('/api/absence-image/' + encodeURIComponent(filename), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(b) {
+          if (b && b.images) { absenceImages = b.images; renderAbsenceImages(); }
+        });
+    };
+    item.appendChild(del);
+    wrap.appendChild(item);
+  });
+}
+
+function uploadAbsenceImages(event) {
+  var files = event.target.files;
+  if (!files || !files.length) return;
+  var uploads = Array.prototype.slice.call(files).map(function(file) {
+    var fd = new FormData();
+    fd.append('image', file);
+    return fetch('/api/upload/absence-image', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(b) { if (b && b.images) absenceImages = b.images; });
+  });
+  Promise.all(uploads).then(renderAbsenceImages);
   event.target.value = '';
 }
 </script>

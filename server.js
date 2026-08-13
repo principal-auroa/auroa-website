@@ -1832,6 +1832,25 @@ app.delete('/api/upcoming-events/image/:filename', (req, res) => {
   res.json({ ok: true, images: data.upcomingEventImages });
 });
 
+// Full-width images on the Student Absence page (admin — gated by /api middleware).
+app.post('/api/upload/absence-image', uploader('absimg').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  if (!Array.isArray(data.absenceImages)) data.absenceImages = [];
+  data.absenceImages.push(req.file.filename);
+  save(data, { label: 'Absence page' });
+  res.json({ ok: true, filename: req.file.filename, images: data.absenceImages });
+});
+app.delete('/api/absence-image/:filename', (req, res) => {
+  const name = path.basename(req.params.filename);
+  const data = load();
+  if (!Array.isArray(data.absenceImages)) data.absenceImages = [];
+  data.absenceImages = data.absenceImages.filter(f => f !== name);
+  deleteFile(name);
+  save(data, { silent: true });
+  res.json({ ok: true, images: data.absenceImages });
+});
+
 // ---- PUSH + EMAIL NOTIFICATIONS (anonymous device subscriptions) ----
 //
 // On first call, VAPID keys are generated and stored in data.json. The
