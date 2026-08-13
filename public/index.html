@@ -2579,6 +2579,12 @@ body.is-admin .abs-admin{display:block;}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .hb-cal-grid .hb-cal-cell .hb-cal-event:hover{background:#bfdbfe;}
+/* Today's date highlighted in orange (upcoming-events calendar only) */
+#ue-cal-grid .hb-cal-cell.ue-today{background:#fff4e8;box-shadow:inset 0 0 0 2px #e67e22;}
+#ue-cal-grid .hb-cal-cell.ue-today .hb-cal-day{
+  background:#e67e22;color:#fff;border-radius:50%;
+  width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+}
 .ue-admin{display:none;margin-top:8px;padding:18px;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;}
 body.is-admin .ue-admin{display:block;}
 .ue-admin-h{color:#1a2b4a;font-size:15px;font-weight:700;margin-bottom:10px;}
@@ -12536,13 +12542,15 @@ function renderHbCalendar() {
   var jsDay = first.getDay(); // 0=Sun .. 6=Sat
   var offset = (jsDay === 0) ? 6 : (jsDay - 1); // shift so Mon=0
   var start = new Date(year, month, 1 - offset);
+  var _now = new Date();
+  var todayIso = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
   grid.innerHTML = '';
   for (var i = 0; i < 42; i++) {
     var cellDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     var inMonth = cellDate.getMonth() === month;
     var iso = cellDate.getFullYear() + '-' + String(cellDate.getMonth() + 1).padStart(2, '0') + '-' + String(cellDate.getDate()).padStart(2, '0');
     var cell = document.createElement('div');
-    cell.className = 'hb-cal-cell' + (inMonth ? '' : ' hb-other');
+    cell.className = 'hb-cal-cell' + (inMonth ? '' : ' hb-other') + (iso === todayIso ? ' ue-today' : '');
     var day = document.createElement('div');
     day.className = 'hb-cal-day';
     day.textContent = cellDate.getDate();
@@ -12677,13 +12685,15 @@ function renderUeCalendar() {
   var jsDay = first.getDay();
   var offset = (jsDay === 0) ? 6 : (jsDay - 1);
   var start = new Date(year, month, 1 - offset);
+  var _now = new Date();
+  var todayIso = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
   grid.innerHTML = '';
   for (var i = 0; i < 42; i++) {
     var cellDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     var inMonth = cellDate.getMonth() === month;
     var iso = cellDate.getFullYear() + '-' + String(cellDate.getMonth() + 1).padStart(2, '0') + '-' + String(cellDate.getDate()).padStart(2, '0');
     var cell = document.createElement('div');
-    cell.className = 'hb-cal-cell' + (inMonth ? '' : ' hb-other');
+    cell.className = 'hb-cal-cell' + (inMonth ? '' : ' hb-other') + (iso === todayIso ? ' ue-today' : '');
     var day = document.createElement('div');
     day.className = 'hb-cal-day';
     day.textContent = cellDate.getDate();
