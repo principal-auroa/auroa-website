@@ -2520,6 +2520,9 @@ body.is-admin .abs-img-admin{display:flex;}
 }
 body.is-admin .abs-img-del{display:block;}
 .abs-img-del:hover{background:rgba(192,57,43,1);}
+body.is-admin .abs-img-item{cursor:grab;}
+.abs-img-item.c-dragging{opacity:0.4;}
+.abs-img-item.c-drag-over{outline:3px dashed #c0642b;outline-offset:3px;}
 .abs-admin{display:none;margin-top:36px;padding-top:18px;border-top:2px dashed #d0d0d0;}
 body.is-admin .abs-admin{display:block;}
 .abs-admin-h{color:#1a2b4a;font-size:16px;font-weight:700;margin-bottom:14px;}
@@ -12923,17 +12926,49 @@ function uploadUpcomingEventImages(event) {
 // ---- Full-width images on the Student Absence page (admin-managed) ----
 var absenceImages = [];
 
+var absDragIdx = null;
 function renderAbsenceImages() {
   var wrap = el('abs-img-list');
   if (!wrap) return;
   wrap.innerHTML = '';
-  absenceImages.forEach(function(filename) {
+  absenceImages.forEach(function(filename, idx) {
     var item = document.createElement('div');
     item.className = 'abs-img-item';
+    // Admins can drag images to reorder them (drop one onto another).
+    if (isAdmin) {
+      item.draggable = true;
+      item.title = 'Drag to reorder';
+      item.addEventListener('dragstart', function(e) {
+        absDragIdx = idx;
+        item.classList.add('c-dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); } catch (err) {}
+      });
+      item.addEventListener('dragend', function() {
+        item.classList.remove('c-dragging');
+        wrap.querySelectorAll('.c-drag-over').forEach(function(x) { x.classList.remove('c-drag-over'); });
+      });
+      item.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = 'move'; } catch (err) {}
+        if (idx !== absDragIdx) item.classList.add('c-drag-over');
+      });
+      item.addEventListener('dragleave', function() { item.classList.remove('c-drag-over'); });
+      item.addEventListener('drop', function(e) {
+        e.preventDefault();
+        item.classList.remove('c-drag-over');
+        if (absDragIdx === null || absDragIdx === idx) { absDragIdx = null; return; }
+        var moved = absenceImages.splice(absDragIdx, 1)[0];
+        absenceImages.splice(idx, 0, moved);
+        absDragIdx = null;
+        renderAbsenceImages();
+        apiSave('absenceImages', absenceImages, function() { flashSave('Order saved!'); });
+      });
+    }
     var img = document.createElement('img');
     img.loading = 'lazy'; img.decoding = 'async';
     img.src = '/uploads/' + filename;
     img.alt = '';
+    img.draggable = false;   // drag the item wrapper, not the raw image
     img.onclick = function() { if (typeof openLightbox === 'function') openLightbox(img.src); };
     item.appendChild(img);
     var del = document.createElement('button');
