@@ -2660,7 +2660,7 @@ body.is-admin .ue-img-admin{display:flex;}
 body.is-admin .ue-img-del{display:block;}
 .ue-img-del:hover{background:rgba(192,57,43,1);}
 @media (max-width:600px){
-  .ue-img-grid{grid-template-columns:1fr;}
+  .ue-img-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
 }
 /* Event details popup */
 .ue-modal{
@@ -3502,6 +3502,16 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <button class="back-btn" onclick="goHome()">← Back</button>
         <h1 class="pg-title">Lamb / Calf / Pet Day</h1>
       </div>
+
+      <!-- Full-width images (e.g. a pet-day flyer) — admin adds them -->
+      <div id="pd-img-admin" class="abs-img-admin">
+        <label class="ue-add-images-btn">
+          + Add images
+          <input type="file" accept="image/*" multiple style="display:none" onchange="uploadPetdayImages(event)">
+        </label>
+        <span class="nl-add-hint">Hold Shift or Cmd in the file picker to select more than one image.</span>
+      </div>
+      <div id="pd-img-list" class="abs-img-list"></div>
 
       <div id="pd-admin" class="pd-admin">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -4772,6 +4782,8 @@ function fetchState(_retry) {
       if (typeof renderUpcomingEventImages === 'function') renderUpcomingEventImages();
       absenceImages = Array.isArray(data.absenceImages) ? data.absenceImages : [];
       if (typeof renderAbsenceImages === 'function') renderAbsenceImages();
+      petdayImages = Array.isArray(data.petdayImages) ? data.petdayImages : [];
+      if (typeof renderPetdayImages === 'function') renderPetdayImages();
       if (data.surveyYears) surveyYears = String(data.surveyYears);
       parentMessages = Array.isArray(data.parentMessages) ? data.parentMessages : [];
       parentGroups   = Array.isArray(data.parentGroups)   ? data.parentGroups   : [];
@@ -6238,6 +6250,81 @@ function pdDownloadCsv() {
   setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+// ---- Full-width images on the Lamb/Calf/Pet Day page (admin-managed) ----
+var petdayImages = [];
+var pdDragIdx = null;
+function renderPetdayImages() {
+  var wrap = el('pd-img-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  petdayImages.forEach(function(filename, idx) {
+    var item = document.createElement('div');
+    item.className = 'abs-img-item';
+    if (isAdmin) {
+      item.draggable = true;
+      item.title = 'Drag to reorder';
+      item.addEventListener('dragstart', function(e) {
+        pdDragIdx = idx; item.classList.add('c-dragging');
+        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); } catch (err) {}
+      });
+      item.addEventListener('dragend', function() {
+        item.classList.remove('c-dragging');
+        wrap.querySelectorAll('.c-drag-over').forEach(function(x) { x.classList.remove('c-drag-over'); });
+      });
+      item.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = 'move'; } catch (err) {}
+        if (idx !== pdDragIdx) item.classList.add('c-drag-over');
+      });
+      item.addEventListener('dragleave', function() { item.classList.remove('c-drag-over'); });
+      item.addEventListener('drop', function(e) {
+        e.preventDefault();
+        item.classList.remove('c-drag-over');
+        if (pdDragIdx === null || pdDragIdx === idx) { pdDragIdx = null; return; }
+        var moved = petdayImages.splice(pdDragIdx, 1)[0];
+        petdayImages.splice(idx, 0, moved);
+        pdDragIdx = null;
+        renderPetdayImages();
+        apiSave('petdayImages', petdayImages, function() { flashSave('Order saved!'); });
+      });
+    }
+    var img = document.createElement('img');
+    img.loading = 'lazy'; img.decoding = 'async';
+    img.src = '/uploads/' + filename;
+    img.alt = '';
+    img.draggable = false;
+    img.onclick = function() { if (typeof openLightbox === 'function') openLightbox(img.src); };
+    item.appendChild(img);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'abs-img-del';
+    del.title = 'Remove image';
+    del.textContent = '×';
+    del.onclick = function(e) {
+      e.stopPropagation();
+      if (!confirm('Remove this image?')) return;
+      fetch('/api/petday-image/' + encodeURIComponent(filename), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(b) { if (b && b.images) { petdayImages = b.images; renderPetdayImages(); } });
+    };
+    item.appendChild(del);
+    wrap.appendChild(item);
+  });
+}
+function uploadPetdayImages(event) {
+  var files = event.target.files;
+  if (!files || !files.length) return;
+  var uploads = Array.prototype.slice.call(files).map(function(file) {
+    var fd = new FormData();
+    fd.append('image', file);
+    return fetch('/api/upload/petday-image', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(b) { if (b && b.images) petdayImages = b.images; });
+  });
+  Promise.all(uploads).then(renderPetdayImages);
+  event.target.value = '';
+}
+
 // ===================== LAZY EMBEDS =====================
 // YouTube/calendar/Drive iframes are full embedded web apps (tens to hundreds
 // of MB each). 24 of them were loading at boot into HIDDEN pages — the main
@@ -6311,6 +6398,7 @@ function showPage(id) {
     if (isAdmin && typeof svLoadResults === 'function') svLoadResults();
   }
   if (id === 'pg-petday') {
+    if (typeof renderPetdayImages === 'function') renderPetdayImages();
     if (isAdmin && typeof pdLoadResults === 'function') pdLoadResults();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
