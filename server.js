@@ -438,6 +438,7 @@ const PUBLIC_API = [
   ['POST', /^\/login$/], ['POST', /^\/logout$/],
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
+  ['POST', /^\/petday\/submit$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
 ];
@@ -1015,6 +1016,56 @@ app.post('/api/survey/clear', (req, res) => {
       try { fs.writeFileSync(SURVEY_FILE + '.cleared-' + Date.now() + '.bak', txt); } catch (e) {}
     }
     fs.writeFile(SURVEY_FILE, '[]', () => res.json({ ok: true, cleared: count }));
+  });
+});
+
+// ---- Lamb / Calf / Pet Day registrations ----
+// Public submit; admin (session-gated by the /api middleware) reads/clears.
+const PETDAY_FILE = path.join(DATA_DIR, 'petday-registrations.json');
+app.post('/api/petday/submit', (req, res) => {
+  const b = req.body || {};
+  const reg = {
+    ts: Date.now(),
+    first:    String(b.first || '').trim().slice(0, 100),
+    last:     String(b.last || '').trim().slice(0, 100),
+    year:     String(b.year || '').trim().slice(0, 40),
+    category: String(b.category || '').trim().slice(0, 40),
+    petType:  String(b.petType || '').trim().slice(0, 60),
+    petName:  String(b.petName || '').trim().slice(0, 100),
+  };
+  if (!reg.first || !reg.last || !reg.year || !reg.category || !reg.petName) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  if (['Lamb', 'Calf', 'Most loved pet'].indexOf(reg.category) === -1) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+  // "Most loved pet" must say what kind of animal it is.
+  if (reg.category === 'Most loved pet' && !reg.petType) {
+    return res.status(400).json({ error: 'Please say what kind of pet you are bringing.' });
+  }
+  fs.readFile(PETDAY_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    list.push(reg);
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(PETDAY_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+app.post('/api/petday/results', (req, res) => {
+  fs.readFile(PETDAY_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    res.json({ registrations: list });
+  });
+});
+app.post('/api/petday/clear', (req, res) => {
+  fs.readFile(PETDAY_FILE, 'utf8', (err, txt) => {
+    let count = 0;
+    if (!err && txt) {
+      try { count = (JSON.parse(txt) || []).length; } catch (e) {}
+      try { fs.writeFileSync(PETDAY_FILE + '.cleared-' + Date.now() + '.bak', txt); } catch (e) {}
+    }
+    fs.writeFile(PETDAY_FILE, '[]', () => res.json({ ok: true, cleared: count }));
   });
 });
 

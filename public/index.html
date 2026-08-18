@@ -1347,6 +1347,21 @@ body.is-admin .ev-img-cell:hover .ev-img-replace{display:block;}
 }
 body.is-admin .ev-add-img-cell{display:flex;}
 
+/* ---- LAMB/CALF/PET DAY REGISTRATION PAGE ---- */
+.pd-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+body.is-admin .pd-admin{display:block;}
+.pd-cats{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px;}
+.pd-cat{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #dcdcdc;border-radius:10px;
+  padding:10px 16px;font-size:14px;color:#333;cursor:pointer;background:#fafafa;user-select:none;flex:1;min-width:120px;justify-content:center;}
+.pd-cat input{accent-color:#1a2b4a;margin:0;cursor:pointer;}
+.pd-cat:has(input:checked){background:#1a2b4a;border-color:#1a2b4a;color:#fff;}
+.pd-thanks{background:#f0fdf4;border:1.5px solid #16a34a;border-radius:12px;padding:22px;text-align:center;color:#14532d;font-size:15px;line-height:1.6;}
+.pd-reg-table-wrap{overflow-x:auto;margin:8px 0;}
+.pd-reg-table{border-collapse:collapse;font-size:13px;min-width:100%;}
+.pd-reg-table th,.pd-reg-table td{border:1px solid #e6e6e6;padding:6px 10px;text-align:left;white-space:nowrap;}
+.pd-reg-table th{background:#f5f6f8;color:#1a2b4a;}
+.pd-reg-cat{font-weight:700;}
+
 /* ---- SCHOOL SURVEY PAGE ---- */
 .sv-section{background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:18px 20px;margin-bottom:16px;}
 .sv-goal-h{color:#1a2b4a;font-size:18px;font-weight:700;margin:0 0 4px;}
@@ -3479,6 +3494,67 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== LAMB / CALF / PET DAY REGISTRATION PAGE ======== -->
+  <div id="pg-petday" class="page">
+    <div class="pg-header" id="ph-petday"></div>
+    <div class="pg-body" style="max-width:720px;margin:0 auto;">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Lamb / Calf / Pet Day</h1>
+      </div>
+
+      <div id="pd-admin" class="pd-admin">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Registrations (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="pdLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="pdDownloadCsv()">⬇ Download</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#c0392b;" onclick="pdClearResults()">🗑 Clear</button>
+          <span id="pd-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="pd-results"></div>
+      </div>
+
+      <div id="pd-form-wrap">
+        <p class="abs-intro">Register your child for the Lamb / Calf / Pet Day. Fill in a separate registration for each animal.</p>
+        <form id="pd-form" onsubmit="event.preventDefault(); pdSubmit();">
+          <div class="abs-name-row">
+            <div class="abs-name-col">
+              <label class="hb-label" for="pd-first">Child's first name <span class="hb-required">*</span></label>
+              <input id="pd-first" class="hb-input" type="text" required maxlength="100">
+            </div>
+            <div class="abs-name-col">
+              <label class="hb-label" for="pd-last">Child's last name <span class="hb-required">*</span></label>
+              <input id="pd-last" class="hb-input" type="text" required maxlength="100">
+            </div>
+          </div>
+          <label class="hb-label" for="pd-year">Year level <span class="hb-required">*</span></label>
+          <select id="pd-year" class="hb-input" required>
+            <option value="">Choose a year level…</option>
+            <option>Year 0</option><option>Year 1</option><option>Year 2</option>
+            <option>Year 3</option><option>Year 4</option><option>Year 5</option>
+            <option>Year 6</option><option>Year 7</option><option>Year 8</option>
+          </select>
+          <label class="hb-label">Category <span class="hb-required">*</span></label>
+          <div class="pd-cats">
+            <label class="pd-cat"><input type="radio" name="pd-cat" value="Lamb" required onchange="pdToggleType()"> Lamb</label>
+            <label class="pd-cat"><input type="radio" name="pd-cat" value="Calf" onchange="pdToggleType()"> Calf</label>
+            <label class="pd-cat"><input type="radio" name="pd-cat" value="Most loved pet" onchange="pdToggleType()"> Most loved pet</label>
+          </div>
+          <div id="pd-pettype-wrap" style="display:none;">
+            <label class="hb-label" for="pd-pettype">What kind of pet? <span class="hb-required">*</span></label>
+            <input id="pd-pettype" class="hb-input" type="text" maxlength="60" placeholder="e.g. rabbit, kitten, chicken">
+          </div>
+          <label class="hb-label" for="pd-petname">Pet's name <span class="hb-required">*</span></label>
+          <input id="pd-petname" class="hb-input" type="text" required maxlength="100" placeholder="e.g. Daisy">
+          <div class="abs-submit-row">
+            <button id="pd-submit-btn" type="submit" class="hb-submit-btn">Register</button>
+            <span id="pd-status" class="hb-err"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ======== BUSES PAGE ======== -->
   <div id="pg-buses" class="page">
     <div class="pg-header" id="ph-buses"></div>
@@ -4753,6 +4829,11 @@ function fetchState(_retry) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-survey'; })) {
         pageConfig.push({ id:'pg-survey', label:'School Survey', hidden:true });
       }
+      // Lamb/Calf/Pet Day registration: starts HIDDEN (admin publishes it with
+      // the 👁 Show toggle in the sidebar when registrations open).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-petday'; })) {
+        pageConfig.push({ id:'pg-petday', label:'Lamb / Calf / Pet Day Registration', hidden:true });
+      }
       renderSidebarPages();
       pageAudio = data.pageAudio || {};
       updateSidebarAudio('pg-home');
@@ -5537,7 +5618,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -6031,6 +6112,132 @@ function svDownloadCsv() {
   setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+// ===================== LAMB/CALF/PET DAY REGISTRATION =====================
+// Show the "what kind of pet" field only for the Most loved pet category.
+function pdToggleType() {
+  var cat = document.querySelector('input[name="pd-cat"]:checked');
+  var wrap = el('pd-pettype-wrap');
+  if (wrap) wrap.style.display = (cat && cat.value === 'Most loved pet') ? 'block' : 'none';
+}
+
+function pdSubmit() {
+  var status = el('pd-status');
+  var btn = el('pd-submit-btn');
+  status.textContent = '';
+  var cat = document.querySelector('input[name="pd-cat"]:checked');
+  var payload = {
+    first:   el('pd-first').value.trim(),
+    last:    el('pd-last').value.trim(),
+    year:    el('pd-year').value,
+    category: cat ? cat.value : '',
+    petType: el('pd-pettype').value.trim(),
+    petName: el('pd-petname').value.trim()
+  };
+  if (!payload.first || !payload.last || !payload.year || !payload.category || !payload.petName) {
+    status.textContent = 'Please fill in every field.';
+    return;
+  }
+  if (payload.category === 'Most loved pet' && !payload.petType) {
+    status.textContent = 'Please say what kind of pet you are bringing.';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Registering…';
+  fetch('/api/petday/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (!b || !b.ok) throw new Error('rejected');
+    el('pd-form-wrap').innerHTML =
+      '<div class="pd-thanks"><strong>Thank you!</strong><br>' + lunchEsc(payload.first) +
+      ' is registered for the ' + lunchEsc(payload.category) + ' category with ' + lunchEsc(payload.petName) +
+      '.<br><br><button type="button" class="hb-submit-btn" onclick="pdResetForm()">Register another animal</button></div>';
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Register';
+    status.textContent = 'Could not register — please try again.';
+  });
+}
+function pdResetForm() { location.reload(); }
+
+// ---- Admin: registrations ----
+var _pdLast = [];
+function pdLoadResults() {
+  var out = el('pd-results');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/petday/results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    var regs = (b && b.registrations) || [];
+    _pdLast = regs;
+    var cnt = el('pd-admin-count');
+    if (cnt) cnt.textContent = regs.length + ' registration' + (regs.length === 1 ? '' : 's');
+    if (!regs.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No registrations yet.</span>'; return; }
+    // Count per category.
+    var byCat = {};
+    regs.forEach(function(r) { byCat[r.category] = (byCat[r.category] || 0) + 1; });
+    var summary = ['Lamb', 'Calf', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
+    var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 8px;">' + summary + '</div>';
+    html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
+      '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th></tr>';
+    regs.slice().reverse().forEach(function(r) {
+      html += '<tr><td>' + lunchEsc((r.first || '') + ' ' + (r.last || '')) + '</td>' +
+        '<td>' + lunchEsc(r.year || '') + '</td>' +
+        '<td class="pd-reg-cat">' + lunchEsc(r.category || '') + '</td>' +
+        '<td>' + lunchEsc(r.petType || '') + '</td>' +
+        '<td>' + lunchEsc(r.petName || '') + '</td>' +
+        '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td></tr>';
+    });
+    html += '</table></div>';
+    out.innerHTML = html;
+  })
+  .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load registrations.</span>'; });
+}
+function pdClearResults() {
+  var n = _pdLast.length;
+  if (!confirm('Delete ALL ' + n + ' registration' + (n === 1 ? '' : 's') + '? A backup copy is kept on the server.')) return;
+  fetch('/api/petday/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: window.__adminPw || '' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Cleared ' + b.cleared + ' registration' + (b.cleared === 1 ? '' : 's')); pdLoadResults(); }
+    else flashSave('Could not clear.');
+  })
+  .catch(function() { flashSave('Could not clear.'); });
+}
+function pdCsvCell(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+function pdDownloadCsv() {
+  var cols = [['Child first', 'first'], ['Child last', 'last'], ['Year', 'year'],
+              ['Category', 'category'], ['Kind of pet', 'petType'], ['Pet name', 'petName'], ['Registered', 'ts']];
+  var lines = [cols.map(function(c) { return pdCsvCell(c[0]); }).join(',')];
+  _pdLast.forEach(function(r) {
+    lines.push(cols.map(function(c) {
+      if (c[1] === 'ts') return pdCsvCell(new Date(r.ts).toLocaleString());
+      return pdCsvCell(r[c[1]]);
+    }).join(','));
+  });
+  var d = new Date();
+  var fname = 'Lamb Calf Pet Day ' + String(d.getDate()).padStart(2, '0') + '-' +
+              String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
 // ===================== LAZY EMBEDS =====================
 // YouTube/calendar/Drive iframes are full embedded web apps (tens to hundreds
 // of MB each). 24 of them were loading at boot into HIDDEN pages — the main
@@ -6102,6 +6309,9 @@ function showPage(id) {
   if (id === 'pg-survey') {
     if (typeof renderSurveyPage === 'function') renderSurveyPage();
     if (isAdmin && typeof svLoadResults === 'function') svLoadResults();
+  }
+  if (id === 'pg-petday') {
+    if (isAdmin && typeof pdLoadResults === 'function') pdLoadResults();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -6540,7 +6750,7 @@ function renderImpDropdown() {
 var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
-  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey',
+  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
