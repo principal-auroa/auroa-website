@@ -7893,9 +7893,14 @@ function renderEvImages(images) {
     var cell = document.createElement('div');
     cell.className = 'ev-img-cell';
     var img = document.createElement('img');
-    img.loading = 'lazy'; img.decoding = 'async';
-    img.src = '/uploads/' + filename;
+    // NOT lazy: the cell hides the img (display:none) until it loads, and a
+    // display:none image is never lazy-loaded (nothing to intersect) — that
+    // deadlock left uploaded event images stuck grey. Only a handful load on a
+    // deliberately-opened event page, so eager is fine.
+    img.decoding = 'async';
     img.onload = function() { img.classList.add('loaded'); };
+    img.src = '/uploads/' + filename;
+    if (img.complete) img.classList.add('loaded');   // already cached
     img.onclick = function(e) { if (!isAdmin) openLightbox('/uploads/' + filename); };
 
     // Replace label (admin hover)
