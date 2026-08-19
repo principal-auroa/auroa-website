@@ -636,9 +636,12 @@ app.delete('/api/carousel/:filename', (req, res) => {
 app.post('/api/upload/sport/:sportId', uploader('sport').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const data = load();
-  if (!data.sports[req.params.sportId]) return res.status(404).json({ error: 'Unknown sport' });
-  data.sports[req.params.sportId].images.push(req.file.filename);
-  save(data);
+  const sport = data.sports[req.params.sportId];
+  if (!sport) return res.status(404).json({ error: 'Unknown sport' });
+  // Legacy single-table sports keep a top-level images array; group-based sports
+  // store images per group and the client persists the reference itself. Only
+  // touch the top-level array when it exists so this never crashes.
+  if (Array.isArray(sport.images)) { sport.images.push(req.file.filename); save(data); }
   res.json({ filename: req.file.filename });
 });
 
@@ -646,7 +649,10 @@ app.post('/api/upload/sport/:sportId', uploader('sport').single('image'), resize
 app.delete('/api/sport-image/:filename', (req, res) => {
   const name = path.basename(req.params.filename);
   const data = load();
-  Object.values(data.sports).forEach(s => { s.images = s.images.filter(f => f !== name); });
+  Object.values(data.sports).forEach(s => {
+    if (Array.isArray(s.images)) s.images = s.images.filter(f => f !== name);
+    if (Array.isArray(s.groups)) s.groups.forEach(g => { if (Array.isArray(g.images)) g.images = g.images.filter(f => f !== name); });
+  });
   save(data);
   deleteFile(name);
   res.json({ ok: true });

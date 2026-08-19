@@ -3407,19 +3407,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
         <h2 class="pg-title" id="sd-name"></h2>
       </div>
-      <div id="sd-table-wrap"></div>
-      <div id="sd-table-admin" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-        <button class="abar-btn" style="font-size:11px;padding:4px 11px;" onclick="sdAddRow()">+ Row</button>
-        <button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="sdRemoveRow()">− Row</button>
-        <button class="abar-btn" style="font-size:11px;padding:4px 11px;" onclick="sdAddCol()">+ Column</button>
-        <button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="sdRemoveCol()">− Column</button>
-      </div>
-      <div id="sd-notes" class="sd-notes" data-placeholder="Notes…"></div>
-      <div id="sd-images"></div>
-      <div id="sd-img-admin" style="display:none;margin-top:8px;">
-        <label class="abar-btn" style="font-size:11px;padding:4px 11px;cursor:pointer;">
-          + Add Image<input type="file" accept="image/*" style="display:none;" onchange="sdUploadImage(this)" />
-        </label>
+      <!-- One or more groups (each: table + notes + images), rendered by JS. -->
+      <div id="sd-groups"></div>
+      <div id="sd-group-admin" style="display:none;margin-top:6px;">
+        <button class="abar-btn" style="font-size:12px;padding:6px 16px;" onclick="sdAddGroup()">+ Add another team / group</button>
       </div>
     </div>
   </div>
@@ -5130,9 +5121,7 @@ function enterAdmin() {
   if (currentSportId && document.querySelector('#pg-sport.active')) {
     var _s = sportsData[currentSportId];
     if (_s) {
-      renderSdTable(_s.tableData);
-      el('sd-table-admin').style.display = 'flex';
-      el('sd-img-admin').style.display = 'block';
+      renderSdGroups(_s);
       var _sdCur = el('sd-current-btn');
       _sdCur.style.display = 'inline-block';
       _sdCur.style.background = _s.current ? '#27ae60' : '';
@@ -7312,7 +7301,7 @@ function sportAddButton(termId) {
   var name = prompt('Sport name:');
   if (!name || !name.trim()) return;
   var sid = 'sport_' + Date.now();
-  sportsData[sid] = { name: name.trim(), tableData: [['Team name',''],['Year level',''],['Student names',''],['Coach/Manager','']], notes: '', images: [] };
+  sportsData[sid] = { name: name.trim(), groups: [{ tableData: [['Team name',''],['Year level',''],['Student names',''],['Coach/Manager','']], notes: '', images: [] }] };
   var term = sportTerms.find(function(t) { return t.id === termId; });
   if (term) term.sportIds.push(sid);
   saveSportsToServer(function() { renderSportsPage(); });
@@ -7338,38 +7327,120 @@ function sportMoveBtn(termId, sportId, dir) {
 }
 
 // ---- sport detail page ----
+// Default table for a fresh sport / group.
+function sdDefaultTable() {
+  return [['Team name',''],['Year level',''],['Student names',''],['Coach/Manager','']];
+}
+// Return the sport's array of groups, migrating a legacy single-table sport
+// (tableData/notes/images at the top level) into one group on first access.
+function sdGroupsOf(sport) {
+  if (!sport) return [];
+  if (!Array.isArray(sport.groups)) {
+    sport.groups = [{
+      tableData: (Array.isArray(sport.tableData) && sport.tableData.length) ? sport.tableData : sdDefaultTable(),
+      notes: typeof sport.notes === 'string' ? sport.notes : '',
+      images: Array.isArray(sport.images) ? sport.images : []
+    }];
+  }
+  sport.groups.forEach(function(g) {
+    if (!Array.isArray(g.tableData) || !g.tableData.length) g.tableData = sdDefaultTable();
+    if (typeof g.notes !== 'string') g.notes = '';
+    if (!Array.isArray(g.images)) g.images = [];
+  });
+  return sport.groups;
+}
+
 function openSportDetail(sportId) {
   currentSportId = sportId;
   var sport = sportsData[sportId];
   if (!sport) return;
   el('sd-name').textContent = sport.name;
-  renderSdTable(sport.tableData);
-  var notes = el('sd-notes');
-  // Older notes were saved as plain text with newlines; convert those to <br>.
-  // Notes that already contain HTML (e.g. links added later) are used as-is.
-  var rawNotes = sport.notes || '';
-  notes.innerHTML = /<[a-z!/]/i.test(rawNotes) ? rawNotes : rawNotes.replace(/\n/g, '<br>');
-  notes.contentEditable = isAdmin ? 'true' : 'false';
-  notes.oninput = function() {
-    clearTimeout(sdAutoSaveTimer);
-    sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000);
-  };
-  renderSdImages(sport.images || []);
+  renderSdGroups(sport);
   if (isAdmin) {
-    el('sd-table-admin').style.display = 'flex';
-    el('sd-img-admin').style.display = 'block';
     var curBtn = el('sd-current-btn');
     curBtn.style.display = 'inline-block';
     curBtn.style.background = sport.current ? '#27ae60' : '';
     curBtn.style.color = sport.current ? '#fff' : '';
     el('sd-share-btn').style.display = 'inline-block';
   } else {
-    el('sd-table-admin').style.display = 'none';
-    el('sd-img-admin').style.display = 'none';
     el('sd-current-btn').style.display = 'none';
     el('sd-share-btn').style.display = 'none';
   }
   showPage('pg-sport');
+}
+
+// Rebuild every group block (table + notes + images + admin controls) for a sport.
+function renderSdGroups(sport) {
+  var groups = sdGroupsOf(sport);
+  var wrap = el('sd-groups');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  groups.forEach(function(g, gi) { wrap.appendChild(buildSdGroupBlock(g, gi, groups.length)); });
+  var ga = el('sd-group-admin');
+  if (ga) ga.style.display = isAdmin ? 'block' : 'none';
+}
+
+// Build one group's DOM: a table, its row/column admin, a notes box, its images
+// and its own Add Image / Remove group controls. gi = the group's index.
+function buildSdGroupBlock(g, gi, total) {
+  var block = document.createElement('div');
+  block.className = 'sd-group';
+  block.setAttribute('data-gi', gi);
+  if (gi > 0) { block.style.marginTop = '30px'; block.style.borderTop = '2px solid #eee'; block.style.paddingTop = '20px'; }
+
+  var tWrap = document.createElement('div');
+  tWrap.className = 'sd-table-wrap';
+  block.appendChild(tWrap);
+  renderSdTableInto(tWrap, g.tableData, gi);
+
+  if (isAdmin) {
+    var tAdmin = document.createElement('div');
+    tAdmin.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;';
+    tAdmin.innerHTML =
+      '<button class="abar-btn" style="font-size:11px;padding:4px 11px;" onclick="sdAddRow(' + gi + ')">+ Row</button>' +
+      '<button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="sdRemoveRow(' + gi + ')">− Row</button>' +
+      '<button class="abar-btn" style="font-size:11px;padding:4px 11px;" onclick="sdAddCol(' + gi + ')">+ Column</button>' +
+      '<button class="abar-btn" style="font-size:11px;padding:4px 11px;background:#c0392b;" onclick="sdRemoveCol(' + gi + ')">− Column</button>';
+    block.appendChild(tAdmin);
+  }
+
+  var notes = document.createElement('div');
+  notes.className = 'sd-notes';
+  notes.setAttribute('data-placeholder', 'Notes…');
+  var rawNotes = g.notes || '';
+  notes.innerHTML = /<[a-z!/]/i.test(rawNotes) ? rawNotes : rawNotes.replace(/\n/g, '<br>');
+  notes.contentEditable = isAdmin ? 'true' : 'false';
+  notes.oninput = function() { clearTimeout(sdAutoSaveTimer); sdAutoSaveTimer = setTimeout(function() { sdSave(); }, 1000); };
+  block.appendChild(notes);
+
+  var imgs = document.createElement('div');
+  imgs.className = 'sd-images';
+  block.appendChild(imgs);
+  renderSdImagesInto(imgs, g.images || [], gi);
+
+  if (isAdmin) {
+    var iAdmin = document.createElement('div');
+    iAdmin.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;';
+    var addLbl = document.createElement('label');
+    addLbl.className = 'abar-btn';
+    addLbl.style.cssText = 'font-size:11px;padding:4px 11px;cursor:pointer;';
+    addLbl.textContent = '+ Add Image';
+    var addInput = document.createElement('input');
+    addInput.type = 'file'; addInput.accept = 'image/*'; addInput.style.display = 'none';
+    (function(idx) { addInput.onchange = function() { sdUploadImage(addInput, idx); }; })(gi);
+    addLbl.appendChild(addInput);
+    iAdmin.appendChild(addLbl);
+    if (total > 1) {
+      var rmBtn = document.createElement('button');
+      rmBtn.className = 'abar-btn';
+      rmBtn.style.cssText = 'font-size:11px;padding:4px 11px;background:#c0392b;';
+      rmBtn.textContent = '✕ Remove this group';
+      (function(idx) { rmBtn.onclick = function() { sdRemoveGroup(idx); }; })(gi);
+      iAdmin.appendChild(rmBtn);
+    }
+    block.appendChild(iAdmin);
+  }
+  return block;
 }
 
 function sdCopyShareLink() {
@@ -7378,8 +7449,8 @@ function sdCopyShareLink() {
   copyShareUrl(url, el('sd-share-btn'), '🔗 Copy link');
 }
 
-function renderSdTable(tableData) {
-  var wrap = el('sd-table-wrap');
+// Render one group's table into a given wrapper element. gi = group index.
+function renderSdTableInto(wrap, tableData, gi) {
   var tbl = '<table class="sd-table">';
   tableData.forEach(function(row, ri) {
     tbl += '<tr>';
@@ -7403,24 +7474,42 @@ function renderSdTable(tableData) {
   });
 }
 
-function sdExtractTable() {
-  var rows = [];
-  el('sd-table-wrap').querySelectorAll('tr').forEach(function(tr) {
-    var row = [];
-    tr.querySelectorAll('td').forEach(function(td, ci) {
-      // First column is a plain label; editable columns store innerHTML to preserve line breaks
-      row.push(ci === 0 ? (td.textContent || '') : (td.innerHTML || ''));
-    });
-    rows.push(row);
+// Read every group's table + notes back out of the DOM into the data model.
+// (Images are managed separately by the upload/delete/replace handlers.)
+function sdExtractGroups() {
+  var sport = sportsData[currentSportId];
+  if (!sport) return;
+  var groups = sdGroupsOf(sport);
+  var host = el('sd-groups');
+  if (!host) return;
+  host.querySelectorAll('.sd-group').forEach(function(block) {
+    var gi = parseInt(block.getAttribute('data-gi'), 10);
+    var g = groups[gi];
+    if (!g) return;
+    var rows = [];
+    var tw = block.querySelector('.sd-table-wrap');
+    if (tw) {
+      tw.querySelectorAll('tr').forEach(function(tr) {
+        var row = [];
+        tr.querySelectorAll('td').forEach(function(td, ci) {
+          // First column is a plain label; editable columns store innerHTML to preserve line breaks
+          row.push(ci === 0 ? (td.textContent || '') : (td.innerHTML || ''));
+        });
+        rows.push(row);
+      });
+      if (rows.length) g.tableData = rows;
+    }
+    var n = block.querySelector('.sd-notes');
+    if (n) g.notes = n.innerHTML;
   });
-  return rows;
 }
 
 function sdSave(cb) {
   var sport = sportsData[currentSportId];
-  if (!sport) return;
-  sport.tableData = sdExtractTable();
-  sport.notes     = el('sd-notes').innerHTML;
+  if (!sport) { if (cb) cb(); return; }
+  sdExtractGroups();
+  // The group array is now canonical — drop any legacy top-level fields.
+  delete sport.tableData; delete sport.notes; delete sport.images;
   saveSportsToServer(cb);
 }
 
@@ -7433,43 +7522,83 @@ function sdToggleCurrent() {
   saveSportsToServer(function() { flashSave(sport.current ? 'Marked as current!' : 'Unmarked.'); renderSportsPage(); });
 }
 
-function sdAddRow() {
-  var sport = sportsData[currentSportId]; if (!sport) return;
-  sport.tableData = sdExtractTable();
-  var cols = sport.tableData[0] ? sport.tableData[0].length : 2;
+// Helpers for the per-group table controls.
+function sdGroupAt(gi) {
+  var sport = sportsData[currentSportId]; if (!sport) return null;
+  var groups = sdGroupsOf(sport);
+  return groups[gi] || null;
+}
+function sdRerenderGroupTable(gi) {
+  var block = el('sd-groups') && el('sd-groups').querySelector('.sd-group[data-gi="' + gi + '"]');
+  var g = sdGroupAt(gi);
+  if (block && g) renderSdTableInto(block.querySelector('.sd-table-wrap'), g.tableData, gi);
+}
+function sdRerenderGroupImages(gi) {
+  var block = el('sd-groups') && el('sd-groups').querySelector('.sd-group[data-gi="' + gi + '"]');
+  var g = sdGroupAt(gi);
+  if (block && g) renderSdImagesInto(block.querySelector('.sd-images'), g.images, gi);
+}
+
+function sdAddRow(gi) {
+  sdExtractGroups();
+  var g = sdGroupAt(gi); if (!g) return;
+  var cols = g.tableData[0] ? g.tableData[0].length : 2;
   var row = [];
   for (var i = 0; i < cols; i++) row.push('');
-  sport.tableData.push(row);
-  renderSdTable(sport.tableData);
+  g.tableData.push(row);
+  sdRerenderGroupTable(gi);
 }
-function sdRemoveRow() {
-  var sport = sportsData[currentSportId]; if (!sport) return;
-  sport.tableData = sdExtractTable();
-  if (sport.tableData.length > 1) sport.tableData.pop();
-  renderSdTable(sport.tableData);
+function sdRemoveRow(gi) {
+  sdExtractGroups();
+  var g = sdGroupAt(gi); if (!g) return;
+  if (g.tableData.length > 1) g.tableData.pop();
+  sdRerenderGroupTable(gi);
 }
-function sdAddCol() {
-  var sport = sportsData[currentSportId]; if (!sport) return;
-  sport.tableData = sdExtractTable();
-  sport.tableData.forEach(function(row) { row.push(''); });
-  renderSdTable(sport.tableData);
+function sdAddCol(gi) {
+  sdExtractGroups();
+  var g = sdGroupAt(gi); if (!g) return;
+  g.tableData.forEach(function(row) { row.push(''); });
+  sdRerenderGroupTable(gi);
 }
-function sdRemoveCol() {
-  var sport = sportsData[currentSportId]; if (!sport) return;
-  sport.tableData = sdExtractTable();
-  if (sport.tableData[0] && sport.tableData[0].length > 1) {
-    sport.tableData.forEach(function(row) { row.pop(); });
-  }
-  renderSdTable(sport.tableData);
+function sdRemoveCol(gi) {
+  sdExtractGroups();
+  var g = sdGroupAt(gi); if (!g) return;
+  if (g.tableData[0] && g.tableData[0].length > 1) g.tableData.forEach(function(row) { row.pop(); });
+  sdRerenderGroupTable(gi);
 }
 
-function sdNotesResize(ta) {
-  ta.style.height = 'auto';
-  ta.style.height = ta.scrollHeight + 'px';
+// Append a fresh group (its own table + notes + images) below the existing ones.
+function sdAddGroup() {
+  var sport = sportsData[currentSportId]; if (!sport) return;
+  sdExtractGroups();
+  var groups = sdGroupsOf(sport);
+  groups.push({ tableData: sdDefaultTable(), notes: '', images: [] });
+  renderSdGroups(sport);
+  sdSave(function() { flashSave('Group added!'); });
+  var blocks = el('sd-groups').querySelectorAll('.sd-group');
+  if (blocks.length) blocks[blocks.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderSdImages(images) {
-  var wrap = el('sd-images');
+// Remove a whole group and clean up its images.
+function sdRemoveGroup(gi) {
+  var sport = sportsData[currentSportId]; if (!sport) return;
+  var groups = sdGroupsOf(sport);
+  if (groups.length <= 1) return;
+  if (!confirm('Remove this whole group (its table, notes and images)?')) return;
+  sdExtractGroups();
+  var removed = groups.splice(gi, 1)[0];
+  renderSdGroups(sport);
+  sdSave(function() {
+    (removed && removed.images ? removed.images : []).forEach(function(fn) {
+      fetch('/api/sport-image/' + encodeURIComponent(fn), { method: 'DELETE' });
+    });
+    flashSave('Group removed.');
+  });
+}
+
+// Render one group's images into a given wrapper. gi = group index.
+function renderSdImagesInto(wrap, images, gi) {
+  if (!wrap) return;
   wrap.innerHTML = '';
   images.forEach(function(filename, idx) {
     var block = document.createElement('div');
@@ -7485,14 +7614,14 @@ function renderSdImages(images) {
     var repInput = document.createElement('input');
     repInput.type = 'file'; repInput.accept = 'image/*'; repInput.className = 'file-in';
     (function(fn, i) {
-      repInput.onchange = function() { sdReplaceImage(fn, i, repInput); };
+      repInput.onchange = function() { sdReplaceImage(fn, i, repInput, gi); };
     })(filename, idx);
     repLabel.appendChild(repInput);
 
     var del = document.createElement('button');
     del.className = 'sd-img-del';
     del.textContent = 'Remove';
-    (function(fn) { del.onclick = function() { sdDeleteImage(fn); }; })(filename);
+    (function(fn) { del.onclick = function() { sdDeleteImage(fn, gi); }; })(filename);
 
     block.appendChild(img);
     block.appendChild(repLabel);
@@ -7501,46 +7630,56 @@ function renderSdImages(images) {
   });
 }
 
-function sdUploadImage(input) {
+function sdUploadImage(input, gi) {
   if (!input.files[0] || !currentSportId) return;
+  gi = gi || 0;
   var fd = new FormData();
   fd.append('image', input.files[0]);
   flashSave('<span class="spinner"></span>Uploading…');
   fetch('/api/upload/sport/' + currentSportId, { method: 'POST', body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      sportsData[currentSportId].images.push(data.filename);
-      renderSdImages(sportsData[currentSportId].images);
-      flashSave('Image added!');
+      if (!data.filename) { flashSave('Upload failed.'); return; }
+      var g = sdGroupAt(gi) || sdGroupAt(0);
+      if (!g) return;
+      g.images.push(data.filename);
+      sdExtractGroups();          // keep any table/notes edits
+      saveSportsToServer(function() { flashSave('Image added!'); });
+      sdRerenderGroupImages(gi);
     })
     .catch(function() { flashSave('Upload failed.'); });
   input.value = '';
 }
 
-function sdDeleteImage(filename) {
+function sdDeleteImage(filename, gi) {
   if (!confirm('Remove this image?')) return;
+  gi = gi || 0;
   fetch('/api/sport-image/' + encodeURIComponent(filename), { method: 'DELETE' })
     .then(function() {
-      var sport = sportsData[currentSportId];
-      if (sport) sport.images = sport.images.filter(function(f) { return f !== filename; });
-      renderSdImages(sport ? sport.images : []);
+      var g = sdGroupAt(gi) || sdGroupAt(0);
+      if (g) g.images = g.images.filter(function(f) { return f !== filename; });
+      sdExtractGroups();
+      saveSportsToServer();
+      sdRerenderGroupImages(gi);
     });
 }
 
-function sdReplaceImage(oldFilename, idx, input) {
+function sdReplaceImage(oldFilename, idx, input, gi) {
   if (!input.files[0] || !currentSportId) return;
+  gi = gi || 0;
   var fd = new FormData();
   fd.append('image', input.files[0]);
   flashSave('<span class="spinner"></span>Uploading…');
   fetch('/api/upload/sport/' + currentSportId, { method: 'POST', body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      var sport = sportsData[currentSportId];
-      if (!sport || !data.filename) return;
-      sport.images.splice(idx, 1, data.filename);
+      var g = sdGroupAt(gi) || sdGroupAt(0);
+      if (!g || !data.filename) return;
+      g.images.splice(idx, 1, data.filename);
+      sdExtractGroups();
       saveSportsToServer(function() {
         fetch('/api/sport-image/' + encodeURIComponent(oldFilename), { method: 'DELETE' });
-        renderSdImages(sport.images);
+        sdRerenderGroupImages(gi);
         flashSave('Image replaced!');
       });
     })
@@ -8067,10 +8206,8 @@ exitAdmin = function() {
   closeNeLinkEditor();
   renderSportsPage();
   renderNeBtns();
-  el('sd-table-admin').style.display = 'none';
-  el('sd-img-admin').style.display = 'none';
-  if (document.querySelector('#pg-sport.active') && currentSportId) {
-    var _sdn = el('sd-notes'); if (_sdn) _sdn.contentEditable = 'false';
+  if (document.querySelector('#pg-sport.active') && currentSportId && sportsData[currentSportId]) {
+    renderSdGroups(sportsData[currentSportId]);
   }
   if (document.querySelector('#pg-event.active') && currentEventId) {
     el('ev-text-admin').style.display = 'none';
@@ -9904,7 +10041,7 @@ document.addEventListener('click', function(e) {
   }
 
   // Sport detail images (pointer-events active on these)
-  if (t.closest('#sd-images') && t.tagName === 'IMG' && t.src) {
+  if (t.closest('.sd-images') && t.tagName === 'IMG' && t.src) {
     openLightbox(t.src); return;
   }
 });
