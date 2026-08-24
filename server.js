@@ -54,7 +54,7 @@ function defaultTable() {
     ['Team name',      ''],
     ['Year level',     ''],
     ['Student names',  ''],
-    ['Coach/Manager',  '']
+    ['Parent help',    '']
   ];
 }
 
@@ -178,6 +178,13 @@ function load() {
   });
   // ensure every term has an eventIds array
   data.sportTerms.forEach(t => { if (!t.eventIds) t.eventIds = []; });
+  // Rename the sports table's "Coach/Manager" row label to "Parent help"
+  // (covers legacy single-table sports and the newer per-group tables).
+  Object.values(data.sports || {}).forEach(s => {
+    const fix = td => { if (Array.isArray(td)) td.forEach(row => { if (Array.isArray(row) && row[0] === 'Coach/Manager') row[0] = 'Parent help'; }); };
+    fix(s.tableData);
+    if (Array.isArray(s.groups)) s.groups.forEach(g => fix(g.tableData));
+  });
   return data;
 }
 // ---- edit history (for undo) ----

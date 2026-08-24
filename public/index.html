@@ -7303,7 +7303,7 @@ function sportAddButton(termId) {
   var name = prompt('Sport name:');
   if (!name || !name.trim()) return;
   var sid = 'sport_' + Date.now();
-  sportsData[sid] = { name: name.trim(), groups: [{ tableData: [['Team name',''],['Year level',''],['Student names',''],['Coach/Manager','']], notes: '', images: [] }] };
+  sportsData[sid] = { name: name.trim(), groups: [{ tableData: [['Team name',''],['Year level',''],['Student names',''],['Parent help','']], notes: '', images: [] }] };
   var term = sportTerms.find(function(t) { return t.id === termId; });
   if (term) term.sportIds.push(sid);
   saveSportsToServer(function() { renderSportsPage(); });
@@ -7331,7 +7331,7 @@ function sportMoveBtn(termId, sportId, dir) {
 // ---- sport detail page ----
 // Default table for a fresh sport / group.
 function sdDefaultTable() {
-  return [['Team name',''],['Year level',''],['Student names',''],['Coach/Manager','']];
+  return [['Team name',''],['Year level',''],['Student names',''],['Parent help','']];
 }
 // Return the sport's array of groups, migrating a legacy single-table sport
 // (tableData/notes/images at the top level) into one group on first access.
@@ -7348,6 +7348,8 @@ function sdGroupsOf(sport) {
     if (!Array.isArray(g.tableData) || !g.tableData.length) g.tableData = sdDefaultTable();
     if (typeof g.notes !== 'string') g.notes = '';
     if (!Array.isArray(g.images)) g.images = [];
+    // Legacy label rename: "Coach/Manager" → "Parent help".
+    g.tableData.forEach(function(row) { if (Array.isArray(row) && row[0] === 'Coach/Manager') row[0] = 'Parent help'; });
   });
   return sport.groups;
 }
