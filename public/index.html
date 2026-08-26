@@ -312,13 +312,14 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.contact{--bt:#43a06b;--bb:#2e8654;--bl:#256e45;--be:#1b5434;}
 .sidebar-btn.stationery{--bt:#4a7fb0;--bb:#33648f;--bl:#2a5378;--be:#1f405d;}
 .sidebar-btn.parent-portal{--bt:#2d9484;--bb:#1f7d6f;--bl:#19685c;--be:#124f46;}
+.sidebar-btn.petday-reg{--bt:#b061f5;--bb:#9333ea;--bl:#7e22ce;--be:#6b21a8;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
 .sidebar-btn.group-green{--bt:#43a06b;--bb:#2e8654;--bl:#256e45;--be:#1b5434;}
 .sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
-.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
 .sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -340,7 +341,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
 }
-.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
 .sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -351,7 +352,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
              0 4px 0 var(--be),
              0 8px 16px rgba(0,0,0,0.4);
 }
-.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
 .sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
@@ -475,7 +476,10 @@ body.is-admin .sb-page-admin{display:flex;}
   border-radius:6px;
   display:none;
 }
-#page-audio.has-src{display:block;}
+body.is-admin #page-audio.has-src{display:block;}
+/* Visitors (not logged in) never see the audio player — the music still plays
+   automatically on the page it was uploaded for, just with no visible controls. */
+body:not(.is-admin) #sidebar-audio-wrap{display:none;}
 #sidebar-audio-admin{
   display:none;flex-direction:column;gap:5px;
 }
@@ -3533,6 +3537,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <div class="pd-cats">
             <label class="pd-cat"><input type="radio" name="pd-cat" value="Lamb" required onchange="pdToggleType()"> Lamb</label>
             <label class="pd-cat"><input type="radio" name="pd-cat" value="Calf" onchange="pdToggleType()"> Calf</label>
+            <label class="pd-cat"><input type="radio" name="pd-cat" value="Dog" onchange="pdToggleType()"> Dog</label>
             <label class="pd-cat"><input type="radio" name="pd-cat" value="Most loved pet" onchange="pdToggleType()"> Most loved pet</label>
           </div>
           <div id="pd-pettype-wrap" style="display:none;">
@@ -3733,8 +3738,15 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           </div>
           <div class="hb-row">
             <div class="hb-field">
-              <label class="hb-label" for="ue-time">Time <span class="hb-required">*</span></label>
-              <input id="ue-time" class="hb-input" type="time" required />
+              <label class="hb-label">Time <span class="hb-required">*</span></label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;cursor:pointer;">
+                <input type="checkbox" id="ue-allday" onchange="ueToggleAllDay()" style="width:16px;height:16px;cursor:pointer;"> All day
+              </label>
+              <div id="ue-time-selects" style="display:flex;gap:6px;">
+                <select id="ue-hour" class="hb-input" style="flex:1;padding:8px;"></select>
+                <select id="ue-min" class="hb-input" style="flex:1;padding:8px;"><option value="00">00</option><option value="30">30</option></select>
+                <select id="ue-ampm" class="hb-input" style="flex:1;padding:8px;"><option value="AM">AM</option><option value="PM">PM</option></select>
+              </div>
             </div>
             <div class="hb-field">
               <label class="hb-label" for="ue-color">Highlight colour</label>
@@ -5068,6 +5080,10 @@ function tryLogin() {
     if (btn) btn.disabled = false;
     if (!res.ok || !res.b || !res.b.ok) { el('login-err').style.display = 'block'; return; }
     isAdmin = true;
+    // Mark this app session as actively-logged-in. sessionStorage is cleared
+    // when the app/tab is fully closed, so a fresh launch won't auto-restore
+    // admin (see svRestoreAdmin) — closing the app logs you out.
+    try { sessionStorage.setItem('auroa_admin_live', '1'); } catch (e) {}
     closeLogin(); enterAdmin();
     if (typeof absRenderAdmin === 'function') absRenderAdmin();
     // Pull the latest server state so any edits another admin made since
@@ -5080,20 +5096,30 @@ function tryLogin() {
   });
 }
 function doLogout() {
+  try { sessionStorage.removeItem('auroa_admin_live'); } catch (e) {}
   fetch('/api/logout', { method: 'POST' }).catch(function() {});
   isAdmin = false; exitAdmin();
 }
-// On load, restore admin mode if this device still holds a valid session cookie.
+// On load, restore admin mode ONLY if this device still holds a valid session
+// cookie AND the app has stayed open since login. sessionStorage is wiped when
+// the app is fully shut down, so relaunching the app always starts logged out
+// (even though the 30-day cookie is still valid) — then we clear the cookie too.
 function svRestoreAdmin() {
   fetch('/api/admin-status', { cache: 'no-store' })
     .then(function(r) { return r.json(); })
     .then(function(b) {
-      if (b && b.admin && !isAdmin) {
-        isAdmin = true;
-        enterAdmin();
-        if (typeof absRenderAdmin === 'function') absRenderAdmin();
-        if (typeof fetchState === 'function') fetchState();
+      if (!(b && b.admin) || isAdmin) return;
+      var live = false;
+      try { live = sessionStorage.getItem('auroa_admin_live') === '1'; } catch (e) {}
+      if (!live) {
+        // Fresh app launch after a shutdown — log out server-side and stay a visitor.
+        fetch('/api/logout', { method: 'POST' }).catch(function() {});
+        return;
       }
+      isAdmin = true;
+      enterAdmin();
+      if (typeof absRenderAdmin === 'function') absRenderAdmin();
+      if (typeof fetchState === 'function') fetchState();
     })
     .catch(function() {});
 }
@@ -6176,7 +6202,7 @@ function pdLoadResults() {
     // Count per category.
     var byCat = {};
     regs.forEach(function(r) { byCat[r.category] = (byCat[r.category] || 0) + 1; });
-    var summary = ['Lamb', 'Calf', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
+    var summary = ['Lamb', 'Calf', 'Dog', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
     var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 8px;">' + summary + '</div>';
     html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
       '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th></tr>';
@@ -6627,8 +6653,19 @@ function renderSidebarPages() {
   var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1,
                           'pg-buses':1, 'pg-year78':1, 'pg-apple':1 };
   pageConfig.forEach(function(pg) {
-    if (!alreadyRendered[pg.id]) renderPage(pg, null);
+    if (alreadyRendered[pg.id]) return;
+    // Lamb/Calf/Pet Day has its own bright-purple button under Enrol Here.
+    // Visitors only see that one; admins also keep the managed list entry
+    // (rename / show-hide / delete).
+    if (pg.id === 'pg-petday' && !isAdmin) return;
+    renderPage(pg, null);
   });
+
+  // Show the purple Pet Day button under Enrol Here when the page is published
+  // (admins always see it so they can preview / publish it).
+  var _pd = findPage('pg-petday');
+  var _pdWrap = el('sidebar-petday-wrap');
+  if (_pdWrap) _pdWrap.style.display = (_pd && (isAdmin || !_pd.hidden)) ? '' : 'none';
 
   // Re-apply the unread badge count (the Messages badge span was just rebuilt).
   if (typeof pmUpdateUnreadIndicators === 'function') pmUpdateUnreadIndicators();
@@ -6771,7 +6808,11 @@ function updateSidebarAudio(pageId) {
     audioEl.classList.add('has-src');
     if (noneEl) noneEl.style.display = 'none';
     if (removeBtn) removeBtn.classList.add('show');
-    audioEl.play().catch(function() {});
+    var _p = audioEl.play();
+    // Browsers block audio that starts without a user gesture. If the auto-start
+    // is blocked, arm a one-time listener so the music begins on the visitor's
+    // first tap/click/keypress (they'll interact to navigate anyway).
+    if (_p && _p.catch) _p.catch(function() { armAudioUnlock(); });
   } else {
     audioEl.pause();
     audioEl.removeAttribute('src');
@@ -6779,6 +6820,25 @@ function updateSidebarAudio(pageId) {
     if (noneEl) noneEl.style.display = '';
     if (removeBtn) removeBtn.classList.remove('show');
   }
+}
+
+// One-time gesture unlock for autoplay-blocked audio: on the first user
+// interaction, start whatever page audio is currently loaded.
+var _audioUnlockArmed = false;
+function armAudioUnlock() {
+  if (_audioUnlockArmed) return;
+  _audioUnlockArmed = true;
+  var handler = function() {
+    var a = el('page-audio');
+    if (a && a.getAttribute('src')) a.play().catch(function() {});
+    document.removeEventListener('pointerdown', handler);
+    document.removeEventListener('keydown', handler);
+    document.removeEventListener('touchstart', handler);
+    _audioUnlockArmed = false;
+  };
+  document.addEventListener('pointerdown', handler);
+  document.addEventListener('keydown', handler);
+  document.addEventListener('touchstart', handler);
 }
 
 function uploadPageAudio(input) {
@@ -6866,14 +6926,37 @@ function savePage() {
 
 // ===================== API HELPER =====================
 function apiSave(key, value, cb) {
-  fetch('/api/save', {
+  return fetch('/api/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: key, value: value })
   })
-  .then(function(r) { return r.json(); })
+  .then(function(r) {
+    // IMPORTANT: a non-OK response (e.g. 401 when the admin session has
+    // expired) previously still ran the success callback, so the UI said
+    // "Saved!" while nothing was written. Now failures are surfaced.
+    if (!r.ok) {
+      if (r.status === 401) { handleSessionExpired(); }
+      else { flashSave('Save failed — changes not saved.'); }
+      throw new Error('apiSave-failed-' + r.status);
+    }
+    return r.json();
+  })
   .then(function() { if (cb) cb(); })
-  .catch(function() { flashSave('Save failed.'); });
+  .catch(function(e) {
+    if (!(e && /apiSave-failed/.test(e.message))) flashSave('Save failed.');
+  });
+}
+// The admin cookie is gone/expired but the UI still thinks we're admin — drop
+// to visitor mode and prompt a re-login so edits aren't silently lost.
+function handleSessionExpired() {
+  try { sessionStorage.removeItem('auroa_admin_live'); } catch (e) {}
+  if (isAdmin) {
+    isAdmin = false;
+    if (typeof exitAdmin === 'function') exitAdmin();
+    alert('Your admin session has expired. Please log in again — your last change was NOT saved.');
+    var lb = el('login-btn'); if (lb) lb.click();
+  }
 }
 
 function flashSave(msg) {
@@ -10145,6 +10228,11 @@ document.addEventListener('click', function(e) {
         style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.6);margin-left:6px;">Cancel</button>
     </div>
   </div>
+  <!-- Lamb/Calf/Pet Day registration — bright-purple pill directly under Enrol Here.
+       Visibility (published vs hidden) is managed in renderSidebarPages(). -->
+  <div id="sidebar-petday-wrap" style="display:none;">
+    <button class="sidebar-btn petday-reg" id="petday-btn" onclick="bubbleGo(event,'pg-petday')">Lamb / Calf / Pet Day</button>
+  </div>
   <div id="sidebar-contact-wrap">
     <button class="sidebar-btn contact" id="contact-btn" onclick="contactClick(event)">Contact Us</button>
     <div id="contact-editor">
@@ -13083,7 +13171,7 @@ function renderUeCalendar() {
 function openUeModal(ev) {
   if (!ev) return;
   el('ue-modal-title').textContent = ev.name;
-  el('ue-modal-meta').textContent = ueFmtRange(ev) + ' at ' + hbFmtTime(ev.time);
+  el('ue-modal-meta').textContent = ueFmtRange(ev) + (ev.allDay ? ' · All day' : ' at ' + hbFmtTime(ev.time));
   el('ue-modal-details').textContent = ev.details || 'No further details.';
   el('ue-modal').classList.add('open');
 }
@@ -13101,7 +13189,7 @@ function ueStartEdit(id) {
   ueEditingId = id;
   el('ue-date').value = ev.date || '';
   el('ue-end-date').value = (ev.endDate && ev.endDate !== ev.date) ? ev.endDate : '';
-  el('ue-time').value = ev.time || '';
+  ueWriteTime(ev);
   el('ue-color').value = ev.color || '#dbeafe';
   el('ue-name').value = ev.name || '';
   el('ue-details').value = ev.details || '';
@@ -13116,7 +13204,7 @@ function ueCancelEdit() {
   ueEditingId = null;
   el('ue-date').value = '';
   el('ue-end-date').value = '';
-  el('ue-time').value = '';
+  ueWriteTime(null);
   el('ue-color').value = '#dbeafe';
   el('ue-name').value = '';
   el('ue-details').value = '';
@@ -13126,14 +13214,51 @@ function ueCancelEdit() {
   var msg = el('ue-form-msg'); if (msg) msg.textContent = '';
 }
 
+// ---- Event time picker (hour + :00/:30 + AM/PM, or All day) ----
+function ueBuildHours() {
+  var sel = el('ue-hour'); if (!sel || sel.options.length) return;
+  var html = ''; for (var i = 1; i <= 12; i++) html += '<option value="' + i + '">' + (i < 10 ? '0' + i : i) + '</option>';
+  sel.innerHTML = html; sel.value = '9';
+}
+function ueToggleAllDay() {
+  var on = !!(el('ue-allday') && el('ue-allday').checked);
+  ['ue-hour', 'ue-min', 'ue-ampm'].forEach(function(id) { var s = el(id); if (s) { s.disabled = on; s.style.opacity = on ? '0.4' : '1'; } });
+}
+// Read the form controls into { time:"HH:MM" (24h) or "", allDay:bool }.
+function ueReadTime() {
+  if (el('ue-allday') && el('ue-allday').checked) return { time: '', allDay: true };
+  var h12 = parseInt(el('ue-hour').value, 10) % 12;
+  var h = (el('ue-ampm').value === 'PM') ? h12 + 12 : h12;
+  return { time: (h < 10 ? '0' + h : '' + h) + ':' + el('ue-min').value, allDay: false };
+}
+// Populate the controls from an event (or reset to a 9:00 AM default for null).
+function ueWriteTime(ev) {
+  ueBuildHours();
+  var allDay = !!(ev && ev.allDay);
+  if (el('ue-allday')) el('ue-allday').checked = allDay;
+  var m = /^(\d{1,2}):(\d{2})$/.exec((ev && ev.time) || '');
+  if (m) {
+    var h = parseInt(m[1], 10), ampm = h >= 12 ? 'PM' : 'AM', h12 = h % 12; if (h12 === 0) h12 = 12;
+    el('ue-hour').value = String(h12);
+    el('ue-min').value = (m[2] === '30') ? '30' : '00';
+    el('ue-ampm').value = ampm;
+  } else {
+    el('ue-hour').value = '9'; el('ue-min').value = '00'; el('ue-ampm').value = 'AM';
+  }
+  ueToggleAllDay();
+}
+window.addEventListener('DOMContentLoaded', ueBuildHours);
+
 function submitUpcomingEvent() {
   var msg = el('ue-form-msg');
   var btn = el('ue-submit-btn');
   msg.textContent = '';
+  var _t = ueReadTime();
   var payload = {
     date:    el('ue-date').value,
     endDate: el('ue-end-date').value,
-    time:    el('ue-time').value,
+    time:    _t.time,
+    allDay:  _t.allDay,
     name:    el('ue-name').value.trim(),
     details: el('ue-details').value.trim(),
     color:   el('ue-color').value
@@ -13196,7 +13321,7 @@ function renderUeAdminList() {
     row.innerHTML =
       '<div><span style="display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:6px;background:' + lunchEsc(ev.color || '#dbeafe') + ';border:1px solid rgba(0,0,0,0.15);"></span>' +
       '<strong>' + lunchEsc(ev.name) + '</strong>' +
-      ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(hbFmtTime(ev.time)) + '</span></div>';
+      ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(ev.allDay ? 'All day' : hbFmtTime(ev.time)) + '</span></div>';
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
     var edit = document.createElement('button');
