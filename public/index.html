@@ -2747,6 +2747,14 @@ h2.nl-section-h{
 .nl-week-photos .nl-wphoto{flex:1 1 calc(20% - 8px);min-width:130px;margin:0;}
 .nl-week-photos .nl-wphoto img{border-radius:8px;}
 body:not(.is-admin) .nl-week-photos .nl-wphoto:not(.has-photo){display:none;}
+/* Two rows of two photos below the week photos. */
+.nl-extra-row{display:flex;gap:10px;margin:0 0 12px;}
+.nl-extra-row .nl-extra-slot{flex:1 1 calc(50% - 5px);min-width:0;margin:0;}
+.nl-extra-row .nl-extra-slot img{border-radius:8px;}
+/* Published view: hide a whole row that has no photos, and hide an empty slot
+   inside a shown row (its partner then grows to fill the row). */
+body:not(.is-admin) .nl-extra-row:not(.has-any){display:none;}
+body:not(.is-admin) .nl-extra-row .nl-extra-slot:not(.has-photo){display:none;}
 .nl-image-slot img{
   width:100%;display:none;border-radius:12px;cursor:zoom-in;
 }
@@ -4002,6 +4010,48 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <div class="nl-image-tools">
             <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'wphoto4')"></label>
             <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('wphoto4')">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two rows of two photos below the five week photos. In the PUBLISHED
+           newsletter, a row with no image is hidden entirely, and an empty slot
+           in a shown row is hidden (see renderNewsletter + the .nl-extra rules). -->
+      <div id="nl-extra-photos">
+        <div class="nl-extra-row" id="nl-extra-row-0">
+          <div class="nl-image-slot nl-extra-slot" id="nl-extra-0">
+            <img loading="lazy" decoding="async" id="nl-extra-img-0" alt="" onclick="nlMaybeLightbox(this)">
+            <div class="nl-image-placeholder">No photo</div>
+            <div class="nl-image-tools">
+              <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'extra0')"></label>
+              <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('extra0')">Remove</button>
+            </div>
+          </div>
+          <div class="nl-image-slot nl-extra-slot" id="nl-extra-1">
+            <img loading="lazy" decoding="async" id="nl-extra-img-1" alt="" onclick="nlMaybeLightbox(this)">
+            <div class="nl-image-placeholder">No photo</div>
+            <div class="nl-image-tools">
+              <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'extra1')"></label>
+              <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('extra1')">Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="nl-extra-row" id="nl-extra-row-1">
+          <div class="nl-image-slot nl-extra-slot" id="nl-extra-2">
+            <img loading="lazy" decoding="async" id="nl-extra-img-2" alt="" onclick="nlMaybeLightbox(this)">
+            <div class="nl-image-placeholder">No photo</div>
+            <div class="nl-image-tools">
+              <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'extra2')"></label>
+              <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('extra2')">Remove</button>
+            </div>
+          </div>
+          <div class="nl-image-slot nl-extra-slot" id="nl-extra-3">
+            <img loading="lazy" decoding="async" id="nl-extra-img-3" alt="" onclick="nlMaybeLightbox(this)">
+            <div class="nl-image-placeholder">No photo</div>
+            <div class="nl-image-tools">
+              <label class="nl-upload-label"><span>Upload</span><input type="file" accept="image/*" onchange="nlUploadImage(event, 'extra3')"></label>
+              <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('extra3')">Remove</button>
+            </div>
           </div>
         </div>
       </div>
@@ -10933,6 +10983,8 @@ var newsletterData = {
   importantDates: '',
   studentsWeekImage: null,
   studentsWeekMessage: '',
+  weekPhotos: [],
+  extraPhotos: [],
   campsDayTrips: '',
   schoolAccountsPayments: '',
   footerImage: null,
@@ -11007,6 +11059,19 @@ function renderNewsletter() {
     if (wImg) nlSetImage(wSlot, wImg, weekPhotos[wi] || null);
     if (wSlot) wSlot.classList.toggle('has-photo', !!weekPhotos[wi]);
   }
+
+  // Two rows of two extra photos. Each slot toggles has-photo; each row toggles
+  // has-any so the published view can hide a row that has no photos at all.
+  var extraPhotos = Array.isArray(src.extraPhotos) ? src.extraPhotos : [];
+  for (var xi = 0; xi < 4; xi++) {
+    var xImg = el('nl-extra-img-' + xi);
+    var xSlot = el('nl-extra-' + xi);
+    if (xImg) nlSetImage(xSlot, xImg, extraPhotos[xi] || null);
+    if (xSlot) xSlot.classList.toggle('has-photo', !!extraPhotos[xi]);
+  }
+  var xRow0 = el('nl-extra-row-0'), xRow1 = el('nl-extra-row-1');
+  if (xRow0) xRow0.classList.toggle('has-any', !!(extraPhotos[0] || extraPhotos[1]));
+  if (xRow1) xRow1.classList.toggle('has-any', !!(extraPhotos[2] || extraPhotos[3]));
 
   var sotwImg = el('nl-sotw-img');
   if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, src.studentsWeekImage);
@@ -11256,6 +11321,11 @@ function nlUploadImage(event, slot) {
         if (!Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos = [];
         newsletterData.weekPhotos[ui] = res.filename;
       }
+      else if (slot.indexOf('extra') === 0) {
+        var xu = parseInt(slot.slice(5), 10);
+        if (!Array.isArray(newsletterData.extraPhotos)) newsletterData.extraPhotos = [];
+        newsletterData.extraPhotos[xu] = res.filename;
+      }
       renderNewsletter();
       // Schedule a save AND flush it immediately so the new image filename
       // hits disk right away — not 1.5s later — to avoid races with a
@@ -11278,6 +11348,10 @@ function nlRemoveImage(slot) {
   else if (slot.indexOf('wphoto') === 0) {
     var ri = parseInt(slot.slice(6), 10);
     if (Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos[ri] = null;
+  }
+  else if (slot.indexOf('extra') === 0) {
+    var xri = parseInt(slot.slice(5), 10);
+    if (Array.isArray(newsletterData.extraPhotos)) newsletterData.extraPhotos[xri] = null;
   }
   renderNewsletter();
   nlAutoSave();
@@ -11428,6 +11502,7 @@ function nlBuildDraft() {
     importantDates: datesEl ? (datesEl.innerHTML || '') : '',
     studentsWeekImage: newsletterData.studentsWeekImage || null,
     weekPhotos: (newsletterData.weekPhotos || []).slice(0, 5).map(function(fn){ return fn || null; }),
+    extraPhotos: (newsletterData.extraPhotos || []).slice(0, 4).map(function(fn){ return fn || null; }),
     studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerHTML || '') : '',
     campsDayTrips: campsEdEl ? (campsEdEl.innerHTML || '') : '',
     schoolAccountsPayments: sapEdEl ? (sapEdEl.innerHTML || '') : '',

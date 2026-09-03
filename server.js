@@ -150,6 +150,7 @@ function load() {
     if (typeof data.newsletter.uniformLandscapeImage === 'undefined') data.newsletter.uniformLandscapeImage = null;
     if (typeof data.newsletter.importantDatesImage === 'undefined') data.newsletter.importantDatesImage = null;
     if (!Array.isArray(data.newsletter.weekPhotos)) data.newsletter.weekPhotos = [];
+    if (!Array.isArray(data.newsletter.extraPhotos)) data.newsletter.extraPhotos = [];
     // `rev` is a monotonically-increasing version stamp used by the stale-write
     // guard so an old (e.g. frozen-PWA) client can't overwrite newer content.
     if (typeof data.newsletter.rev !== 'number') data.newsletter.rev = 0;
@@ -1272,6 +1273,7 @@ app.post('/api/newsletter/save', (req, res) => {
     importantDates: sanitiseRich(b.importantDates || '').slice(0, 100000),
     studentsWeekImage: b.studentsWeekImage || null,
     weekPhotos: Array.isArray(b.weekPhotos) ? b.weekPhotos.slice(0, 5).map(function (fn) { return fn || null; }) : [],
+    extraPhotos: Array.isArray(b.extraPhotos) ? b.extraPhotos.slice(0, 4).map(function (fn) { return fn || null; }) : [],
     studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 100000),
     campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 100000),
     schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
@@ -1324,6 +1326,7 @@ app.post('/api/newsletter/publish', (req, res) => {
     snap.importantDates        = draft.importantDates || '';
     snap.studentsWeekImage     = draft.studentsWeekImage || null;
     snap.weekPhotos            = Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [];
+    snap.extraPhotos           = Array.isArray(draft.extraPhotos) ? draft.extraPhotos.slice(0, 4) : [];
     snap.studentsWeekMessage   = draft.studentsWeekMessage || '';
     snap.campsDayTrips         = draft.campsDayTrips || '';
     snap.schoolAccountsPayments = draft.schoolAccountsPayments || '';
@@ -1346,6 +1349,7 @@ app.post('/api/newsletter/publish', (req, res) => {
       importantDates: draft.importantDates || '',
       studentsWeekImage: draft.studentsWeekImage || null,
       weekPhotos: Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [],
+      extraPhotos: Array.isArray(draft.extraPhotos) ? draft.extraPhotos.slice(0, 4) : [],
       studentsWeekMessage: draft.studentsWeekMessage || '',
       campsDayTrips: draft.campsDayTrips || '',
       schoolAccountsPayments: draft.schoolAccountsPayments || '',
@@ -1391,6 +1395,7 @@ function collectReferencedFiles(data) {
     add(data.newsletter.uniformLandscapeImage);
     add(data.newsletter.importantDatesImage);
     (data.newsletter.weekPhotos || []).forEach(add);
+    (data.newsletter.extraPhotos || []).forEach(add);
     (data.newsletter.notices || []).forEach(n => add(n && n.filename));
   }
   (data.newsletterSnapshots || []).forEach(s => {
@@ -1402,6 +1407,7 @@ function collectReferencedFiles(data) {
     add(s.uniformLandscapeImage);
     add(s.importantDatesImage);
     (s.weekPhotos || []).forEach(add);
+    (s.extraPhotos || []).forEach(add);
     (s.notices || []).forEach(n => add(n && n.filename));
   });
   return refs;
