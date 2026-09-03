@@ -1049,7 +1049,7 @@ app.post('/api/petday/submit', (req, res) => {
   if (!reg.first || !reg.last || !reg.year || !reg.category || !reg.petName) {
     return res.status(400).json({ error: 'All fields are required' });
   }
-  if (['Lamb', 'Calf', 'Most loved pet'].indexOf(reg.category) === -1) {
+  if (['Lamb', 'Calf', 'Dog', 'Most loved pet'].indexOf(reg.category) === -1) {
     return res.status(400).json({ error: 'Invalid category' });
   }
   // "Most loved pet" must say what kind of animal it is.
