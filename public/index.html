@@ -2804,6 +2804,11 @@ body:not(.is-admin) .nl-hero:not(:has(img.loaded)){display:none;}
 .nl-msg p,.nl-msg div{margin:0;}
 .nl-msg p:empty,.nl-msg div:empty{min-height:1em;}
 .nl-msg:empty::before{content:attr(data-placeholder);color:#bbb;}
+/* Custom section: editable heading placeholder + hide the whole section (or the
+   empty heading) for visitors when there's nothing to show. */
+#nl-custom-title:empty::before{content:attr(data-placeholder);color:#bbb;font-weight:inherit;}
+body:not(.is-admin) #nl-custom-title:empty{display:none;}
+body:not(.is-admin) #nl-custom-section.nl-empty{display:none;}
 body.is-admin .nl-msg{
   border:1.5px dashed transparent;cursor:text;padding:10px 12px;
 }
@@ -4069,6 +4074,24 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
       <div id="nl-sotw-msg" class="nl-msg" data-placeholder="Names of this week's recognised students..."></div>
+
+      <!-- Custom editable section: heading + photo + text. Hidden in the
+           published newsletter when the heading, photo AND text are all empty. -->
+      <div id="nl-custom-section">
+        <h2 class="nl-section-h" id="nl-custom-title" data-placeholder="Add a heading…"></h2>
+        <div id="nl-custom-slot" class="nl-image-slot nl-hero">
+          <img loading="lazy" decoding="async" id="nl-custom-img" alt="" onclick="nlMaybeLightbox(this)">
+          <div class="nl-image-placeholder">No image yet</div>
+          <div class="nl-image-tools">
+            <label class="nl-upload-label">
+              <span>Upload image</span>
+              <input type="file" accept="image/*" onchange="nlUploadImage(event, 'custom')">
+            </label>
+            <button type="button" class="nl-remove-btn" onclick="nlRemoveImage('custom')">Remove</button>
+          </div>
+        </div>
+        <div id="nl-custom-msg" class="nl-msg" data-placeholder="Add text for this section…"></div>
+      </div>
 
       <h2 class="nl-section-h">Important Dates</h2>
       <div id="nl-important-dates" class="nl-msg" data-placeholder="Add upcoming dates, one per line..."></div>
@@ -10985,6 +11008,9 @@ var newsletterData = {
   studentsWeekMessage: '',
   weekPhotos: [],
   extraPhotos: [],
+  customSectionTitle: '',
+  customSectionImage: null,
+  customSectionText: '',
   campsDayTrips: '',
   schoolAccountsPayments: '',
   footerImage: null,
@@ -11080,6 +11106,28 @@ function renderNewsletter() {
   if (sotwMsg) {
     sotwMsg.innerHTML = nlContentToHtml(src.studentsWeekMessage);
     sotwMsg.contentEditable = isAdmin ? 'true' : 'false';
+  }
+
+  // Custom editable section (heading + photo + text). Hidden for visitors when
+  // the heading, photo and text are all empty.
+  var custTitle = el('nl-custom-title');
+  if (custTitle) {
+    custTitle.textContent = src.customSectionTitle || '';
+    custTitle.contentEditable = isAdmin ? 'true' : 'false';
+  }
+  var custImg = el('nl-custom-img');
+  if (custImg) nlSetImage(el('nl-custom-slot'), custImg, src.customSectionImage);
+  var custMsg = el('nl-custom-msg');
+  if (custMsg) {
+    custMsg.innerHTML = nlContentToHtml(src.customSectionText);
+    custMsg.contentEditable = isAdmin ? 'true' : 'false';
+  }
+  var custSection = el('nl-custom-section');
+  if (custSection) {
+    var hasTitle = !!(src.customSectionTitle && String(src.customSectionTitle).trim());
+    var hasText  = !!(src.customSectionText && String(src.customSectionText).replace(/<[^>]*>/g, '').replace(/&nbsp;|\s/g, '').length);
+    var hasImg   = !!src.customSectionImage;
+    custSection.classList.toggle('nl-empty', !hasTitle && !hasText && !hasImg);
   }
 
   var campsEl = el('nl-camps');
@@ -11201,6 +11249,10 @@ function nlCollectAllTextEdits() {
   if (camps) newsletterData.campsDayTrips = (camps.innerHTML || '');
   var sap = el('nl-school-accounts');
   if (sap) newsletterData.schoolAccountsPayments = (sap.innerHTML || '');
+  var custT = el('nl-custom-title');
+  if (custT) newsletterData.customSectionTitle = (custT.textContent || '').trim();
+  var custM = el('nl-custom-msg');
+  if (custM) newsletterData.customSectionText = (custM.innerHTML || '');
   collectNoticeEdits();
 }
 
@@ -11316,6 +11368,7 @@ function nlUploadImage(event, slot) {
       else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = res.filename;
       else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = res.filename;
       else if (slot === 'importantDates') newsletterData.importantDatesImage = res.filename;
+      else if (slot === 'custom') newsletterData.customSectionImage = res.filename;
       else if (slot.indexOf('wphoto') === 0) {
         var ui = parseInt(slot.slice(6), 10);
         if (!Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos = [];
@@ -11345,6 +11398,7 @@ function nlRemoveImage(slot) {
   else if (slot === 'uniformPortrait') newsletterData.uniformPortraitImage = null;
   else if (slot === 'uniformLandscape') newsletterData.uniformLandscapeImage = null;
   else if (slot === 'importantDates') newsletterData.importantDatesImage = null;
+  else if (slot === 'custom') newsletterData.customSectionImage = null;
   else if (slot.indexOf('wphoto') === 0) {
     var ri = parseInt(slot.slice(6), 10);
     if (Array.isArray(newsletterData.weekPhotos)) newsletterData.weekPhotos[ri] = null;
@@ -11503,6 +11557,9 @@ function nlBuildDraft() {
     studentsWeekImage: newsletterData.studentsWeekImage || null,
     weekPhotos: (newsletterData.weekPhotos || []).slice(0, 5).map(function(fn){ return fn || null; }),
     extraPhotos: (newsletterData.extraPhotos || []).slice(0, 4).map(function(fn){ return fn || null; }),
+    customSectionTitle: newsletterData.customSectionTitle || '',
+    customSectionImage: newsletterData.customSectionImage || null,
+    customSectionText: newsletterData.customSectionText || '',
     studentsWeekMessage: sotwMsgEl ? (sotwMsgEl.innerHTML || '') : '',
     campsDayTrips: campsEdEl ? (campsEdEl.innerHTML || '') : '',
     schoolAccountsPayments: sapEdEl ? (sapEdEl.innerHTML || '') : '',
