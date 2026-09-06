@@ -2090,7 +2090,11 @@ app.post('/api/parent-messages', async (req, res) => {
   const body  = String(b.body || '').trim();
   const url   = String(b.url || '/').trim() || '/';
   const groupId = b.groupId ? String(b.groupId) : null;
-  const image = b.image ? String(b.image).trim() : null;
+  const images = Array.isArray(b.images)
+    ? b.images.map(fn => String(fn || '').trim()).filter(Boolean).slice(0, 20)
+    : [];
+  // Keep a single `image` too (first one) for the push preview + old clients.
+  const image = images[0] || (b.image ? String(b.image).trim() : null);
   if (!title) return res.status(400).json({ error: 'Title required' });
   if (groupId) {
     const data = load();
@@ -2098,7 +2102,7 @@ app.post('/api/parent-messages', async (req, res) => {
     if (!g) return res.status(400).json({ error: 'Unknown group' });
   }
   // Manual Messages-page send — this is the only thing that pushes a notification.
-  const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image, pushOut: true });
+  const msg = await notifyAll({ title, body, url, source: 'admin', groupId, image, images, pushOut: true });
   res.json({ ok: true, message: msg, push: msg._push || null });
 });
 
@@ -2227,7 +2231,7 @@ app.get('/join-group/:id', (req, res) => {
 // `pushOut` controls whether a push notification + email actually go out.
 // Only manual Messages-page sends push; newsletter/event/group triggers still
 // record their Messages-page card (if any) but do not push notifications.
-async function notifyAll({ title, body, url, source, groupId, image, pushOut }) {
+async function notifyAll({ title, body, url, source, groupId, image, images, pushOut }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
   if (!Array.isArray(data.pushSubscriptions)) data.pushSubscriptions = [];
@@ -2252,6 +2256,7 @@ async function notifyAll({ title, body, url, source, groupId, image, pushOut }) 
     url:     String(url   || '/').slice(0, 400),
     source:  String(source || 'auto'),
     image:   image ? String(image).slice(0, 400) : null,
+    images:  Array.isArray(images) ? images.map(fn => String(fn || '').slice(0, 400)).filter(Boolean).slice(0, 20) : [],
     groupId: group ? group.id : null,
     groupColor: groupColor,
     createdAt: now
