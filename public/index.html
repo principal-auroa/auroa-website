@@ -6313,7 +6313,7 @@ function pdLoadResults() {
     var summary = ['Lamb', 'Calf', 'Dog', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
     var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 8px;">' + summary + '</div>';
     html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
-      '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th></tr>';
+      '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th><th></th></tr>';
     // Group the entries by category so the list is organised (known categories
     // in a fixed order first, then any others alphabetically). Each category
     // gets a subheading row; within it, most recent first.
@@ -6324,7 +6324,7 @@ function pdLoadResults() {
       .concat(Object.keys(groups).filter(function(c) { return CAT_ORDER.indexOf(c) < 0; }).sort());
     cats.forEach(function(c) {
       var rows = groups[c].slice().reverse();
-      html += '<tr><td colspan="6" style="background:#1a2b4a;color:#fff;font-weight:800;padding:6px 10px;">' +
+      html += '<tr><td colspan="7" style="background:#1a2b4a;color:#fff;font-weight:800;padding:6px 10px;">' +
         lunchEsc(c) + ' (' + rows.length + ')</td></tr>';
       rows.forEach(function(r) {
         html += '<tr><td>' + lunchEsc((r.first || '') + ' ' + (r.last || '')) + '</td>' +
@@ -6332,7 +6332,8 @@ function pdLoadResults() {
           '<td class="pd-reg-cat">' + lunchEsc(r.category || '') + '</td>' +
           '<td>' + lunchEsc(r.petType || '') + '</td>' +
           '<td>' + lunchEsc(r.petName || '') + '</td>' +
-          '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td></tr>';
+          '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
+          '<td style="text-align:center;"><button type="button" title="Delete this registration" onclick="pdDeleteRegistration(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
       });
     });
     html += '</table></div>';
@@ -6354,6 +6355,23 @@ function pdClearResults() {
     else flashSave('Could not clear.');
   })
   .catch(function() { flashSave('Could not clear.'); });
+}
+// Delete a single registration (identified by its timestamp) after confirming.
+function pdDeleteRegistration(ts) {
+  var r = _pdLast.find(function(x) { return Number(x.ts) === Number(ts); });
+  var who = r ? ((r.first || '') + ' ' + (r.last || '')).trim() : 'this';
+  if (!confirm('Delete ' + (who ? who + '’s' : 'this') + ' registration' + (r && r.petName ? ' (' + r.petName + ')' : '') + '? This cannot be undone.')) return;
+  fetch('/api/petday/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ts: Number(ts) })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Registration deleted.'); pdLoadResults(); }
+    else flashSave('Could not delete.');
+  })
+  .catch(function() { flashSave('Could not delete.'); });
 }
 function pdCsvCell(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
 function pdDownloadCsv() {

@@ -1082,6 +1082,19 @@ app.post('/api/petday/clear', (req, res) => {
     fs.writeFile(PETDAY_FILE, '[]', () => res.json({ ok: true, cleared: count }));
   });
 });
+// Delete a single registration by its timestamp (admin-gated).
+app.post('/api/petday/delete', (req, res) => {
+  const ts = Number((req.body || {}).ts);
+  if (!ts) return res.status(400).json({ error: 'ts required' });
+  fs.readFile(PETDAY_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    const idx = list.findIndex(r => Number(r.ts) === ts);
+    if (idx === -1) return res.json({ ok: true, deleted: 0 });
+    list.splice(idx, 1);
+    fs.writeFile(PETDAY_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
 
 app.delete('/api/lunch-order/:id', (req, res) => {
   const id = req.params.id;
