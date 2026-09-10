@@ -1287,6 +1287,7 @@ app.post('/api/newsletter/save', (req, res) => {
     studentsWeekImage: b.studentsWeekImage || null,
     weekPhotos: Array.isArray(b.weekPhotos) ? b.weekPhotos.slice(0, 5).map(function (fn) { return fn || null; }) : [],
     extraPhotos: Array.isArray(b.extraPhotos) ? b.extraPhotos.slice(0, 4).map(function (fn) { return fn || null; }) : [],
+    photosText: sanitiseRich(b.photosText || '').slice(0, 100000),
     customSectionTitle: String(b.customSectionTitle || '').slice(0, 200),
     customSectionImage: b.customSectionImage || null,
     customSectionText: sanitiseRich(b.customSectionText || '').slice(0, 100000),
@@ -1343,6 +1344,7 @@ app.post('/api/newsletter/publish', (req, res) => {
     snap.studentsWeekImage     = draft.studentsWeekImage || null;
     snap.weekPhotos            = Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [];
     snap.extraPhotos           = Array.isArray(draft.extraPhotos) ? draft.extraPhotos.slice(0, 4) : [];
+    snap.photosText            = draft.photosText || '';
     snap.customSectionTitle    = draft.customSectionTitle || '';
     snap.customSectionImage    = draft.customSectionImage || null;
     snap.customSectionText     = draft.customSectionText || '';
@@ -1369,6 +1371,7 @@ app.post('/api/newsletter/publish', (req, res) => {
       studentsWeekImage: draft.studentsWeekImage || null,
       weekPhotos: Array.isArray(draft.weekPhotos) ? draft.weekPhotos.slice(0, 5) : [],
       extraPhotos: Array.isArray(draft.extraPhotos) ? draft.extraPhotos.slice(0, 4) : [],
+      photosText: draft.photosText || '',
       customSectionTitle: draft.customSectionTitle || '',
       customSectionImage: draft.customSectionImage || null,
       customSectionText: draft.customSectionText || '',

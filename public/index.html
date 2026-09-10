@@ -4064,6 +4064,10 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
 
+      <!-- Text box below the photos, above Students of the Week. Hidden in the
+           published newsletter when empty (see body:not(.is-admin) .nl-msg:empty). -->
+      <div id="nl-photos-text" class="nl-msg" data-placeholder="Add text below the photos (optional)…"></div>
+
       <h2 class="nl-section-h">Students of the Week</h2>
       <div id="nl-sotw-slot" class="nl-image-slot nl-hero">
         <img loading="lazy" decoding="async" id="nl-sotw-img" alt="" onclick="nlMaybeLightbox(this)">
@@ -11027,6 +11031,7 @@ var newsletterData = {
   studentsWeekMessage: '',
   weekPhotos: [],
   extraPhotos: [],
+  photosText: '',
   customSectionTitle: '',
   customSectionImage: null,
   customSectionText: '',
@@ -11117,6 +11122,13 @@ function renderNewsletter() {
   var xRow0 = el('nl-extra-row-0'), xRow1 = el('nl-extra-row-1');
   if (xRow0) xRow0.classList.toggle('has-any', !!(extraPhotos[0] || extraPhotos[1]));
   if (xRow1) xRow1.classList.toggle('has-any', !!(extraPhotos[2] || extraPhotos[3]));
+
+  // Text box below the photos (hidden when empty for visitors via .nl-msg:empty).
+  var photosTextEl = el('nl-photos-text');
+  if (photosTextEl) {
+    photosTextEl.innerHTML = nlContentToHtml(src.photosText);
+    photosTextEl.contentEditable = isAdmin ? 'true' : 'false';
+  }
 
   var sotwImg = el('nl-sotw-img');
   if (sotwImg) nlSetImage(el('nl-sotw-slot'), sotwImg, src.studentsWeekImage);
@@ -11268,6 +11280,8 @@ function nlCollectAllTextEdits() {
   if (camps) newsletterData.campsDayTrips = (camps.innerHTML || '');
   var sap = el('nl-school-accounts');
   if (sap) newsletterData.schoolAccountsPayments = (sap.innerHTML || '');
+  var photosT = el('nl-photos-text');
+  if (photosT) newsletterData.photosText = (photosT.innerHTML || '');
   var custT = el('nl-custom-title');
   if (custT) newsletterData.customSectionTitle = (custT.textContent || '').trim();
   var custM = el('nl-custom-msg');
@@ -11576,6 +11590,7 @@ function nlBuildDraft() {
     studentsWeekImage: newsletterData.studentsWeekImage || null,
     weekPhotos: (newsletterData.weekPhotos || []).slice(0, 5).map(function(fn){ return fn || null; }),
     extraPhotos: (newsletterData.extraPhotos || []).slice(0, 4).map(function(fn){ return fn || null; }),
+    photosText: newsletterData.photosText || '',
     customSectionTitle: newsletterData.customSectionTitle || '',
     customSectionImage: newsletterData.customSectionImage || null,
     customSectionText: newsletterData.customSectionText || '',
