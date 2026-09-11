@@ -2316,6 +2316,17 @@ body.is-admin .pm-sub-counts{display:flex;}
 }
 body.is-admin .pm-msg-del{display:inline-block;}
 .pm-msg-del:hover{background:#c0392b;color:#fff;}
+/* Admin "Repost" button (sits to the left of Delete) + the orange note that a
+   repost adds at the top of the message. */
+.pm-msg-repost{
+  display:none;position:absolute;top:8px;right:74px;
+  background:none;border:1px solid #e8762a;color:#e8762a;
+  padding:3px 9px;border-radius:6px;
+  font-family:'Quicksand',sans-serif;font-size:11px;font-weight:600;cursor:pointer;
+}
+body.is-admin .pm-msg-repost{display:inline-block;}
+.pm-msg-repost:hover{background:#e8762a;color:#fff;}
+.pm-msg-repost-note{color:#e8762a;font-weight:800;margin:6px 0 4px;white-space:pre-wrap;line-height:1.4;}
 
 /* Group-coloured messages: an accent border on the left edge using the
    group's assigned colour. Unread highlight (amber) still wins on .is-unread. */
@@ -12366,6 +12377,8 @@ function pmRenderList() {
       tagHtml +
       '<h4>' + lunchEsc(m.title) + '</h4>' +
       '<div class="pm-msg-date">' + lunchEsc(pmFmtDate(m.createdAt)) + '</div>' +
+      // Repost note (orange bold) sits at the top of the original message.
+      (m.repostNote ? '<div class="pm-msg-repost-note">' + pmLinkify(m.repostNote) + '</div>' : '') +
       '<div class="' + bodyClass + '">' + pmLinkify(m.body) + '</div>' +
       // Support multiple images (m.images); fall back to the single m.image for
       // messages sent before multi-image support.
@@ -12389,6 +12402,12 @@ function pmRenderList() {
     del.textContent = 'Delete';
     del.onclick = function() { pmDeleteMessage(m.id); };
     card.appendChild(del);
+    var repost = document.createElement('button');
+    repost.type = 'button';
+    repost.className = 'pm-msg-repost';
+    repost.textContent = '🔁 Repost';
+    (function(id){ repost.onclick = function() { pmRepost(id); }; })(m.id);
+    card.appendChild(repost);
     wrap.appendChild(card);
   });
   pmUpdateUnreadIndicators();
@@ -12621,6 +12640,54 @@ function pmDeleteMessage(id) {
       parentMessages = parentMessages.filter(function(m){ return m.id !== id; });
       pmRenderList();
     });
+}
+
+// Admin repost: pop up a note box; on Submit, send the SAME message out again
+// (new notification) with the note shown in orange bold at the top. Cancel
+// discards everything.
+function pmRepost(id) {
+  var m = parentMessages.find(function(x){ return x.id === id; });
+  if (!m) return;
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:12px;max-width:480px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.3);';
+  card.innerHTML =
+    '<h3 style="margin:0 0 4px;color:#1a2b4a;font-size:18px;">Repost “' + lunchEsc(m.title) + '”</h3>' +
+    '<p style="margin:0 0 12px;font-size:13px;color:#666;">Add a note to show in orange at the top of the message, then send it out again. Leave blank to repost as-is.</p>' +
+    '<textarea id="pm-repost-text" rows="4" style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:8px;padding:10px;font-family:inherit;font-size:14px;" placeholder="e.g. Reminder — this is on tomorrow!"></textarea>' +
+    '<div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">' +
+      '<button type="button" id="pm-repost-cancel" style="background:#e5e7eb;color:#333;border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-weight:600;cursor:pointer;">Cancel</button>' +
+      '<button type="button" id="pm-repost-submit" style="background:#e8762a;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-weight:700;cursor:pointer;">Submit</button>' +
+    '</div>';
+  ov.appendChild(card);
+  ov.addEventListener('click', function(e){ if (e.target === ov) ov.remove(); });
+  card.querySelector('#pm-repost-cancel').onclick = function(){ ov.remove(); };
+  card.querySelector('#pm-repost-submit').onclick = function() {
+    var note = (card.querySelector('#pm-repost-text').value || '').trim();
+    var btn = card.querySelector('#pm-repost-submit');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    var payload = { title: m.title, body: m.body || '', url: m.url || '/messages', repostNote: note };
+    if (m.groupId) payload.groupId = m.groupId;
+    var imgs = (Array.isArray(m.images) && m.images.length) ? m.images : (m.image ? [m.image] : []);
+    if (imgs.length) { payload.images = imgs; payload.image = imgs[0]; }
+    fetch('/api/parent-messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
+      .then(function(res){
+        if (!res.ok || !res.body || !res.body.message) {
+          btn.disabled = false; btn.textContent = 'Submit';
+          alert((res.body && res.body.error) || 'Repost failed.');
+          return;
+        }
+        ov.remove();
+        parentMessages.push(res.body.message);
+        pmRenderList();
+        flashSave('Reposted.');
+      })
+      .catch(function(){ btn.disabled = false; btn.textContent = 'Submit'; alert('Repost failed.'); });
+  };
+  document.body.appendChild(ov);
+  var ta = card.querySelector('#pm-repost-text'); if (ta) ta.focus();
 }
 
 // ===================== GROUPS =====================
