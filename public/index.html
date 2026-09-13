@@ -6326,7 +6326,13 @@ function pdLoadResults() {
     var byCat = {};
     regs.forEach(function(r) { byCat[r.category] = (byCat[r.category] || 0) + 1; });
     var summary = ['Lamb', 'Calf', 'Dog', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
-    var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 8px;">' + summary + '</div>';
+    // Two overall animal totals: including and excluding Pre-school registrations.
+    var preschool = regs.filter(function(r){ return /pre-?\s*school/i.test(r.year || ''); }).length;
+    var totalAll = regs.length;
+    var totalExcl = totalAll - preschool;
+    var totalsLine = 'Total animals: ' + totalAll + ' (incl. Pre-school)  •  ' + totalExcl + ' (excl. Pre-school)';
+    var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 4px;">' + summary + '</div>' +
+      '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:0 0 8px;">' + totalsLine + '</div>';
     html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
       '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th><th></th></tr>';
     // Group the entries by category so the list is organised (known categories
