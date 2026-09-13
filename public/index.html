@@ -537,7 +537,7 @@ body.is-admin #sidebar-audio-none{display:block;}
 #hdr-box{
   width:100%;margin:28px 0 22px;
 }
-#hfoot-box,#habove-box{
+#hfoot-box,#habove-box,#homevid-box{
   width:100%;margin:18px 0 22px;
 }
 #edu-footer-imgs{margin-top:14px;}
@@ -591,14 +591,14 @@ body.is-admin #hfoot-overlay,body.is-admin #habove-overlay{display:flex;}
   background:rgba(26,43,74,0.75) !important;font-size:11px;font-weight:600;cursor:pointer;
 }
 #hfoot-overlay span,#habove-overlay span{background:none !important;padding:0 !important;font-size:11px;}
-#hfoot-upload-btn,#habove-upload-btn{
+#hfoot-upload-btn,#habove-upload-btn,#homevid-upload-btn{
   display:none;
   background:#1a2b4a;color:#fff;
   padding:8px 20px;border-radius:6px;cursor:pointer;
   font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
   margin-bottom:14px;
 }
-body.is-admin #hfoot-upload-btn,body.is-admin #habove-upload-btn{display:inline-block;}
+body.is-admin #hfoot-upload-btn,body.is-admin #habove-upload-btn,body.is-admin #homevid-upload-btn{display:inline-block;}
 .img-box img{width:100%;display:block;}
 #hdr-img{transform-origin:center center;pointer-events:none;user-select:none;-webkit-user-drag:none;}
 .img-box .placeholder{
@@ -666,7 +666,7 @@ body.is-admin .box-lock-btn{display:flex;}
   cursor:pointer;justify-content:center;align-items:center;
 }
 .img-remove-btn:hover{background:#a93226;}
-body.is-admin #habove-box.has-img .img-remove-btn{display:flex;}
+body.is-admin #habove-box.has-img .img-remove-btn,body.is-admin #homevid-box.has-img .img-remove-btn{display:flex;}
 #habove-overlay{right:auto;left:6px;}
 .img-link-btn.has-link{background:rgba(192,100,43,0.9);}
 
@@ -761,6 +761,10 @@ body.is-admin #carousel-empty{display:block;}
 .home-rule{border:none;border-top:1.5px solid #222;margin:18px 0;}
 
 /* ---- HOME PAGE VIDEO (full width, under the welcome text) ---- */
+.home-video-text{margin:14px 0;}
+/* Hide the under-video text for visitors when empty; admins see a placeholder. */
+body:not(.is-admin) .home-video-text.hv-empty{display:none;}
+body.is-admin .home-video-text.hv-empty::before{content:"Add text under the video (optional)…";color:#aaa;}
 .home-video-box{width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;margin:18px 0;}
 body:not(.is-admin) .home-video-box:not(.has-video){display:none;}
 .home-video-admin-bar{display:none;padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;gap:8px;align-items:center;}
@@ -3215,6 +3219,19 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <div class="home-video-ph" id="home-video-ph">Add a video link above</div>
       </div>
 
+      <!-- Optional image above the under-video text (admin upload). -->
+      <div class="img-box" id="homevid-box">
+        <div class="placeholder" id="homevid-placeholder">No image — upload one as admin</div>
+        <img loading="lazy" decoding="async" id="homevid-img" style="display:none;" alt="" />
+        <label class="upload-overlay" for="homevid-file"><span>Click to replace image</span></label>
+        <input class="file-in" id="homevid-file" type="file" accept="image/*" onchange="uploadImg('homevid',this)" />
+        <button class="img-remove-btn" id="rm-homevid" onclick="event.stopPropagation();removeHomeVideoImg()" title="Remove image">✕</button>
+      </div>
+      <label id="homevid-upload-btn" for="homevid-file">&#8679; Upload Image</label>
+
+      <!-- Editable text under the video. Hidden for visitors when empty. -->
+      <div class="editable home-video-text" id="ec-homevideo"></div>
+
       <hr class="home-rule" />
 
       <!-- Daily inspirational quote (rotates each day, same for all visitors) -->
@@ -4974,6 +4991,7 @@ function fetchState(_retry) {
       if (data.educateImage) applyEduImg('/uploads/' + data.educateImage);
       if (data.homeFooterImage) applyHomeFooterImg('/uploads/' + data.homeFooterImage);
       if (data.homeAboveImage) applyHomeAboveImg('/uploads/' + data.homeAboveImage);
+      if (data.homeVideoImage) applyHomeVideoImg('/uploads/' + data.homeVideoImage);
       var eduFooterImgs = data.educateFooterImages || {};
       ['1','2','3','4','5','6'].forEach(function(slot) {
         if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
@@ -5015,12 +5033,12 @@ function fetchState(_retry) {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps'].forEach(function(k) {
+      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps','homevideo'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
       var neAutoSaveTimers = {};
-      ['ne1','ne2','year78b','year78c'].forEach(function(k) {
+      ['ne1','ne2','year78b','year78c','homevideo'].forEach(function(k) {
         var box = el('ec-' + k);
         if (!box) return;
         box.addEventListener('input', function() {
@@ -5030,6 +5048,9 @@ function fetchState(_retry) {
           }, 1200);
         });
       });
+      // Hide the under-video text box for visitors when it's empty (admins always
+      // see it so they can type); keep it in sync as the admin edits.
+      (function(){ var hv = el('ec-homevideo'); if (hv) { hv.addEventListener('input', hvUpdateTextEmpty); hvUpdateTextEmpty(); } })();
       importantLinks.forEach(function(lnk) {
         if (pc[lnk.id]) lnk.content = pc[lnk.id];
       });
@@ -5384,6 +5405,8 @@ function uploadImg(type, input) {
         applyHomeFooterImg('/uploads/' + data.filename);
       } else if (type === 'homeabove') {
         applyHomeAboveImg('/uploads/' + data.filename);
+      } else if (type === 'homevid') {
+        applyHomeVideoImg('/uploads/' + data.filename);
       } else if (type === 'apple') {
         applyAppleImg('/uploads/' + data.filename);
       } else if (type === 'apple2') {
@@ -5403,6 +5426,26 @@ function applyHomeAboveImg(src) {
   img.src = src; img.style.display = 'block';
   var ph = el('habove-placeholder'); if (ph) ph.style.display = 'none';
   var box = el('habove-box'); if (box) { box.style.border = 'none'; box.classList.add('has-img'); }
+}
+
+function applyHomeVideoImg(src) {
+  var img = el('homevid-img');
+  if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var ph = el('homevid-placeholder'); if (ph) ph.style.display = 'none';
+  var box = el('homevid-box'); if (box) { box.style.border = 'none'; box.classList.add('has-img'); }
+}
+function removeHomeVideoImg() {
+  if (!confirm('Remove this image from the home page?')) return;
+  fetch('/api/homevid-image', { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+      var img = el('homevid-img'); if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+      var ph = el('homevid-placeholder'); if (ph) ph.style.display = '';
+      var box = el('homevid-box'); if (box) { box.classList.remove('has-img'); box.style.border = ''; }
+      flashSave('Image removed');
+    })
+    .catch(function() { flashSave('Could not remove image.'); });
 }
 
 function removeHomeAboveImg() {
@@ -9185,6 +9228,14 @@ function clearHomeVideo() {
   if (inp) inp.value = '';
   renderHomeVideo();
   apiSave('homeVideo', homeVideo, function() { flashSave('Cleared!'); });
+}
+// Toggle the "empty" state of the under-video text box so visitors don't see it
+// when it has no real text (ignoring stray tags/whitespace contentEditable leaves).
+function hvUpdateTextEmpty() {
+  var hv = el('ec-homevideo');
+  if (!hv) return;
+  var t = (hv.textContent || '').replace(/ |\s/g, '');
+  hv.classList.toggle('hv-empty', !t);
 }
 function renderHomeVideo() {
   var inp = el('home-video-input');

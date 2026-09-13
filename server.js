@@ -603,6 +603,23 @@ app.post('/api/upload/homeabove', uploader('homeabove').single('image'), resizeU
   res.json({ filename: req.file.filename });
 });
 
+// Under-video home image (above the under-video text box).
+app.post('/api/upload/homevid', uploader('homevid').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.homeVideoImage);
+  data.homeVideoImage = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+app.delete('/api/homevid-image', (req, res) => {
+  const data = load();
+  deleteFile(data.homeVideoImage);
+  data.homeVideoImage = null;
+  save(data);
+  res.json({ ok: true });
+});
+
 // Remove the above-video home image (the ✕ button).
 app.delete('/api/homeabove-image', (req, res) => {
   const data = load();
