@@ -114,6 +114,7 @@ function load() {
   ];
   if (!data.prideImages)       data.prideImages       = {};
   if (!data.homeinfoImages)    data.homeinfoImages    = {};
+  if (!Array.isArray(data.petdayBooklet)) data.petdayBooklet = [];
   if (!data.classroomImages)   data.classroomImages   = {};
   if (!data.staffSlots)        data.staffSlots        = {};
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
@@ -601,6 +602,29 @@ app.post('/api/upload/homeabove', uploader('homeabove').single('image'), resizeU
   data.homeAboveImage = req.file.filename;
   save(data);
   res.json({ filename: req.file.filename });
+});
+
+// Most Loved Pet Booklet images on the pet day page (two slots: idx 0/1).
+app.post('/api/upload/petday-booklet', uploader('petday-booklet').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const idx = Number(req.query.idx);
+  if (idx !== 0 && idx !== 1) return res.status(400).json({ error: 'Bad slot' });
+  const data = load();
+  if (!Array.isArray(data.petdayBooklet)) data.petdayBooklet = [];
+  deleteFile(data.petdayBooklet[idx]);
+  data.petdayBooklet[idx] = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+app.delete('/api/petday-booklet/:idx', (req, res) => {
+  const idx = Number(req.params.idx);
+  if (idx !== 0 && idx !== 1) return res.status(400).json({ error: 'Bad slot' });
+  const data = load();
+  if (!Array.isArray(data.petdayBooklet)) data.petdayBooklet = [];
+  deleteFile(data.petdayBooklet[idx]);
+  data.petdayBooklet[idx] = null;
+  save(data);
+  res.json({ ok: true });
 });
 
 // Under-video home image (above the under-video text box).
