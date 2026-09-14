@@ -1846,7 +1846,7 @@ body.is-admin .av-box.av-empty .av-placeholder{
   min-height:120px;color:#999;font-size:14px;background:#f7f7f7;
 }
 .av-add-btn{
-  display:none;margin-top:18px;
+  display:none;margin:0 0 16px;
   background:#1a2b4a;color:#fff;border:none;border-radius:6px;
   padding:9px 20px;cursor:pointer;
   font-family:'Quicksand',sans-serif;font-size:13px;font-weight:600;
@@ -3345,8 +3345,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <!-- Captioned YouTube videos: reorderable list, admin can add more.
            Each box has an editable caption above a YouTube embed. -->
       <div id="about-videos" class="av-section">
-        <div id="av-list" class="av-list"></div>
         <button id="av-add-btn" class="av-add-btn" type="button" onclick="aboutVideosAdd()">+ Add Video</button>
+        <div id="av-list" class="av-list"></div>
       </div>
 
       <hr class="home-rule" />
@@ -5661,7 +5661,8 @@ function attachAboutVideoDrag(box, handle) {
 }
 
 function aboutVideosAdd() {
-  aboutVideos.push({ id: 'av_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), caption: '', url: '' });
+  // New videos go to the TOP of the list.
+  aboutVideos.unshift({ id: 'av_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), caption: '', url: '' });
   saveAboutVideos();
   renderAboutVideos();
 }
