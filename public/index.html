@@ -2726,6 +2726,11 @@ body.is-admin .ue-img-del{display:block;}
 }
 .ue-modal-meta{color:#666;font-size:13px;margin-bottom:14px;font-weight:600;}
 .ue-modal-details{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
+.ue-modal-details ul,.ue-modal-details ol{margin:6px 0;padding-left:22px;}
+/* Rich-text Event details box in the admin form. */
+.ue-details-rich{min-height:80px;max-height:240px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;cursor:text;}
+.ue-details-rich:empty::before{content:attr(data-placeholder);color:#9aa3b0;}
+.ue-details-rich ul,.ue-details-rich ol{margin:6px 0;padding-left:22px;}
 
 /* ---- NEWSLETTER PAGE ---- */
 .nl-body{max-width:820px;margin:0 auto;padding:24px;}
@@ -3815,7 +3820,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <label class="hb-label" for="ue-name">Event name <span class="hb-required">*</span></label>
           <input id="ue-name" class="hb-input" type="text" required placeholder="e.g. School Disco" maxlength="200" />
           <label class="hb-label" for="ue-details">Event details</label>
-          <textarea id="ue-details" class="hb-input" rows="3" placeholder="Anything parents should know about this event…"></textarea>
+          <!-- Rich text: the floating format toolbar (bold, colour, bullets, link)
+               attaches to any contenteditable field when text is selected. -->
+          <div id="ue-details" class="hb-input ue-details-rich" contenteditable="true" data-placeholder="Anything parents should know about this event…"></div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
             <button id="ue-submit-btn" class="hb-submit-btn" type="submit" style="flex:1;">+ Add event</button>
             <button id="ue-cancel-btn" class="hb-submit-btn" type="button" style="display:none;background:#888;" onclick="ueCancelEdit()">Cancel</button>
@@ -13539,7 +13546,7 @@ function openUeModal(ev) {
   if (!ev) return;
   el('ue-modal-title').textContent = ev.name;
   el('ue-modal-meta').textContent = ueFmtRange(ev) + (ev.allDay ? ' · All day' : ' at ' + hbFmtTime(ev.time));
-  el('ue-modal-details').textContent = ev.details || 'No further details.';
+  el('ue-modal-details').innerHTML = (ev.details && ev.details.trim()) ? ev.details : 'No further details.';
   el('ue-modal').classList.add('open');
 }
 function closeUeModal() {
@@ -13559,7 +13566,7 @@ function ueStartEdit(id) {
   ueWriteTime(ev);
   el('ue-color').value = ev.color || '#dbeafe';
   el('ue-name').value = ev.name || '';
-  el('ue-details').value = ev.details || '';
+  el('ue-details').innerHTML = ev.details || '';
   var h = el('ue-form-heading'); if (h) h.textContent = 'Edit event';
   var btn = el('ue-submit-btn'); if (btn) btn.textContent = 'Save changes';
   var cancel = el('ue-cancel-btn'); if (cancel) cancel.style.display = '';
@@ -13574,7 +13581,7 @@ function ueCancelEdit() {
   ueWriteTime(null);
   el('ue-color').value = '#dbeafe';
   el('ue-name').value = '';
-  el('ue-details').value = '';
+  el('ue-details').innerHTML = '';
   var h = el('ue-form-heading'); if (h) h.textContent = 'Add an event';
   var btn = el('ue-submit-btn'); if (btn) btn.textContent = '+ Add event';
   var cancel = el('ue-cancel-btn'); if (cancel) cancel.style.display = 'none';
@@ -13627,7 +13634,7 @@ function submitUpcomingEvent() {
     time:    _t.time,
     allDay:  _t.allDay,
     name:    el('ue-name').value.trim(),
-    details: el('ue-details').value.trim(),
+    details: ((el('ue-details').textContent || '').trim() ? el('ue-details').innerHTML : ''),
     color:   el('ue-color').value
   };
   var editing = ueEditingId;

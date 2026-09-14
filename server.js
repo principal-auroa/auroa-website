@@ -1849,7 +1849,7 @@ app.post('/api/upcoming-events', (req, res) => {
   let   endDate = String(b.endDate || '').trim();
   const time = String(b.time || '').trim();
   const name = String(b.name || '').trim();
-  const details = String(b.details || '').trim();
+  const details = sanitiseRich(String(b.details || ''));   // rich text (sanitised)
   let   color = String(b.color || '').trim();
   const allDay = b.allDay === true || b.allDay === 'true';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
@@ -1881,7 +1881,7 @@ app.post('/api/upcoming-events', (req, res) => {
   const whenText = (endDate && endDate !== date) ? (date + ' – ' + endDate) : date;
   notifyAll({
     title: 'New event: ' + event.name,
-    body:  whenText + (allDay ? ' — all day' : ' at ' + event.time) + (event.details ? '\n\n' + event.details : ''),
+    body:  whenText + (allDay ? ' — all day' : ' at ' + event.time) + (event.details ? '\n\n' + event.details.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''),
     url:   '/',
     source: 'event'
   }).catch(e => console.warn('[notify] event trigger failed:', e.message));
@@ -1897,7 +1897,7 @@ app.put('/api/upcoming-events/:id', (req, res) => {
   let   endDate = String(b.endDate || '').trim();
   const time = String(b.time || '').trim();
   const name = String(b.name || '').trim();
-  const details = String(b.details || '').trim();
+  const details = sanitiseRich(String(b.details || ''));   // rich text (sanitised)
   let   color = String(b.color || '').trim();
   const allDay = b.allDay === true || b.allDay === 'true';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
