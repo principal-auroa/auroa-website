@@ -802,6 +802,9 @@ body.is-admin .home-video-box:not(.has-video) .home-video-ph{display:flex;align-
   font-style:italic;
   line-height:1.55;
   margin-top:18px;
+  /* Balance the wrapped lines so they're similar lengths instead of leaving a
+     stray couple of words on the last line. */
+  text-wrap:balance;
 }
 .home-quote-author{
   color:#555;
