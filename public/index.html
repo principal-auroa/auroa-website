@@ -542,9 +542,13 @@ body.is-admin #sidebar-audio-none{display:block;}
 }
 /* Most Loved Pet Booklet uploads on the pet day page. */
 #pd-booklet-section{margin-top:22px;}
-.pd-booklet-box{width:100%;margin:14px 0 6px;}
+.pd-booklet-box,.pd-topimg-box{width:100%;margin:14px 0 6px;}
 body:not(.is-admin) #pd-booklet-section.pd-empty{display:none;}
 body:not(.is-admin) .pd-booklet-box:not(.has-img){display:none;}
+/* Standalone image above the booklet. */
+#pd-topimg-section{margin-top:22px;}
+body:not(.is-admin) #pd-topimg-box:not(.has-img){display:none;}
+body.is-admin #pd-topimg-box.has-img .img-remove-btn{display:flex;}
 .pd-booklet-upload-btn{
   display:none;background:#1a2b4a;color:#fff;
   padding:8px 20px;border-radius:6px;cursor:pointer;
@@ -3631,6 +3635,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           </div>
         </form>
       </div>
+      <!-- Standalone image above the booklet (admin upload; everyone sees;
+           hidden until an image is added). -->
+      <div id="pd-topimg-section">
+        <div class="img-box pd-topimg-box" id="pd-topimg-box">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img loading="lazy" decoding="async" id="pd-topimg-img" style="display:none;" alt="" />
+          <label class="upload-overlay" for="pd-topimg-file"><span>Click to replace image</span></label>
+          <input class="file-in" id="pd-topimg-file" type="file" accept="image/*" onchange="pdTopImgUpload(this)" />
+          <button class="img-remove-btn" onclick="event.stopPropagation();pdTopImgRemove()" title="Remove image">✕</button>
+        </div>
+        <label class="pd-booklet-upload-btn" for="pd-topimg-file">&#8679; Upload Image</label>
+      </div>
       <!-- Most Loved Pet Booklet — two admin image uploads under the Register
            button. Hidden for visitors until an image is added. -->
       <div id="pd-booklet-section">
@@ -5038,6 +5054,7 @@ function fetchState(_retry) {
       var pdBook = Array.isArray(data.petdayBooklet) ? data.petdayBooklet : [];
       ['0','1'].forEach(function(i){ if (pdBook[i]) applyPdBooklet(i, '/uploads/' + pdBook[i]); });
       if (typeof pdBookletUpdateSection === 'function') pdBookletUpdateSection();
+      if (data.petdayTopImage) applyPdTopImg('/uploads/' + data.petdayTopImage);
       var eduFooterImgs = data.educateFooterImages || {};
       ['1','2','3','4','5','6'].forEach(function(slot) {
         if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
@@ -6393,6 +6410,35 @@ function pdSubmit() {
   });
 }
 function pdResetForm() { location.reload(); }
+
+// ---- Standalone image above the booklet (admin upload; everyone sees) ----
+function applyPdTopImg(src) {
+  var img = el('pd-topimg-img'); if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var box = el('pd-topimg-box');
+  if (box) { box.classList.add('has-img'); box.style.border = 'none'; var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none'; }
+}
+function pdTopImgUpload(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData(); fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/petday-topimg', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d && d.filename) { applyPdTopImg('/uploads/' + d.filename); flashSave('Image saved!'); } else flashSave('Upload failed.'); })
+    .catch(function(){ flashSave('Upload failed.'); });
+  input.value = '';
+}
+function pdTopImgRemove() {
+  if (!confirm('Remove this image?')) return;
+  fetch('/api/petday-topimg', { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function(){
+      var img = el('pd-topimg-img'); if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+      var box = el('pd-topimg-box'); if (box) { box.classList.remove('has-img'); box.style.border = ''; var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = ''; }
+      flashSave('Image removed');
+    })
+    .catch(function(){ flashSave('Could not remove image.'); });
+}
 
 // ---- Most Loved Pet Booklet images (admin upload; everyone sees) ----
 function applyPdBooklet(idx, src) {

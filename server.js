@@ -604,6 +604,23 @@ app.post('/api/upload/homeabove', uploader('homeabove').single('image'), resizeU
   res.json({ filename: req.file.filename });
 });
 
+// Standalone image above the Most Loved Pet Booklet on the pet day page.
+app.post('/api/upload/petday-topimg', uploader('petday-topimg').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.petdayTopImage);
+  data.petdayTopImage = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+app.delete('/api/petday-topimg', (req, res) => {
+  const data = load();
+  deleteFile(data.petdayTopImage);
+  data.petdayTopImage = null;
+  save(data);
+  res.json({ ok: true });
+});
+
 // Most Loved Pet Booklet images on the pet day page (two slots: idx 0/1).
 app.post('/api/upload/petday-booklet', uploader('petday-booklet').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
