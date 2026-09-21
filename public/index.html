@@ -1408,6 +1408,8 @@ body.is-admin .pd-admin{display:block;}
 .pd-reg-table{border-collapse:collapse;font-size:13px;min-width:100%;}
 .pd-reg-table th,.pd-reg-table td{border:1px solid #e6e6e6;padding:6px 10px;text-align:left;white-space:nowrap;}
 .pd-reg-table th{background:#f5f6f8;color:#1a2b4a;}
+.pd-reg-table th.pd-sortable{cursor:pointer;user-select:none;}
+.pd-reg-table th.pd-sortable:hover{background:#e9ecf1;}
 .pd-reg-cat{font-weight:700;}
 
 /* ---- SCHOOL SURVEY PAGE ---- */
@@ -6494,46 +6496,89 @@ function pdLoadResults() {
     _pdLast = regs;
     var cnt = el('pd-admin-count');
     if (cnt) cnt.textContent = regs.length + ' registration' + (regs.length === 1 ? '' : 's');
-    if (!regs.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No registrations yet.</span>'; return; }
-    // Count per category.
-    var byCat = {};
-    regs.forEach(function(r) { byCat[r.category] = (byCat[r.category] || 0) + 1; });
-    var summary = ['Lamb', 'Calf', 'Dog', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
-    // Two overall animal totals: including and excluding Pre-school registrations.
-    var preschool = regs.filter(function(r){ return /pre-?\s*school/i.test(r.year || ''); }).length;
-    var totalAll = regs.length;
-    var totalExcl = totalAll - preschool;
-    var totalsLine = 'Total animals: ' + totalAll + ' (incl. Pre-school)  •  ' + totalExcl + ' (excl. Pre-school)';
-    var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 4px;">' + summary + '</div>' +
-      '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:0 0 8px;">' + totalsLine + '</div>';
-    html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
-      '<th>Child</th><th>Year</th><th>Category</th><th>Kind of pet</th><th>Pet name</th><th>Registered</th><th></th></tr>';
-    // Group the entries by category so the list is organised (known categories
-    // in a fixed order first, then any others alphabetically). Each category
-    // gets a subheading row; within it, most recent first.
-    var CAT_ORDER = ['Lamb', 'Calf', 'Dog', 'Most loved pet'];
-    var groups = {};
-    regs.forEach(function(r) { var c = r.category || 'Other'; (groups[c] = groups[c] || []).push(r); });
-    var cats = CAT_ORDER.filter(function(c) { return groups[c]; })
-      .concat(Object.keys(groups).filter(function(c) { return CAT_ORDER.indexOf(c) < 0; }).sort());
-    cats.forEach(function(c) {
-      var rows = groups[c].slice().reverse();
-      html += '<tr><td colspan="7" style="background:#1a2b4a;color:#fff;font-weight:800;padding:6px 10px;">' +
-        lunchEsc(c) + ' (' + rows.length + ')</td></tr>';
-      rows.forEach(function(r) {
-        html += '<tr><td>' + lunchEsc((r.first || '') + ' ' + (r.last || '')) + '</td>' +
-          '<td>' + lunchEsc(r.year || '') + '</td>' +
-          '<td class="pd-reg-cat">' + lunchEsc(r.category || '') + '</td>' +
-          '<td>' + lunchEsc(r.petType || '') + '</td>' +
-          '<td>' + lunchEsc(r.petName || '') + '</td>' +
-          '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
-          '<td style="text-align:center;"><button type="button" title="Delete this registration" onclick="pdDeleteRegistration(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
-      });
-    });
-    html += '</table></div>';
-    out.innerHTML = html;
+    pdRenderResults();
   })
   .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load registrations.</span>'; });
+}
+
+// Current sort: key = 'name' | 'year' | 'category' | null (default = newest
+// first within each category); dir = 1 asc, -1 desc.
+var _pdSort = { key: null, dir: 1 };
+// Year → sortable rank (Pre-school before Year 0..8; unknown sorts last).
+function pdYearRank(y) {
+  var s = String(y || '');
+  if (/pre-?\s*school/i.test(s)) return -1;
+  var m = s.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 999;
+}
+// Toggle/adjust the sort when a column header is clicked, then re-render.
+function pdSortBy(key) {
+  if (_pdSort.key === key) _pdSort.dir = -_pdSort.dir;
+  else { _pdSort.key = key; _pdSort.dir = 1; }
+  pdRenderResults();
+}
+function pdRenderResults() {
+  var out = el('pd-results');
+  if (!out) return;
+  var regs = _pdLast || [];
+  if (!regs.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No registrations yet.</span>'; return; }
+  // Count per category + overall totals (incl./excl. Pre-school).
+  var byCat = {};
+  regs.forEach(function(r) { byCat[r.category] = (byCat[r.category] || 0) + 1; });
+  var summary = ['Lamb', 'Calf', 'Dog', 'Most loved pet'].map(function(c) { return c + ': ' + (byCat[c] || 0); }).join('  •  ');
+  var preschool = regs.filter(function(r){ return /pre-?\s*school/i.test(r.year || ''); }).length;
+  var totalAll = regs.length;
+  var totalExcl = totalAll - preschool;
+  var totalsLine = 'Total animals: ' + totalAll + ' (incl. Pre-school)  •  ' + totalExcl + ' (excl. Pre-school)';
+  // Sort-arrow indicator for a header.
+  function arrow(key) { return _pdSort.key === key ? (_pdSort.dir === 1 ? ' ▲' : ' ▼') : ''; }
+  var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 4px;">' + summary + '</div>' +
+    '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:0 0 8px;">' + totalsLine + '</div>';
+  html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
+    '<th class="pd-sortable" onclick="pdSortBy(\'name\')" title="Sort by name">Child' + arrow('name') + '</th>' +
+    '<th class="pd-sortable" onclick="pdSortBy(\'year\')" title="Sort by year level">Year' + arrow('year') + '</th>' +
+    '<th class="pd-sortable" onclick="pdSortBy(\'category\')" title="Sort by category">Category' + arrow('category') + '</th>' +
+    '<th>Kind of pet</th><th>Pet name</th><th>Registered</th><th></th></tr>';
+  // Entries stay grouped by category. Category order follows the fixed list;
+  // clicking the Category header flips that order.
+  var CAT_ORDER = ['Lamb', 'Calf', 'Dog', 'Most loved pet'];
+  var groups = {};
+  regs.forEach(function(r) { var c = r.category || 'Other'; (groups[c] = groups[c] || []).push(r); });
+  var cats = CAT_ORDER.filter(function(c) { return groups[c]; })
+    .concat(Object.keys(groups).filter(function(c) { return CAT_ORDER.indexOf(c) < 0; }).sort());
+  if (_pdSort.key === 'category' && _pdSort.dir === -1) cats = cats.slice().reverse();
+  // Within-group row sort.
+  function sortRows(rows) {
+    var arr = rows.slice();
+    if (_pdSort.key === 'name') {
+      arr.sort(function(a, b) {
+        var an = ((a.first || '') + ' ' + (a.last || '')).toLowerCase();
+        var bn = ((b.first || '') + ' ' + (b.last || '')).toLowerCase();
+        return an.localeCompare(bn) * _pdSort.dir;
+      });
+    } else if (_pdSort.key === 'year') {
+      arr.sort(function(a, b) { return (pdYearRank(a.year) - pdYearRank(b.year)) * _pdSort.dir; });
+    } else {
+      arr.reverse();   // default / category sort: newest first within the group
+    }
+    return arr;
+  }
+  cats.forEach(function(c) {
+    var rows = sortRows(groups[c]);
+    html += '<tr><td colspan="7" style="background:#1a2b4a;color:#fff;font-weight:800;padding:6px 10px;">' +
+      lunchEsc(c) + ' (' + rows.length + ')</td></tr>';
+    rows.forEach(function(r) {
+      html += '<tr><td>' + lunchEsc((r.first || '') + ' ' + (r.last || '')) + '</td>' +
+        '<td>' + lunchEsc(r.year || '') + '</td>' +
+        '<td class="pd-reg-cat">' + lunchEsc(r.category || '') + '</td>' +
+        '<td>' + lunchEsc(r.petType || '') + '</td>' +
+        '<td>' + lunchEsc(r.petName || '') + '</td>' +
+        '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
+        '<td style="text-align:center;"><button type="button" title="Delete this registration" onclick="pdDeleteRegistration(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
+    });
+  });
+  html += '</table></div>';
+  out.innerHTML = html;
 }
 function pdClearResults() {
   var n = _pdLast.length;
