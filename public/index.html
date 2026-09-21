@@ -6559,7 +6559,9 @@ function pdRenderResults() {
     } else if (_pdSort.key === 'year') {
       arr.sort(function(a, b) { return (pdYearRank(a.year) - pdYearRank(b.year)) * _pdSort.dir; });
     } else {
-      arr.reverse();   // default / category sort: newest first within the group
+      // Default / category sort: newest registration first within the group
+      // (highest timestamp at the top).
+      arr.sort(function(a, b) { return (Number(b.ts) || 0) - (Number(a.ts) || 0); });
     }
     return arr;
   }
