@@ -267,8 +267,20 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   padding:12px 20px;text-align:center;display:block;
   width:calc(100% - 32px);cursor:pointer;
 }
+.sidebar-btn.classlist-reg{
+  color:#fff;font-weight:400;font-size:16px;
+  border:none;border-left:none;
+  border-radius:8px;margin:0 16px 14px;
+  padding:12px 20px;text-align:center;display:block;
+  width:calc(100% - 32px);cursor:pointer;
+}
 #sidebar-petday-wrap{position:relative;}
 #sidebar-survey-wrap{position:relative;}
+#sidebar-classlist-wrap{position:relative;}
+/* Admin-only Show/Hide switch under each special pill; a hidden pill is
+   faded for the admin (visitors don't see it at all). */
+.sb-pill-admin{margin:-8px 16px 14px;padding:0;justify-content:center;}
+.sb-pill-off > .sidebar-btn{opacity:0.35;}
 .sidebar-btn.stationery{
   color:#fff;font-weight:400;font-size:16px;
   background:#2980b9;border:none;border-left:none;
@@ -327,6 +339,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.parent-portal{--bt:#2d9484;--bb:#1f7d6f;--bl:#19685c;--be:#124f46;}
 .sidebar-btn.petday-reg{--bt:#b061f5;--bb:#9333ea;--bl:#7e22ce;--be:#6b21a8;}
 .sidebar-btn.survey-reg{--bt:#7b74e8;--bb:#5b52d6;--bl:#4a41b8;--be:#382f92;}
+.sidebar-btn.classlist-reg{--bt:#e86aa0;--bb:#d14b85;--bl:#b33a6f;--be:#8c2b56;}
 .sidebar-btn.camps-page{--bt:#2bb3c9;--bb:#1c96ab;--bl:#167c8e;--be:#0f5e6c;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
@@ -334,7 +347,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
-.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.camps-page,
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.camps-page,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
 .sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -356,7 +369,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
 }
-.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.camps-page:hover,
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.camps-page:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
 .sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -367,7 +380,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
              0 4px 0 var(--be),
              0 8px 16px rgba(0,0,0,0.4);
 }
-.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.camps-page:active,
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.camps-page:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
 .sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
@@ -1411,6 +1424,13 @@ body.is-admin .pd-admin{display:block;}
 .pd-reg-table th.pd-sortable{cursor:pointer;user-select:none;}
 .pd-reg-table th.pd-sortable:hover{background:#e9ecf1;}
 .pd-reg-cat{font-weight:700;}
+
+/* ---- 2027 CLASS LIST REQUESTS PAGE ---- */
+.cl-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+body.is-admin .cl-admin{display:block;}
+.cl-friends{display:flex;gap:10px;flex-wrap:wrap;}
+.cl-friends .hb-input{flex:1;min-width:160px;}
+.cl-req-table td.cl-desc{white-space:pre-wrap;min-width:220px;}
 
 /* ---- SCHOOL SURVEY PAGE ---- */
 .sv-section{background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:18px 20px;margin-bottom:16px;}
@@ -3577,6 +3597,47 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== 2027 CLASS LIST REQUESTS PAGE ======== -->
+  <div id="pg-classlist" class="page">
+    <div class="pg-header" id="ph-classlist"></div>
+    <div class="pg-body" style="max-width:720px;margin:0 auto;">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">2027 Class List Requests</h1>
+      </div>
+
+      <div id="cl-admin" class="cl-admin">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Requests (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="clLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="clDownloadCsv()">⬇ Download</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#c0392b;" onclick="clClearResults()">🗑 Clear</button>
+          <span id="cl-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="cl-results"></div>
+      </div>
+
+      <div id="cl-form-wrap">
+        <form id="cl-form" onsubmit="event.preventDefault(); clSubmit();">
+          <label class="hb-label" for="cl-student">Student name <span class="hb-required">*</span></label>
+          <input id="cl-student" class="hb-input" type="text" required maxlength="100">
+          <label class="hb-label" for="cl-friend-0">Friend request (optional and max of 3 names)</label>
+          <div class="cl-friends">
+            <input id="cl-friend-0" class="hb-input" type="text" maxlength="100" placeholder="Friend 1">
+            <input id="cl-friend-1" class="hb-input" type="text" maxlength="100" placeholder="Friend 2">
+            <input id="cl-friend-2" class="hb-input" type="text" maxlength="100" placeholder="Friend 3">
+          </div>
+          <label class="hb-label" for="cl-desc">Request description</label>
+          <textarea id="cl-desc" class="hb-input" rows="6" maxlength="3000"></textarea>
+          <div class="abs-submit-row">
+            <button id="cl-submit-btn" type="submit" class="hb-submit-btn">Submit request</button>
+            <span id="cl-status" class="hb-err"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ======== LAMB / CALF / PET DAY REGISTRATION PAGE ======== -->
   <div id="pg-petday" class="page">
     <div class="pg-header" id="ph-petday"></div>
@@ -5037,6 +5098,11 @@ function fetchState(_retry) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-petday'; })) {
         pageConfig.push({ id:'pg-petday', label:'Lamb / Calf / Pet Day Registration', hidden:true });
       }
+      // 2027 Class List Requests: starts HIDDEN (admin publishes it with the
+      // 👁 Show switch under its pill when requests open).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-classlist'; })) {
+        pageConfig.push({ id:'pg-classlist', label:'2027 Class List Requests', hidden:true });
+      }
       // Camps / Day Trips page: starts HIDDEN (admin publishes it with the 👁 Show
       // toggle in the sidebar when there's something to show).
       if (!pageConfig.some(function(p){ return p.id === 'pg-camps'; })) {
@@ -5869,7 +5935,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -6637,6 +6703,116 @@ function pdDownloadCsv() {
   setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+// ===================== 2027 CLASS LIST REQUESTS =====================
+function clSubmit() {
+  var status = el('cl-status');
+  var btn = el('cl-submit-btn');
+  status.textContent = '';
+  var payload = {
+    student: el('cl-student').value.trim(),
+    friends: [0, 1, 2].map(function(i) { return el('cl-friend-' + i).value.trim(); }).filter(Boolean),
+    description: el('cl-desc').value.trim()
+  };
+  if (!payload.student) { status.textContent = 'Please enter the student name.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/classlist/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (!b || !b.ok) throw new Error('rejected');
+    el('cl-form-wrap').innerHTML =
+      '<div class="pd-thanks"><strong>Thank you!</strong><br>The class list request for ' + lunchEsc(payload.student) +
+      ' has been sent.<br><br><button type="button" class="hb-submit-btn" onclick="location.reload()">Send another request</button></div>';
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Submit request';
+    status.textContent = 'Could not send — please try again.';
+  });
+}
+
+// ---- Admin: requests (newest first) ----
+var _clLast = [];
+function clLoadResults() {
+  var out = el('cl-results');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/classlist/results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    _clLast = ((b && b.requests) || []).slice().sort(function(a, b) { return (Number(b.ts) || 0) - (Number(a.ts) || 0); });
+    var cnt = el('cl-admin-count');
+    if (cnt) cnt.textContent = _clLast.length + ' request' + (_clLast.length === 1 ? '' : 's');
+    clRenderResults();
+  })
+  .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load requests.</span>'; });
+}
+function clRenderResults() {
+  var out = el('cl-results');
+  if (!out) return;
+  if (!_clLast.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No requests yet.</span>'; return; }
+  var html = '<div class="pd-reg-table-wrap"><table class="pd-reg-table cl-req-table"><tr>' +
+    '<th>Student</th><th>Friend requests</th><th>Request description</th><th>Sent</th><th></th></tr>';
+  _clLast.forEach(function(r) {
+    html += '<tr><td>' + lunchEsc(r.student || '') + '</td>' +
+      '<td>' + (r.friends || []).map(lunchEsc).join('<br>') + '</td>' +
+      '<td class="cl-desc">' + lunchEsc(r.description || '') + '</td>' +
+      '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
+      '<td style="text-align:center;"><button type="button" title="Delete this request" onclick="clDeleteRequest(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
+  });
+  html += '</table></div>';
+  out.innerHTML = html;
+}
+function clClearResults() {
+  var n = _clLast.length;
+  if (!confirm('Delete ALL ' + n + ' request' + (n === 1 ? '' : 's') + '? A backup copy is kept on the server.')) return;
+  fetch('/api/classlist/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Cleared ' + b.cleared + ' request' + (b.cleared === 1 ? '' : 's')); clLoadResults(); }
+    else flashSave('Could not clear.');
+  })
+  .catch(function() { flashSave('Could not clear.'); });
+}
+function clDeleteRequest(ts) {
+  var r = _clLast.find(function(x) { return Number(x.ts) === Number(ts); });
+  if (!confirm('Delete the request for ' + (r && r.student ? r.student : 'this student') + '? This cannot be undone.')) return;
+  fetch('/api/classlist/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ts: Number(ts) })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Request deleted.'); clLoadResults(); }
+    else flashSave('Could not delete.');
+  })
+  .catch(function() { flashSave('Could not delete.'); });
+}
+function clDownloadCsv() {
+  var lines = [['Student', 'Friend 1', 'Friend 2', 'Friend 3', 'Request description', 'Sent'].map(pdCsvCell).join(',')];
+  _clLast.forEach(function(r) {
+    var f = r.friends || [];
+    lines.push([r.student, f[0], f[1], f[2], r.description, new Date(r.ts).toLocaleString()].map(pdCsvCell).join(','));
+  });
+  var d = new Date();
+  var fname = '2027 Class List Requests ' + String(d.getDate()).padStart(2, '0') + '-' +
+              String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
 // ===================== LAZY EMBEDS =====================
 // YouTube/calendar/Drive iframes are full embedded web apps (tens to hundreds
 // of MB each). 24 of them were loading at boot into HIDDEN pages — the main
@@ -6711,6 +6887,9 @@ function showPage(id) {
   }
   if (id === 'pg-petday') {
     if (isAdmin && typeof pdLoadResults === 'function') pdLoadResults();
+  }
+  if (id === 'pg-classlist') {
+    if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
@@ -6920,6 +7099,8 @@ function clearCalEditor() {
 // ===================== IMPORTANT LINKS =====================
 function renderSidebarPages() {
   var wrap = el('sidebar-pages');
+  // Pages with their own coloured pill under Enrol Here → sidebar element prefix.
+  var SPECIAL_PILLS = { 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
   if (!wrap) return;
   wrap.innerHTML = '';
 
@@ -7036,18 +7217,25 @@ function renderSidebarPages() {
                           'pg-buses':1, 'pg-year78':1, 'pg-apple':1, 'pg-camps':1 };
   pageConfig.forEach(function(pg) {
     if (alreadyRendered[pg.id]) return;
-    // Pet Day + School Survey each have their own coloured pill under Enrol
-    // Here. Visitors only see those; admins also keep the managed list entry
-    // (rename / show-hide / delete).
-    if ((pg.id === 'pg-petday' || pg.id === 'pg-survey') && !isAdmin) return;
+    // Class List, Pet Day + School Survey each have their own coloured pill
+    // under Enrol Here. Visitors only see those; admins also keep the managed
+    // list entry (rename / show-hide / delete).
+    if (SPECIAL_PILLS[pg.id] && !isAdmin) return;
     renderPage(pg, null);
   });
 
-  // Show the Pet Day + Survey pills under Enrol Here when the page is published
-  // (admins always see them so they can preview / publish).
-  [['pg-petday', 'sidebar-petday-wrap'], ['pg-survey', 'sidebar-survey-wrap']].forEach(function(pair) {
-    var p = findPage(pair[0]); var w = el(pair[1]);
-    if (w) w.style.display = (p && (isAdmin || !p.hidden)) ? '' : 'none';
+  // Show the special pills under Enrol Here when the page is published
+  // (admins always see them, faded while hidden, with a Show/Hide switch).
+  Object.keys(SPECIAL_PILLS).forEach(function(id) {
+    var p = findPage(id); var w = el(SPECIAL_PILLS[id] + '-wrap');
+    if (!w) return;
+    w.style.display = (p && (isAdmin || !p.hidden)) ? '' : 'none';
+    w.classList.toggle('sb-pill-off', !!(p && p.hidden));
+    var hb = el(SPECIAL_PILLS[id] + '-hide-btn');
+    if (hb && p) {
+      hb.textContent = p.hidden ? '👁 Show to visitors' : '🙈 Hide from visitors';
+      hb.className = 'sb-page-tool' + (p.hidden ? ' sb-active' : '');
+    }
   });
 
   // Re-apply the unread badge count (the Messages badge span was just rebuilt).
@@ -7059,6 +7247,13 @@ function pageRename(pg) {
   if (!name || !name.trim() || name.trim() === pg.label) return;
   pg.label = name.trim();
   apiSave('pageConfig', pageConfig, function() { renderSidebarPages(); flashSave('Renamed!'); });
+}
+
+// Admin Show/Hide switch under a special pill.
+function specialPillToggle(e, id) {
+  if (e) e.stopPropagation();
+  var pg = pageConfig.find(function(p) { return p.id === id; });
+  if (pg) pageToggleHide(pg);
 }
 
 function pageToggleHide(pg) {
@@ -7163,7 +7358,7 @@ function renderImpDropdown() {
 var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
-  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day',
+  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
@@ -10619,14 +10814,22 @@ document.addEventListener('click', function(e) {
         style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.6);margin-left:6px;">Cancel</button>
     </div>
   </div>
-  <!-- Lamb/Calf/Pet Day registration — bright-purple pill directly under Enrol Here.
+  <!-- 2027 Class List Requests — pink pill directly under Enrol Here.
+       Visibility (published vs hidden) is managed in renderSidebarPages(). -->
+  <div id="sidebar-classlist-wrap" style="display:none;">
+    <button class="sidebar-btn classlist-reg" id="classlist-btn" onclick="bubbleGo(event,'pg-classlist')">2027 Class List Requests</button>
+    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="classlist-hide-btn" onclick="specialPillToggle(event,'pg-classlist')"></button></div>
+  </div>
+  <!-- Lamb/Calf/Pet Day registration — bright-purple pill under the class list pill.
        Visibility (published vs hidden) is managed in renderSidebarPages(). -->
   <div id="sidebar-petday-wrap" style="display:none;">
     <button class="sidebar-btn petday-reg" id="petday-btn" onclick="bubbleGo(event,'pg-petday')">Lamb / Calf / Pet Day</button>
+    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="petday-hide-btn" onclick="specialPillToggle(event,'pg-petday')"></button></div>
   </div>
   <!-- School Survey — indigo pill under the Pet Day button (only while published). -->
   <div id="sidebar-survey-wrap" style="display:none;">
     <button class="sidebar-btn survey-reg" id="survey-btn" onclick="bubbleGo(event,'pg-survey')">School Survey</button>
+    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="survey-hide-btn" onclick="specialPillToggle(event,'pg-survey')"></button></div>
   </div>
   <div id="sidebar-contact-wrap">
     <button class="sidebar-btn contact" id="contact-btn" onclick="contactClick(event)">Contact Us</button>

@@ -447,7 +447,7 @@ const PUBLIC_API = [
   ['POST', /^\/login$/], ['POST', /^\/logout$/],
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
-  ['POST', /^\/petday\/submit$/],
+  ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
 ];
@@ -1151,6 +1151,56 @@ app.post('/api/petday/delete', (req, res) => {
     if (idx === -1) return res.json({ ok: true, deleted: 0 });
     list.splice(idx, 1);
     fs.writeFile(PETDAY_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+
+// ---- 2027 class list requests ----
+// Public submit; admin (session-gated by the /api middleware) reads/clears/deletes.
+const CLASSLIST_FILE = path.join(DATA_DIR, 'classlist-requests.json');
+app.post('/api/classlist/submit', (req, res) => {
+  const b = req.body || {};
+  const reqst = {
+    ts: Date.now(),
+    student:     String(b.student || '').trim().slice(0, 100),
+    friends:     (Array.isArray(b.friends) ? b.friends : []).map(f => String(f || '').trim().slice(0, 100)).filter(Boolean).slice(0, 3),
+    description: String(b.description || '').trim().slice(0, 3000),
+  };
+  if (!reqst.student) return res.status(400).json({ error: 'Student name is required' });
+  fs.readFile(CLASSLIST_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    list.push(reqst);
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(CLASSLIST_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+app.post('/api/classlist/results', (req, res) => {
+  fs.readFile(CLASSLIST_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    res.json({ requests: list });
+  });
+});
+app.post('/api/classlist/clear', (req, res) => {
+  fs.readFile(CLASSLIST_FILE, 'utf8', (err, txt) => {
+    let count = 0;
+    if (!err && txt) {
+      try { count = (JSON.parse(txt) || []).length; } catch (e) {}
+      try { fs.writeFileSync(CLASSLIST_FILE + '.cleared-' + Date.now() + '.bak', txt); } catch (e) {}
+    }
+    fs.writeFile(CLASSLIST_FILE, '[]', () => res.json({ ok: true, cleared: count }));
+  });
+});
+app.post('/api/classlist/delete', (req, res) => {
+  const ts = Number((req.body || {}).ts);
+  if (!ts) return res.status(400).json({ error: 'ts required' });
+  fs.readFile(CLASSLIST_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    const idx = list.findIndex(r => Number(r.ts) === ts);
+    if (idx === -1) return res.json({ ok: true, deleted: 0 });
+    list.splice(idx, 1);
+    fs.writeFile(CLASSLIST_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
   });
 });
 
