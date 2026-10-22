@@ -1438,6 +1438,49 @@ body.is-admin .pd-admin{display:block;}
 .trips-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f3c34,0 2px 6px rgba(0,0,0,0.18);}
 .trips-year{display:none;}
 .trips-year.is-current{display:block;}
+/* Trip images: a stack of full-width images, each with a remove cross (top-right)
+   and a Replace Image button beneath; "Add New Image" sits under the stack.
+   A navy rule (the app's blue) separates each image from the next. */
+.trip-imgs{margin-bottom:18px;}
+.trip-img-card{position:relative;}
+.trip-img-card img{width:100%;height:auto;display:block;border-radius:8px;}
+.trip-img-card + .trip-img-card{border-top:4px solid #1a2b4a;padding-top:14px;margin-top:14px;}
+.trip-img-x{display:none;}
+body.is-admin .trip-img-x{display:flex;}
+.trip-add-bar{padding-top:10px;}
+.trip-img-card + .trip-add-bar{border-top:4px solid #1a2b4a;margin-top:14px;padding-top:14px;}
+.trip-add-bar label{background:#c0642b !important;}
+body:not(.is-admin) .trip-imgs:not(:has(.trip-img-card)){display:none;}
+/* Student Health Profile (on every trip year page) */
+.shp-btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.shp-toggle{
+  border:none;border-radius:10px;min-height:48px;padding:10px 18px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:15px;font-weight:700;color:#fff;
+  background:linear-gradient(#24395f,#1a2b4a);box-shadow:0 4px 0 #101c33,0 6px 12px rgba(0,0,0,0.18);
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+.shp-toggle::after{content:" \25BE";font-size:13px;}
+.shp-toggle.is-open::after{content:" \25B4";}
+.shp-toggle:hover{background:linear-gradient(#1f3356,#162544);}
+.shp-toggle:active,.shp-toggle.is-open{transform:translateY(3px);box-shadow:0 1px 0 #101c33,0 2px 6px rgba(0,0,0,0.18);}
+.shp-admin-btn{display:none;background:linear-gradient(#cf6e33,#c0642b);box-shadow:0 4px 0 #8e4a1f,0 6px 12px rgba(0,0,0,0.18);}
+.shp-admin-btn:hover{background:linear-gradient(#c6672e,#b25c27);}
+.shp-admin-btn:active,.shp-admin-btn.is-open{box-shadow:0 1px 0 #8e4a1f,0 2px 6px rgba(0,0,0,0.18);}
+body.is-admin .shp-admin-btn{display:inline-block;}
+.shp-panel{background:#fff;border:2px solid #1a2b4a;border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+.shp-panel[hidden]{display:none;}
+.shp-h{color:#1a2b4a;font-size:18px;font-weight:700;margin:0 0 2px;}
+.shp-sub{color:#666;font-size:13px;margin:0 0 6px;}
+.shp-q{margin:16px 0 6px;font-weight:600;color:#333;font-size:14px;line-height:1.45;}
+.shp-q .hb-required{margin-left:3px;}
+.shp-panel .hb-input{width:100%;box-sizing:border-box;}
+.shp-agree{align-items:flex-start;line-height:1.45;white-space:normal;}
+.shp-agree input{margin-top:3px;}
+.shp-res-table th,.shp-res-table td{white-space:normal;vertical-align:top;min-width:110px;}
+.shp-res-table td.shp-name{font-weight:700;min-width:150px;}
+.shp-detail{background:#f9fafb;border:1px solid #e6e6e6;border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px;line-height:1.5;}
+.shp-detail div{margin:0 0 6px;}
+.shp-detail b{color:#1a2b4a;}
 
 /* ---- 2027 CLASS LIST REQUESTS PAGE ---- */
 .cl-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
@@ -4036,125 +4079,49 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <button class="back-btn" onclick="showPage('pg-trips')">← Back</button>
         <h1 class="pg-title" id="trip-title">School Trips</h1>
       </div>
+      <!-- Student Health Profile: parents press the button to unfold the questionnaire
+           (press again to fold it up). Admins get a second button beside it that
+           reveals the responses, with a download. Rendered by shpRenderForm(). -->
+      <div class="shp-btn-row">
+        <button type="button" class="shp-toggle" id="shp-toggle" onclick="shpToggle()" aria-expanded="false">Student Health Profile</button>
+        <button type="button" class="shp-toggle shp-admin-btn" id="shp-admin-toggle" onclick="shpAdminToggle()" aria-expanded="false">Parent Responses</button>
+      </div>
+      <div id="shp-form-wrap" class="shp-panel" hidden></div>
+      <div id="shp-admin" class="shp-panel shp-admin" hidden>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Student Health Profiles (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="shpLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="shpDownloadCsv()">⬇ Download</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#c0392b;" onclick="shpClearResults()">🗑 Clear</button>
+          <label style="font-size:12px;color:#555;display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="shp-all-years" onchange="shpRenderResults()" style="accent-color:#1a2b4a;margin:0;">All year groups</label>
+          <span id="shp-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="shp-results"></div>
+      </div>
       <div class="trips-year" id="trips-year-y14">
-        <div class="editable" id="ec-trips-y14"><p>Trip details and information for Year 1–4 will appear here.</p></div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y14-1" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-1',this)"></label>
-            <button onclick="removeTripImg('y14-1')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y14-2" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-2',this)"></label>
-            <button onclick="removeTripImg('y14-2')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y14-3" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-3',this)"></label>
-            <button onclick="removeTripImg('y14-3')">Remove</button>
-          </div>
-        </div>
+        <!-- Teachers add as many images as they like at the top; rendered by renderTripImages(). -->
+        <div class="trip-imgs" id="trip-imgs-y14"></div>
+        <div class="editable" id="ec-trips-y14"></div>
       </div>
       <div class="trips-year" id="trips-year-y5">
-        <div class="editable" id="ec-trips-y5"><p>Trip details and information for Year 5 will appear here.</p></div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y5-1" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-1',this)"></label>
-            <button onclick="removeTripImg('y5-1')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y5-2" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-2',this)"></label>
-            <button onclick="removeTripImg('y5-2')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y5-3" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-3',this)"></label>
-            <button onclick="removeTripImg('y5-3')">Remove</button>
-          </div>
-        </div>
+        <!-- Teachers add as many images as they like at the top; rendered by renderTripImages(). -->
+        <div class="trip-imgs" id="trip-imgs-y5"></div>
+        <div class="editable" id="ec-trips-y5"></div>
       </div>
       <div class="trips-year" id="trips-year-y6">
-        <div class="editable" id="ec-trips-y6"><p>Trip details and information for Year 6 will appear here.</p></div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y6-1" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-1',this)"></label>
-            <button onclick="removeTripImg('y6-1')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y6-2" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-2',this)"></label>
-            <button onclick="removeTripImg('y6-2')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y6-3" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-3',this)"></label>
-            <button onclick="removeTripImg('y6-3')">Remove</button>
-          </div>
-        </div>
+        <!-- Teachers add as many images as they like at the top; rendered by renderTripImages(). -->
+        <div class="trip-imgs" id="trip-imgs-y6"></div>
+        <div class="editable" id="ec-trips-y6"></div>
       </div>
       <div class="trips-year" id="trips-year-y7">
-        <div class="editable" id="ec-trips-y7"><p>Trip details and information for Year 7 will appear here.</p></div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y7-1" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-1',this)"></label>
-            <button onclick="removeTripImg('y7-1')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y7-2" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-2',this)"></label>
-            <button onclick="removeTripImg('y7-2')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y7-3" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-3',this)"></label>
-            <button onclick="removeTripImg('y7-3')">Remove</button>
-          </div>
-        </div>
+        <!-- Teachers add as many images as they like at the top; rendered by renderTripImages(). -->
+        <div class="trip-imgs" id="trip-imgs-y7"></div>
+        <div class="editable" id="ec-trips-y7"></div>
       </div>
       <div class="trips-year" id="trips-year-y8">
-        <div class="editable" id="ec-trips-y8"><p>Trip details and information for Year 8 will appear here.</p></div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y8-1" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-1',this)"></label>
-            <button onclick="removeTripImg('y8-1')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y8-2" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-2',this)"></label>
-            <button onclick="removeTripImg('y8-2')">Remove</button>
-          </div>
-        </div>
-        <div class="cl-full-img-slot">
-          <img loading="lazy" decoding="async" id="trip-img-y8-3" alt="" style="display:none">
-          <div class="cl-img-admin-bar">
-            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-3',this)"></label>
-            <button onclick="removeTripImg('y8-3')">Remove</button>
-          </div>
-        </div>
+        <!-- Teachers add as many images as they like at the top; rendered by renderTripImages(). -->
+        <div class="trip-imgs" id="trip-imgs-y8"></div>
+        <div class="editable" id="ec-trips-y8"></div>
       </div>
     </div>
   </div>
@@ -6849,51 +6816,300 @@ function pdDownloadCsv() {
 
 // ===================== SCHOOL TRIPS =====================
 var TRIP_YEARS = { y14: 'Year 1\u20134', y5: 'Year 5', y6: 'Year 6', y7: 'Year 7', y8: 'Year 8' };
-var tripImages = {};   // slot ('y5-1') → uploaded filename
+var tripImages = {};   // year ('y5') → [uploaded filenames], top to bottom
 // Open one year group's trip page.
 function tripsOpenYear(year) {
+  _tripYear = year;
   el('trip-title').textContent = TRIP_YEARS[year] + ' Trips';
+  // The health profile and responses belong to the year opened: fold both up.
+  ['shp-form-wrap', 'shp-admin'].forEach(function(id) { var p = el(id); if (p) p.setAttribute('hidden', ''); });
+  ['shp-toggle', 'shp-admin-toggle'].forEach(function(id) { var b = el(id); if (b) { b.classList.remove('is-open'); b.setAttribute('aria-expanded', 'false'); } });
+  if (el('shp-form-wrap')) el('shp-form-wrap').innerHTML = '';
   document.querySelectorAll('#pg-trip .trips-year').forEach(function(d) {
     d.classList.toggle('is-current', d.id === 'trips-year-' + year);
   });
   renderTripImages();
   showPage('pg-trip');
 }
+// Each year's images, top of the page: image, remove cross, Replace Image;
+// then Add New Image under the stack (admin only). Visitors see only the images.
 function renderTripImages() {
   Object.keys(TRIP_YEARS).forEach(function(y) {
-    ['1','2','3'].forEach(function(n) {
-      var slot = y + '-' + n, img = el('trip-img-' + slot);
-      if (!img) return;
-      if (tripImages[slot]) { img.src = '/uploads/' + tripImages[slot]; img.style.display = 'block'; }
-      else { img.removeAttribute('src'); img.style.display = 'none'; }
-      // Visitors don't see empty slots.
-      img.parentNode.style.display = (tripImages[slot] || isAdmin) ? '' : 'none';
+    var wrap = el('trip-imgs-' + y);
+    if (!wrap) return;
+    var list = Array.isArray(tripImages[y]) ? tripImages[y] : [];
+    wrap.innerHTML = '';
+    list.forEach(function(file) {
+      var card = document.createElement('div');
+      card.className = 'trip-img-card';
+      var img = document.createElement('img');
+      img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';
+      img.src = '/uploads/' + file;
+      card.appendChild(img);
+      var x = document.createElement('button');
+      x.type = 'button'; x.className = 'img-remove-btn trip-img-x'; x.title = 'Remove image';
+      x.textContent = '\u2715';
+      x.onclick = function() { removeTripImg(y, file); };
+      card.appendChild(x);
+      var bar = document.createElement('div');
+      bar.className = 'cl-img-admin-bar';
+      var lab = document.createElement('label');
+      lab.textContent = 'Replace Image';
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = function() { uploadTripImg(y, inp, file); };
+      lab.appendChild(inp);
+      bar.appendChild(lab);
+      card.appendChild(bar);
+      wrap.appendChild(card);
     });
+    var add = document.createElement('div');
+    add.className = 'cl-img-admin-bar trip-add-bar';
+    var addLab = document.createElement('label');
+    addLab.textContent = 'Add New Image';
+    var addInp = document.createElement('input');
+    addInp.type = 'file'; addInp.accept = 'image/*';
+    addInp.onchange = function() { uploadTripImg(y, addInp, null); };
+    addLab.appendChild(addInp);
+    add.appendChild(addLab);
+    wrap.appendChild(add);
   });
 }
-function uploadTripImg(slot, input) {
+// Add a new image to a year (replaceFile null) or replace one in place.
+function uploadTripImg(year, input, replaceFile) {
   if (!input.files[0]) return;
   var fd = new FormData();
   fd.append('image', input.files[0]);
   flashSave('<span class="spinner"></span>Uploading…');
-  fetch('/api/upload/trip/' + slot, { method: 'POST', body: fd })
+  var url = '/api/upload/trip/' + year + (replaceFile ? '?replace=' + encodeURIComponent(replaceFile) : '');
+  fetch(url, { method: 'POST', body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data.filename) throw new Error('no file');
-      tripImages[slot] = data.filename;
+      if (!Array.isArray(data.images)) throw new Error('no file');
+      tripImages[year] = data.images;
       renderTripImages();
       flashSave('Image saved!');
     })
     .catch(function() { flashSave('Upload failed.'); });
   input.value = '';
 }
-function removeTripImg(slot) {
-  fetch('/api/trip-image/' + slot, { method: 'DELETE' })
-    .then(function() {
-      delete tripImages[slot];
+function removeTripImg(year, file) {
+  fetch('/api/trip-image/' + year + '/' + encodeURIComponent(file), { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      tripImages[year] = Array.isArray(data.images) ? data.images : [];
       renderTripImages();
       flashSave('Removed!');
+    })
+    .catch(function() { flashSave('Remove failed.'); });
+}
+
+// ===================== STUDENT HEALTH PROFILE =====================
+// The questions are the school's Google Form "Auroa Student Health profile",
+// one copy per trip year page. Keys and options must match SHP_FIELDS in server.js.
+var SHP_YES_NO = ['Yes', 'No'];
+var SHP_QUESTIONS = [
+  { key: 'name', label: 'Name and year level of your child.', type: 'text', required: true },
+  { key: 'emergency', label: 'Emergency Contact details: Student name/contact name/cellphone number', type: 'para' },
+  { key: 'medicAlert', label: 'Medic alert number (if applicable)', type: 'text' },
+  { key: 'csc', label: 'Community Services Card Number (if applicable)', type: 'text' },
+  { key: 'conditions', label: 'Please select if you have any of the following', type: 'multi', options: ['Migraine', 'Diabetes', 'Chronic nose bleeds', 'Colour blindness', 'Epilepsy', 'Travel sickness', 'Heart condition', 'Asthma', 'Fits of any type', 'Dizzy spells', 'Sleep walking', 'Bed wetting', 'Other'], otherKey: 'conditionsOther' },
+  { key: 'medication', label: 'Is the student currently taking any medication', type: 'one', options: SHP_YES_NO, required: true },
+  { key: 'medicationDetails', label: 'If yes please specify', type: 'para' },
+  { key: 'medicationNames', label: 'Name of medication/s:', type: 'para' },
+  { key: 'dosage', label: 'Dosage and time/s to be taken', type: 'para' },
+  { key: 'otherTreatment', label: 'Other treatment:', type: 'para' },
+  { key: 'injuries', label: 'Have you had any major injuries (breaks or strains) or illness (glandular fever etc) in the last six months that may limit full participation in any activities?', type: 'one', options: SHP_YES_NO, required: true },
+  { key: 'injuryDetails', label: 'If YES, please state the injury/illness.', type: 'para' },
+  { key: 'allergies', label: 'Are you allergic to any of the following?', type: 'multi', options: ['No known allergies', 'Prescription medication', 'Food', 'Insect bites/stings', 'Other allergies'], required: true },
+  { key: 'allergyTreatment', label: 'What treatment is required?', type: 'para' },
+  { key: 'dietary', label: 'Outline any dietary requirements.', type: 'para' },
+  { key: 'painMeds', label: 'What pain/flu medication may your child be given if necessary?', type: 'para' },
+  { key: 'safetyInfo', label: 'Is there any information the staff should know to ensure the physical and emotional safety of you/your child? (For example cultural practices; disability; anxiety about heights/darkness/small spaces; behaviour or emotional problems).', type: 'one', options: SHP_YES_NO, required: true },
+  { key: 'safetyDetails', label: 'If YES, please state information.', type: 'para' },
+  { key: 'agreeMeds', label: 'I also agree that if prescribed medication needs to be administered, a designated adult will be assigned to do this. I will ensure that prescribed medication is clearly labelled, securely fastened and handed to the designated adult with instructions on its administration.', type: 'agree', required: true },
+  { key: 'agreeInform', label: 'I will inform the school as soon as possible of any changes in the medical or other circumstances between now and the commencement of the event.', type: 'agree', required: true },
+  { key: 'agreeTreatment', label: 'I agree to my child/myself receiving any emergency medical, dental, or surgical treatment, including anaesthetic or blood transfusion, as considered necessary by the medical authorities present.', type: 'agree', required: true },
+  { key: 'agreeCosts', label: 'Any medical costs not covered by ACC or a community service card will be paid by me.', type: 'agree', required: true },
+  { key: 'agreeDiscipline', label: 'If my child is involved in a serious disciplinary problem, or actions that threaten the safety of others, they will be dealt with appropriately by staff.', type: 'agree', required: true }
+];
+var _tripYear = 'y14';
+// Parents' button: unfold the questionnaire (pushing the images down), or fold it up.
+function shpToggle() {
+  var wrap = el('shp-form-wrap'), btn = el('shp-toggle');
+  var open = wrap.hasAttribute('hidden');
+  if (open && !wrap.firstChild) shpRenderForm();
+  if (open) wrap.removeAttribute('hidden'); else wrap.setAttribute('hidden', '');
+  btn.classList.toggle('is-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+// Admin's button beside it: reveal the responses (loads them fresh each time).
+function shpAdminToggle() {
+  var panel = el('shp-admin'), btn = el('shp-admin-toggle');
+  var open = panel.hasAttribute('hidden');
+  if (open) { panel.removeAttribute('hidden'); shpLoadResults(); } else panel.setAttribute('hidden', '');
+  btn.classList.toggle('is-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function shpRenderForm() {
+  var wrap = el('shp-form-wrap');
+  var h = '<h3 class="shp-h">Student Health Profile</h3>' +
+    '<p class="shp-sub">' + lunchEsc(TRIP_YEARS[_tripYear] || '') + ' trip — please complete one profile for each child. <span class="hb-required">*</span> required</p>' +
+    '<form id="shp-form" onsubmit="event.preventDefault(); shpSubmit();">';
+  SHP_QUESTIONS.forEach(function(q) {
+    var req = q.required ? ' <span class="hb-required">*</span>' : '';
+    if (q.type === 'agree') {
+      h += '<label class="sv-check shp-agree" style="margin-top:14px;"><input type="checkbox" name="' + q.key + '" value="Yes"> ' + lunchEsc(q.label) + req + '</label>';
+      return;
+    }
+    h += '<div class="shp-q" id="shp-q-' + q.key + '">' + lunchEsc(q.label) + req + '</div>';
+    if (q.type === 'text') h += '<input class="hb-input" type="text" name="' + q.key + '" maxlength="200">';
+    else if (q.type === 'para') h += '<textarea class="hb-input" name="' + q.key + '" rows="3" maxlength="2000"></textarea>';
+    else {
+      h += '<div class="sv-check-grid">';
+      q.options.forEach(function(o) {
+        h += '<label class="sv-check"><input type="' + (q.type === 'one' ? 'radio' : 'checkbox') + '" name="' + q.key + '" value="' + lunchEsc(o) + '"> ' + lunchEsc(o) + '</label>';
+      });
+      h += '</div>';
+      if (q.otherKey) h += '<input class="hb-input sv-other-in" type="text" name="' + q.otherKey + '" maxlength="300" placeholder="Other — please state">';
+    }
+  });
+  h += '<div class="abs-submit-row"><button id="shp-submit-btn" type="submit" class="hb-submit-btn">Submit health profile</button><span id="shp-status" class="hb-err"></span></div></form>';
+  wrap.innerHTML = h;
+}
+function shpCollect() {
+  var form = el('shp-form'), answers = {}, missing = null;
+  SHP_QUESTIONS.forEach(function(q) {
+    var els = form.querySelectorAll('[name="' + q.key + '"]');
+    if (q.type === 'text' || q.type === 'para') answers[q.key] = els[0] ? els[0].value.trim() : '';
+    else if (q.type === 'one' || q.type === 'agree') {
+      answers[q.key] = '';
+      els.forEach(function(e) { if (e.checked) answers[q.key] = e.value; });
+    } else {
+      answers[q.key] = [];
+      els.forEach(function(e) { if (e.checked) answers[q.key].push(e.value); });
+      if (q.otherKey) { var o = form.querySelector('[name="' + q.otherKey + '"]'); answers[q.otherKey] = o ? o.value.trim() : ''; }
+    }
+    var empty = Array.isArray(answers[q.key]) ? !answers[q.key].length : !answers[q.key];
+    if (q.required && empty && !missing) missing = q;
+  });
+  return { answers: answers, missing: missing };
+}
+function shpSubmit() {
+  var status = el('shp-status'), btn = el('shp-submit-btn');
+  status.textContent = '';
+  var c = shpCollect();
+  if (c.missing) {
+    status.textContent = c.missing.type === 'agree' ? 'Please tick each agreement to continue.' : 'Please answer: ' + c.missing.label.slice(0, 60) + (c.missing.label.length > 60 ? '…' : '');
+    var q = el('shp-q-' + c.missing.key) || el('shp-form');
+    q.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/health-profile/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: _tripYear, answers: c.answers }) })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      if (!b || !b.ok) throw new Error(b && b.error || 'rejected');
+      el('shp-form-wrap').innerHTML = '<div class="pd-thanks"><strong>Thank you!</strong><br>The health profile for ' + lunchEsc(c.answers.name) + ' has been sent to the school.' +
+        '<br><br><button type="button" class="hb-submit-btn" onclick="shpRenderForm()">Fill in another profile</button></div>';
+      el('shp-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    })
+    .catch(function(e) {
+      btn.disabled = false; btn.textContent = 'Submit health profile';
+      status.textContent = (e && e.message && /required/i.test(e.message)) ? e.message : 'Could not send — please try again.';
     });
+}
+// ---- Admin: responses (newest first), this year group unless "All year groups" ----
+var _shpLast = [];
+function shpVisible() {
+  var all = el('shp-all-years') && el('shp-all-years').checked;
+  return _shpLast.filter(function(r) { return all || r.year === _tripYear; });
+}
+function shpLoadResults() {
+  var out = el('shp-results');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/health-profile/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      _shpLast = ((b && b.profiles) || []).slice().sort(function(a, b) { return (Number(b.ts) || 0) - (Number(a.ts) || 0); });
+      shpRenderResults();
+    })
+    .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load responses.</span>'; });
+}
+function shpAnswerText(r, q) {
+  var v = (r.answers || {})[q.key];
+  if (Array.isArray(v)) {
+    var other = q.otherKey ? String((r.answers || {})[q.otherKey] || '') : '';
+    var t = v.filter(function(x) { return !(other && x === 'Other'); }).join('; ');
+    if (other) t += (t ? '; ' : '') + 'Other: ' + other;
+    return t;
+  }
+  return v == null ? '' : String(v);
+}
+function shpRenderResults() {
+  var out = el('shp-results');
+  if (!out) return;
+  var list = shpVisible();
+  var cnt = el('shp-admin-count');
+  if (cnt) cnt.textContent = list.length + ' response' + (list.length === 1 ? '' : 's');
+  if (!list.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No responses yet for ' + lunchEsc(TRIP_YEARS[_tripYear] || '') + '.</span>'; return; }
+  var byKey = {}; SHP_QUESTIONS.forEach(function(q) { byKey[q.key] = q; });
+  var html = '<div class="pd-reg-table-wrap"><table class="pd-reg-table shp-res-table"><tr>' +
+    '<th>Child</th><th>Year group</th><th>Medication</th><th>Injury / illness</th><th>Allergies</th><th>Safety info</th><th>Sent</th><th></th></tr>';
+  list.forEach(function(r) {
+    html += '<tr><td class="shp-name">' + lunchEsc(shpAnswerText(r, byKey.name)) + '</td>' +
+      '<td>' + lunchEsc(TRIP_YEARS[r.year] || r.year || '') + '</td>' +
+      '<td>' + lunchEsc(shpAnswerText(r, byKey.medication)) + '</td>' +
+      '<td>' + lunchEsc(shpAnswerText(r, byKey.injuries)) + '</td>' +
+      '<td>' + lunchEsc(shpAnswerText(r, byKey.allergies)) + '</td>' +
+      '<td>' + lunchEsc(shpAnswerText(r, byKey.safetyInfo)) + '</td>' +
+      '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
+      '<td style="text-align:center;white-space:nowrap;"><button type="button" class="abar-btn" style="font-size:11px;padding:2px 9px;" onclick="shpShowDetail(' + Number(r.ts) + ')">View</button> ' +
+      '<button type="button" title="Delete this response" onclick="shpDelete(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
+  });
+  html += '</table></div><div id="shp-detail"></div>';
+  out.innerHTML = html;
+}
+function shpShowDetail(ts) {
+  var r = _shpLast.filter(function(x) { return Number(x.ts) === ts; })[0], box = el('shp-detail');
+  if (!r || !box) return;
+  var h = '<div class="shp-detail"><div><b>' + lunchEsc(TRIP_YEARS[r.year] || r.year || '') + '</b> — sent ' + lunchEsc(new Date(r.ts).toLocaleString()) + '</div>';
+  SHP_QUESTIONS.forEach(function(q) { h += '<div><b>' + lunchEsc(q.label) + '</b><br>' + (lunchEsc(shpAnswerText(r, q)) || '<span style="color:#999">—</span>') + '</div>'; });
+  h += '<button type="button" class="abar-btn" style="font-size:11px;padding:3px 12px;" onclick="el(\'shp-detail\').innerHTML=\'\'">Close</button></div>';
+  box.innerHTML = h;
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function shpDelete(ts) {
+  if (!confirm('Delete this health profile response?')) return;
+  fetch('/api/health-profile/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ts: ts }) })
+    .then(function() { _shpLast = _shpLast.filter(function(x) { return Number(x.ts) !== ts; }); shpRenderResults(); });
+}
+function shpClearResults() {
+  var all = el('shp-all-years') && el('shp-all-years').checked;
+  var what = all ? 'ALL health profile responses for every year group' : 'all health profile responses for ' + (TRIP_YEARS[_tripYear] || _tripYear);
+  if (!confirm('Clear ' + what + '? A backup copy is kept on the server.')) return;
+  fetch('/api/health-profile/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(all ? {} : { year: _tripYear }) })
+    .then(function() { shpLoadResults(); });
+}
+// Every answer as a column, one row per response. Opens in Excel/Numbers.
+function shpDownloadCsv() {
+  var list = shpVisible();
+  var head = ['Sent', 'Year group'].concat(SHP_QUESTIONS.map(function(q) { return q.label; }));
+  var lines = [head.map(pdCsvCell).join(',')];
+  list.forEach(function(r) {
+    lines.push([new Date(r.ts).toLocaleString(), TRIP_YEARS[r.year] || r.year || ''].concat(SHP_QUESTIONS.map(function(q) { return shpAnswerText(r, q); })).map(pdCsvCell).join(','));
+  });
+  var all = el('shp-all-years') && el('shp-all-years').checked, d = new Date();
+  var fname = 'Student Health Profiles ' + (all ? 'all years' : (TRIP_YEARS[_tripYear] || _tripYear)) + ' ' + String(d.getDate()).padStart(2, '0') + '-' +
+              String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 // ===================== 2027 CLASS LIST REQUESTS =====================

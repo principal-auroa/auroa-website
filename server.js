@@ -116,6 +116,14 @@ function load() {
   if (!data.homeinfoImages)    data.homeinfoImages    = {};
   if (!Array.isArray(data.petdayBooklet)) data.petdayBooklet = [];
   if (!data.classroomImages)   data.classroomImages   = {};
+  if (!data.tripImages)        data.tripImages        = {};
+  // Migrate the old School Trips shape ({ 'y5-1': file }) to { y5: [file, …] }, slot order kept.
+  Object.keys(data.tripImages).filter(k => /^(y14|y5|y6|y7|y8)-\d+$/.test(k)).sort().forEach(k => {
+    const y = k.split('-')[0];
+    if (!Array.isArray(data.tripImages[y])) data.tripImages[y] = [];
+    if (data.tripImages[k]) data.tripImages[y].push(data.tripImages[k]);
+    delete data.tripImages[k];
+  });
   if (!data.staffSlots)        data.staffSlots        = {};
   if (!Array.isArray(data.lunchOrders)) data.lunchOrders = [];
   if (typeof data.lunchResetAt !== 'number') data.lunchResetAt = 0;
@@ -448,6 +456,7 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/],
+  ['POST', /^\/health-profile\/submit$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
 ];
@@ -789,24 +798,30 @@ app.post('/api/upload/classroom/:slot', uploader('classroom').single('image'), r
   res.json({ filename: req.file.filename });
 });
 
-// School Trips year pages: 3 image slots per year (slot = 'y5-1' etc.).
-const TRIP_SLOT = /^(y14|y5|y6|y7|y8)-[1-3]$/;
-app.post('/api/upload/trip/:slot', uploader('trip').single('image'), resizeUpload, (req, res) => {
+// School Trips year pages: any number of images per year, top to bottom
+// (data.tripImages = { y5: ['trip-….jpg', …] }). ?replace=<filename> swaps one
+// in place; otherwise the new image goes on the end.
+const TRIP_YEAR = /^(y14|y5|y6|y7|y8)$/;
+app.post('/api/upload/trip/:year', uploader('trip').single('image'), resizeUpload, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  if (!TRIP_SLOT.test(req.params.slot)) { deleteFile(req.file.filename); return res.status(400).json({ error: 'Bad slot' }); }
+  const year = req.params.year;
+  if (!TRIP_YEAR.test(year)) { deleteFile(req.file.filename); return res.status(400).json({ error: 'Bad year' }); }
   const data = load();
-  if (!data.tripImages) data.tripImages = {};
-  if (data.tripImages[req.params.slot]) deleteFile(data.tripImages[req.params.slot]);
-  data.tripImages[req.params.slot] = req.file.filename;
+  const list = data.tripImages[year] || (data.tripImages[year] = []);
+  const replace = req.query.replace ? path.basename(String(req.query.replace)) : null;
+  const at = replace ? list.indexOf(replace) : -1;
+  if (at >= 0) { deleteFile(list[at]); list[at] = req.file.filename; }
+  else list.push(req.file.filename);
   save(data);
-  res.json({ filename: req.file.filename });
+  res.json({ filename: req.file.filename, images: list });
 });
-app.delete('/api/trip-image/:slot', (req, res) => {
-  const slot = req.params.slot;
+app.delete('/api/trip-image/:year/:filename', (req, res) => {
+  const year = req.params.year, name = path.basename(req.params.filename);
+  if (!TRIP_YEAR.test(year)) return res.status(400).json({ error: 'Bad year' });
   const data = load();
-  if (!data.tripImages) data.tripImages = {};
-  if (data.tripImages[slot]) { deleteFile(data.tripImages[slot]); delete data.tripImages[slot]; save(data); }
-  res.json({ ok: true });
+  const list = data.tripImages[year] || [];
+  if (list.includes(name)) { data.tripImages[year] = list.filter(f => f !== name); deleteFile(name); save(data); }
+  res.json({ ok: true, images: data.tripImages[year] || [] });
 });
 
 app.delete('/api/classroom-image/:slot', (req, res) => {
@@ -1221,6 +1236,78 @@ app.post('/api/classlist/delete', (req, res) => {
     if (idx === -1) return res.json({ ok: true, deleted: 0 });
     list.splice(idx, 1);
     fs.writeFile(CLASSLIST_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+
+// ---- Student Health Profile (School Trips year pages) ----
+// Parents fill it in on a year's trip page; answers go to HEALTH_FILE (never
+// into /api/state — it is medical information, admin-only). The questions
+// mirror the school's Google Form "Auroa Student Health profile".
+const HEALTH_FILE = path.join(DATA_DIR, 'health-profiles.json');
+const SHP_YEAR = /^(y14|y5|y6|y7|y8)$/;
+const SHP_FIELDS = [
+  ['name', 'text', 200, true], ['emergency', 'text', 1000], ['medicAlert', 'text', 100], ['csc', 'text', 100],
+  ['conditions', 'multi', ['Migraine', 'Diabetes', 'Chronic nose bleeds', 'Colour blindness', 'Epilepsy', 'Travel sickness', 'Heart condition', 'Asthma', 'Fits of any type', 'Dizzy spells', 'Sleep walking', 'Bed wetting', 'Other']],
+  ['conditionsOther', 'text', 300],
+  ['medication', 'one', ['Yes', 'No'], true], ['medicationDetails', 'text', 2000], ['medicationNames', 'text', 2000],
+  ['dosage', 'text', 2000], ['otherTreatment', 'text', 2000],
+  ['injuries', 'one', ['Yes', 'No'], true], ['injuryDetails', 'text', 2000],
+  ['allergies', 'multi', ['No known allergies', 'Prescription medication', 'Food', 'Insect bites/stings', 'Other allergies'], true],
+  ['allergyTreatment', 'text', 2000], ['dietary', 'text', 2000], ['painMeds', 'text', 2000],
+  ['safetyInfo', 'one', ['Yes', 'No'], true], ['safetyDetails', 'text', 3000],
+  ['agreeMeds', 'one', ['Yes'], true], ['agreeInform', 'one', ['Yes'], true], ['agreeTreatment', 'one', ['Yes'], true],
+  ['agreeCosts', 'one', ['Yes'], true], ['agreeDiscipline', 'one', ['Yes'], true],
+];
+function shpReadAll(cb) {
+  fs.readFile(HEALTH_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    cb(list);
+  });
+}
+app.post('/api/health-profile/submit', (req, res) => {
+  const b = req.body || {}, a = (b.answers && typeof b.answers === 'object') ? b.answers : {};
+  const year = String(b.year || '');
+  if (!SHP_YEAR.test(year)) return res.status(400).json({ error: 'Bad year group' });
+  const answers = {};
+  for (const [key, type, arg, required] of SHP_FIELDS) {
+    const v = a[key];
+    if (type === 'text') {
+      answers[key] = String(v == null ? '' : v).trim().slice(0, arg);
+      if (required && !answers[key]) return res.status(400).json({ error: 'A required answer is missing.' });
+    } else if (type === 'one') {
+      answers[key] = arg.includes(v) ? v : '';
+      if (required && !answers[key]) return res.status(400).json({ error: 'A required answer is missing.' });
+    } else {
+      answers[key] = (Array.isArray(v) ? v : []).filter(x => arg.includes(x)).filter((x, i, l) => l.indexOf(x) === i);
+      if (required && !answers[key].length) return res.status(400).json({ error: 'A required answer is missing.' });
+    }
+  }
+  shpReadAll((list) => {
+    list.push({ ts: Date.now(), year, answers });
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+app.post('/api/health-profile/results', (req, res) => {
+  shpReadAll((list) => res.json({ profiles: list }));
+});
+app.post('/api/health-profile/delete', (req, res) => {
+  const ts = Number((req.body || {}).ts);
+  if (!ts) return res.status(400).json({ error: 'ts required' });
+  shpReadAll((list) => {
+    const idx = list.findIndex(r => Number(r.ts) === ts);
+    if (idx === -1) return res.json({ ok: true, deleted: 0 });
+    list.splice(idx, 1);
+    fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+app.post('/api/health-profile/clear', (req, res) => {
+  const year = String((req.body || {}).year || '');
+  shpReadAll((list) => {
+    try { if (list.length) fs.writeFileSync(HEALTH_FILE + '.cleared-' + Date.now() + '.bak', JSON.stringify(list)); } catch (e) {}
+    const keep = SHP_YEAR.test(year) ? list.filter(r => r.year !== year) : [];
+    fs.writeFile(HEALTH_FILE, JSON.stringify(keep), () => res.json({ ok: true, cleared: list.length - keep.length }));
   });
 });
 
