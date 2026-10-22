@@ -279,7 +279,7 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 #sidebar-classlist-wrap{position:relative;}
 /* Admin-only Show/Hide switch under each special pill; a hidden pill is
    faded for the admin (visitors don't see it at all). */
-.sb-pill-admin{margin:-8px 16px 14px;padding:0;justify-content:center;}
+.sb-pill-admin{margin-top:-8px;margin-bottom:12px;}
 .sb-pill-off > .sidebar-btn{opacity:0.35;}
 .sidebar-btn.stationery{
   color:#fff;font-weight:400;font-size:16px;
@@ -1118,6 +1118,7 @@ body.is-admin .sidebar-imp-add{display:block;}
    natural height instead of cropping it. min-height above only applies
    while the box is empty. */
 .edu-val-blue img{width:100%;height:auto;display:block;border-radius:8px;}
+.edu-val-wide{width:100%;min-height:220px;}
 @media (max-width:768px){
   #pride-wrap.edu-values-grid{gap:12px;}
   .edu-val-blue{min-height:110px;}
@@ -3347,44 +3348,14 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <div class="edu-text editable" id="ec-edu2"><p></p></div>
 
-      <!-- About Us values: two rows of two poster boxes (the orange word
-           banners were removed). -->
+      <!-- About Us: one full-width image box under the text (replaced the
+           four poster boxes). -->
       <div id="pride-wrap" class="edu-values-grid">
-        <div class="edu-val-row">
-          <div class="edu-val-unit">
-            <div class="edu-val edu-val-blue" id="pc-bl">
-              <img loading="lazy" decoding="async" id="pc-bl-img" style="display:none;" alt="">
-              <div class="pc-upload-ov" onclick="el('pc-bl-fin').click()"><span>+</span></div>
-              <input class="file-in" id="pc-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-bl',this)">
-              <button class="img-link-btn" id="lb-pc-bl" onclick="event.stopPropagation();openImgLinkEditor('pc-bl',this)">🔗</button>
-            </div>
-          </div>
-          <div class="edu-val-unit">
-            <div class="edu-val edu-val-blue" id="pc2-bl">
-              <img loading="lazy" decoding="async" id="pc2-bl-img" style="display:none;" alt="">
-              <div class="pc-upload-ov" onclick="el('pc2-bl-fin').click()"><span>+</span></div>
-              <input class="file-in" id="pc2-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc2-bl',this)">
-              <button class="img-link-btn" id="lb-pc2-bl" onclick="event.stopPropagation();openImgLinkEditor('pc2-bl',this)">🔗</button>
-            </div>
-          </div>
-        </div>
-        <div class="edu-val-row">
-          <div class="edu-val-unit">
-            <div class="edu-val edu-val-blue" id="pc3-bl">
-              <img loading="lazy" decoding="async" id="pc3-bl-img" style="display:none;" alt="">
-              <div class="pc-upload-ov" onclick="el('pc3-bl-fin').click()"><span>+</span></div>
-              <input class="file-in" id="pc3-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc3-bl',this)">
-              <button class="img-link-btn" id="lb-pc3-bl" onclick="event.stopPropagation();openImgLinkEditor('pc3-bl',this)">🔗</button>
-            </div>
-          </div>
-          <div class="edu-val-unit">
-            <div class="edu-val edu-val-blue" id="pc4-bl">
-              <img loading="lazy" decoding="async" id="pc4-bl-img" style="display:none;" alt="">
-              <div class="pc-upload-ov" onclick="el('pc4-bl-fin').click()"><span>+</span></div>
-              <input class="file-in" id="pc4-bl-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc4-bl',this)">
-              <button class="img-link-btn" id="lb-pc4-bl" onclick="event.stopPropagation();openImgLinkEditor('pc4-bl',this)">🔗</button>
-            </div>
-          </div>
+        <div class="edu-val edu-val-blue edu-val-wide" id="pc-wide">
+          <img loading="lazy" decoding="async" id="pc-wide-img" style="display:none;" alt="">
+          <div class="pc-upload-ov" onclick="el('pc-wide-fin').click()"><span>+</span></div>
+          <input class="file-in" id="pc-wide-fin" type="file" accept="image/*" onchange="uploadPrideImg('pc-wide',this)">
+          <button class="img-link-btn" id="lb-pc-wide" onclick="event.stopPropagation();openImgLinkEditor('pc-wide',this)">🔗</button>
         </div>
       </div>
 
@@ -5438,7 +5409,7 @@ function fetchState(_retry) {
       if (data['imgLink_hfoot-box']) imgLinks['hfoot-box'] = data['imgLink_hfoot-box'];
       ['edu-foot-box-1','edu-foot-box-2','edu-foot-box-3','edu-foot-box-4','edu-foot-box-5','edu-foot-box-6',
        'pc-pride','pc2-pride','pc3-pride','pc4-pride',
-       'pc-bl','pc2-bl','pc3-bl','pc4-bl'].forEach(function(bid) {
+       'pc-bl','pc2-bl','pc3-bl','pc4-bl','pc-wide'].forEach(function(bid) {
         if (data['imgLink_' + bid]) imgLinks[bid] = data['imgLink_' + bid];
       });
       prideClusters.forEach(function(c){ c.loadData(data); });
@@ -7441,9 +7412,8 @@ function renderSidebarPages() {
   pageConfig.forEach(function(pg) {
     if (alreadyRendered[pg.id]) return;
     // Class List, Pet Day + School Survey each have their own coloured pill
-    // under Enrol Here. Visitors only see those; admins also keep the managed
-    // list entry (rename / show-hide / delete).
-    if (SPECIAL_PILLS[pg.id] && !isAdmin) return;
+    // under Enrol Here (with its own Show/Hide switch), so skip them here.
+    if (SPECIAL_PILLS[pg.id]) return;
     renderPage(pg, null);
   });
 
@@ -7456,7 +7426,8 @@ function renderSidebarPages() {
     w.classList.toggle('sb-pill-off', !!(p && p.hidden));
     var hb = el(SPECIAL_PILLS[id] + '-hide-btn');
     if (hb && p) {
-      hb.textContent = p.hidden ? '👁 Show to visitors' : '🙈 Hide from visitors';
+      hb.textContent = p.hidden ? '👁 Show' : '🙈 Hide';
+      hb.title = p.hidden ? 'Hidden from the public — click to show' : 'Visible to the public — click to hide';
       hb.className = 'sb-page-tool' + (p.hidden ? ' sb-active' : '');
     }
   });
@@ -9453,7 +9424,7 @@ function uploadPrideImg(slotId, input) {
 function applyImgLinks() {
   var ids = ['hdr-box',
     'pc-pride', 'pc2-pride', 'pc3-pride', 'pc4-pride',
-    'pc-bl', 'pc2-bl', 'pc3-bl', 'pc4-bl'];
+    'pc-bl', 'pc2-bl', 'pc3-bl', 'pc4-bl', 'pc-wide'];
   ids.forEach(function(id) {
     var btn = el('lb-' + id);
     if (!btn) return;
