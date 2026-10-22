@@ -1425,6 +1425,21 @@ body.is-admin .pd-admin{display:block;}
 .pd-reg-table th.pd-sortable:hover{background:#e9ecf1;}
 .pd-reg-cat{font-weight:700;}
 
+/* ---- SCHOOL TRIPS PAGE ---- */
+.trips-btn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
+.trips-btn{
+  border:none;border-radius:10px;min-height:56px;padding:12px;cursor:pointer;
+  font-family:'Quicksand',sans-serif;font-size:16px;font-weight:600;color:#fff;
+  background:linear-gradient(#c25a50,#ab4a41);box-shadow:0 4px 0 #8f3c34,0 6px 12px rgba(0,0,0,0.18);
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+.trips-btn:hover{background:linear-gradient(#b85046,#9e4239);}
+.trips-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f3c34,0 2px 6px rgba(0,0,0,0.18);}
+.trips-btn.is-current{background:linear-gradient(#8f3c34,#702e28);box-shadow:0 4px 0 #5a241f,0 6px 12px rgba(0,0,0,0.18);}
+.trips-year{display:none;}
+.trips-year.is-current{display:block;}
+.trips-year-h{color:#1a2b4a;font-size:20px;font-weight:700;margin:0 0 8px;}
+
 /* ---- 2027 CLASS LIST REQUESTS PAGE ---- */
 .cl-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
 body.is-admin .cl-admin{display:block;}
@@ -4023,6 +4038,35 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== SCHOOL TRIPS PAGE ======== -->
+  <!-- One button per year group; each shows its own admin-editable text box. -->
+  <div id="pg-trips" class="page">
+    <div class="pg-header" id="ph-trips"></div>
+    <div class="pg-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">School Trips</h1>
+      </div>
+      <div class="trips-btn-grid">
+        <button type="button" class="trips-btn" data-year="y14" onclick="tripsShowYear('y14')">Year 1–4</button>
+        <button type="button" class="trips-btn" data-year="y5" onclick="tripsShowYear('y5')">Year 5</button>
+        <button type="button" class="trips-btn" data-year="y6" onclick="tripsShowYear('y6')">Year 6</button>
+        <button type="button" class="trips-btn" data-year="y7" onclick="tripsShowYear('y7')">Year 7</button>
+        <button type="button" class="trips-btn" data-year="y8" onclick="tripsShowYear('y8')">Year 8</button>
+      </div>
+      <div class="trips-year" id="trips-year-y14"><h2 class="trips-year-h">Year 1–4 Trips</h2>
+        <div class="editable" id="ec-trips-y14"><p>Information about Year 1–4 trips will appear here.</p></div></div>
+      <div class="trips-year" id="trips-year-y5"><h2 class="trips-year-h">Year 5 Trips</h2>
+        <div class="editable" id="ec-trips-y5"><p>Information about Year 5 trips will appear here.</p></div></div>
+      <div class="trips-year" id="trips-year-y6"><h2 class="trips-year-h">Year 6 Trips</h2>
+        <div class="editable" id="ec-trips-y6"><p>Information about Year 6 trips will appear here.</p></div></div>
+      <div class="trips-year" id="trips-year-y7"><h2 class="trips-year-h">Year 7 Trips</h2>
+        <div class="editable" id="ec-trips-y7"><p>Information about Year 7 trips will appear here.</p></div></div>
+      <div class="trips-year" id="trips-year-y8"><h2 class="trips-year-h">Year 8 Trips</h2>
+        <div class="editable" id="ec-trips-y8"><p>Information about Year 8 trips will appear here.</p></div></div>
+    </div>
+  </div>
+
   <!-- ======== CAMPS / DAY TRIPS PAGE ======== -->
   <div id="pg-camps" class="page">
     <div class="pg-header" id="ph-camps"></div>
@@ -4817,6 +4861,7 @@ var PAGE_CONFIG_DEFAULTS = [
   { id:'pg-events',     label:'Upcoming Events',   hidden:false },
   { id:'pg-educate',    label:'About us',           hidden:false },
   { id:'pg-sports',     label:'Sports & Events',    hidden:false },
+  { id:'pg-trips',      label:'School Trips',       hidden:false },
   { id:'pg-newentrant', label:'New Entrant Info',   hidden:false },
   { id:'pg-buses',      label:'Buses',              hidden:false },
   { id:'pg-year78',     label:'Year 7/8 Program',   hidden:false },
@@ -5098,6 +5143,11 @@ function fetchState(_retry) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-petday'; })) {
         pageConfig.push({ id:'pg-petday', label:'Lamb / Calf / Pet Day Registration', hidden:true });
       }
+      // School Trips page (red pill under Sports & Events) for saved configs
+      // that predate it.
+      if (!pageConfig.some(function(p){ return p.id === 'pg-trips'; })) {
+        pageConfig.push({ id:'pg-trips', label:'School Trips', hidden:false });
+      }
       // 2027 Class List Requests: starts HIDDEN (admin publishes it with the
       // 👁 Show switch under its pill when requests open).
       if (!pageConfig.some(function(p){ return p.id === 'pg-classlist'; })) {
@@ -5164,7 +5214,7 @@ function fetchState(_retry) {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps','homevideo'].forEach(function(k) {
+      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps','homevideo','trips-y14','trips-y5','trips-y6','trips-y7','trips-y8'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
@@ -5935,7 +5985,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','trips'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -6703,6 +6753,17 @@ function pdDownloadCsv() {
   setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+// ===================== SCHOOL TRIPS =====================
+// Show one year group's trip info (null = none open, just the buttons).
+function tripsShowYear(year) {
+  document.querySelectorAll('#pg-trips .trips-btn').forEach(function(b) {
+    b.classList.toggle('is-current', b.getAttribute('data-year') === year);
+  });
+  document.querySelectorAll('#pg-trips .trips-year').forEach(function(d) {
+    d.classList.toggle('is-current', d.id === 'trips-year-' + year);
+  });
+}
+
 // ===================== 2027 CLASS LIST REQUESTS =====================
 function clSubmit() {
   var status = el('cl-status');
@@ -6888,6 +6949,7 @@ function showPage(id) {
   if (id === 'pg-petday') {
     if (isAdmin && typeof pdLoadResults === 'function') pdLoadResults();
   }
+  if (id === 'pg-trips' && typeof tripsShowYear === 'function') tripsShowYear(null);
   if (id === 'pg-classlist') {
     if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
@@ -7174,7 +7236,8 @@ function renderSidebarPages() {
 
   // Group 2 — red: Upcoming Events, Sports & Events
   renderPage(findPage('pg-events'), 'group-red');
-  renderPage(findPage('pg-sports'), 'group-red', true);
+  renderPage(findPage('pg-sports'), 'group-red');
+  renderPage(findPage('pg-trips'),  'group-red', true);
 
   // Group 3 — green: Order Stationery, School Lunch Orders
   renderSynthetic('Order Stationery',    'group-green', function(e){ stationeryClick(e); }, 'stationery-btn');
@@ -7213,7 +7276,7 @@ function renderSidebarPages() {
   renderPage(findPage('pg-camps'), 'camps-page');
 
   // Remaining pages — plain style, original order
-  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-absence':1,
+  var alreadyRendered = { 'pg-educate':1, 'pg-newentrant':1, 'pg-events':1, 'pg-sports':1, 'pg-trips':1, 'pg-absence':1,
                           'pg-buses':1, 'pg-year78':1, 'pg-apple':1, 'pg-camps':1 };
   pageConfig.forEach(function(pg) {
     if (alreadyRendered[pg.id]) return;
@@ -7359,7 +7422,7 @@ var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
   'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests',
-  'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips',
+  'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
   'pg-linkdetail': 'Link Page',
