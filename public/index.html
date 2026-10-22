@@ -281,6 +281,11 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
    faded for the admin (visitors don't see it at all). */
 .sb-pill-admin{margin-top:-8px;margin-bottom:12px;}
 .sb-pill-off > .sidebar-btn{opacity:0.35;}
+/* Fixed sidebar buttons (Enrol Here, Contact Us, Home…) hidden by the admin. */
+.sb-fixed-hidden > .sidebar-btn{opacity:0.35;}
+body:not(.is-admin) .sb-fixed-hidden{display:none !important;}
+.sb-restore-btn{display:none;margin:4px 16px 14px;width:calc(100% - 32px);}
+body.is-admin .sb-restore-btn{display:block;}
 .sidebar-btn.stationery{
   color:#fff;font-weight:400;font-size:16px;
   background:#2980b9;border:none;border-left:none;
@@ -5175,6 +5180,7 @@ function fetchState(_retry) {
         calendarData = data.calendarData;
       }
       renderCalendars();
+      sbBtnSettings = data.sidebarBtnSettings || {};
       pageConfig = (data.pageConfig || PAGE_CONFIG_DEFAULTS).map(function(p) {
         // migrate: ensure all fields present
         return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
@@ -5200,8 +5206,12 @@ function fetchState(_retry) {
       // Lamb/Calf/Pet Day registration: starts HIDDEN (admin publishes it with
       // the 👁 Show toggle in the sidebar when registrations open).
       if (!pageConfig.some(function(p){ return p.id === 'pg-petday'; })) {
-        pageConfig.push({ id:'pg-petday', label:'Lamb / Calf / Pet Day Registration', hidden:true });
+        pageConfig.push({ id:'pg-petday', label:'Lamb / Calf / Pet Day', hidden:true });
       }
+      // The pill now shows the page's (renamable) label; keep the old pill text.
+      pageConfig.forEach(function(p) {
+        if (p.id === 'pg-petday' && p.label === 'Lamb / Calf / Pet Day Registration') p.label = 'Lamb / Calf / Pet Day';
+      });
       // School Trips page (red pill under Sports & Events) for saved configs
       // that predate it.
       if (!pageConfig.some(function(p){ return p.id === 'pg-trips'; })) {
@@ -7536,33 +7546,14 @@ function renderSidebarPages() {
 
     var adminRow = document.createElement('div');
     adminRow.className = 'sb-page-admin';
-
-    var renBtn = document.createElement('button');
-    renBtn.className = 'sb-page-tool';
-    renBtn.title = 'Rename';
-    renBtn.textContent = '✏ Rename';
-    renBtn.onclick = (function(p){ return function(e){ e.stopPropagation(); pageRename(p); }; })(pg);
-
-    var hideBtn = document.createElement('button');
-    hideBtn.className = 'sb-page-tool' + (pg.hidden ? ' sb-active' : '');
-    hideBtn.title = pg.hidden ? 'Show page' : 'Hide page';
-    hideBtn.textContent = pg.hidden ? '👁 Show' : '🙈 Hide';
-    hideBtn.onclick = (function(p){ return function(e){ e.stopPropagation(); pageToggleHide(p); }; })(pg);
-
-    var delBtn = document.createElement('button');
-    delBtn.className = 'sb-page-tool sb-del';
-    delBtn.title = 'Delete from sidebar';
-    delBtn.textContent = '🗑 Delete';
-    delBtn.onclick = (function(p){ return function(e){ e.stopPropagation(); pageDelete(p); }; })(pg);
-
-    adminRow.appendChild(renBtn);
-    adminRow.appendChild(hideBtn);
-    adminRow.appendChild(delBtn);
+    sbFillTools(adminRow, pg.hidden,
+      function(){ pageRename(pg); }, function(){ pageToggleHide(pg); }, function(){ pageDelete(pg); });
     div.appendChild(adminRow);
     wrap.appendChild(div);
   }
 
-  function renderSynthetic(label, colorClass, onClick, btnId, lastInGroup) {
+  // A fixed (non-page) button; key = its entry in sbBtnSettings.
+  function renderSynthetic(key, label, colorClass, onClick, btnId, lastInGroup) {
     var div = document.createElement('div');
     div.className = 'sb-page-wrap';
     var btn = document.createElement('button');
@@ -7574,10 +7565,12 @@ function renderSidebarPages() {
     btn.onclick = onClick;
     div.appendChild(btn);
     wrap.appendChild(div);
+    sbApplyFixed(key, div, btn);
+    return btn;
   }
 
   // Group 1 — light blue: Home, About us, New Entrant Info
-  renderSynthetic('Home', 'group-blue', function(e){ bubbleGo(e, 'pg-home'); });
+  renderSynthetic('home', 'Home', 'group-blue', function(e){ bubbleGo(e, 'pg-home'); });
   renderPage(findPage('pg-educate'),    'group-blue');
   renderPage(findPage('pg-newentrant'), 'group-blue', true);
 
@@ -7587,8 +7580,8 @@ function renderSidebarPages() {
   renderPage(findPage('pg-trips'),  'group-red', true);
 
   // Group 3 — green: Order Stationery, School Lunch Orders
-  renderSynthetic('Order Stationery',    'group-green', function(e){ stationeryClick(e); }, 'stationery-btn');
-  renderSynthetic('School Lunch Orders', 'group-green', function(e){
+  renderSynthetic('stationery', 'Order Stationery',    'group-green', function(e){ stationeryClick(e); }, 'stationery-btn');
+  renderSynthetic('lunch', 'School Lunch Orders', 'group-green', function(e){
     bubbleGo(e, 'pg-lunch-orders');
   }, 'lunch-orders-btn', true);
 
@@ -7596,24 +7589,17 @@ function renderSidebarPages() {
   renderPage(findPage('pg-absence'), null);
 
   // School Newsletter + Messages — grey boxes directly under Student Absence.
-  renderSynthetic('School Newsletter', 'sb-grey', function(e){ bubbleGo(e, 'pg-newsletter'); });
+  renderSynthetic('newsletter', 'School Newsletter', 'sb-grey', function(e){ bubbleGo(e, 'pg-newsletter'); });
   (function(){
-    var div = document.createElement('div');
-    div.className = 'sb-page-wrap';
-    var btn = document.createElement('button');
-    btn.className = 'sidebar-btn sb-grey';
-    btn.textContent = 'School notifications';
-    btn.onclick = function(e){ bubbleGo(e, 'pg-messages'); };
+    var btn = renderSynthetic('notifications', 'School notifications', 'sb-grey', function(e){ bubbleGo(e, 'pg-messages'); });
     var badge = document.createElement('span');
     badge.id = 'sidebar-msg-badge';
     badge.className = 'sidebar-msg-badge';
     btn.appendChild(badge);
-    div.appendChild(btn);
-    wrap.appendChild(div);
   })();
 
   // Hall Bookings (grey) then Buses (gold) under Messages.
-  renderSynthetic('Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); });
+  renderSynthetic('hall', 'Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); });
   renderPage(findPage('pg-buses'), 'group-gold', true);
 
   // Year 7/8 Program + Apple Distinguished School — gold pills.
@@ -7634,19 +7620,35 @@ function renderSidebarPages() {
   });
 
   // Show the special pills under Enrol Here when the page is published
-  // (admins always see them, faded while hidden, with a Show/Hide switch).
+  // (admins always see them, faded while hidden, with Rename/Hide/Delete).
+  // Deleting one only flags it (sbBtnSettings) — the page itself stays.
   Object.keys(SPECIAL_PILLS).forEach(function(id) {
     var p = findPage(id); var w = el(SPECIAL_PILLS[id] + '-wrap');
     if (!w) return;
-    w.style.display = (p && (isAdmin || !p.hidden)) ? '' : 'none';
+    var deleted = !!(sbBtnSettings[id] && sbBtnSettings[id].deleted);
+    w.style.display = (p && !deleted && (isAdmin || !p.hidden)) ? '' : 'none';
     w.classList.toggle('sb-pill-off', !!(p && p.hidden));
-    var hb = el(SPECIAL_PILLS[id] + '-hide-btn');
-    if (hb && p) {
-      hb.textContent = p.hidden ? '👁 Show' : '🙈 Hide';
-      hb.title = p.hidden ? 'Hidden from the public — click to show' : 'Visible to the public — click to hide';
-      hb.className = 'sb-page-tool' + (p.hidden ? ' sb-active' : '');
-    }
+    if (!p) return;
+    w.querySelector('.sidebar-btn').textContent = p.label;
+    sbFillTools(el(SPECIAL_PILLS[id] + '-tools'), p.hidden,
+      function(){ pageRename(p); }, function(){ pageToggleHide(p); },
+      function(){ sbDeleteFixed(id, p.label); });
   });
+
+  // Fixed buttons that live in the HTML rather than in this list.
+  sbApplyFixed('enrol',   el('sidebar-enrol-wrap'),   el('enrol-btn'));
+  sbApplyFixed('contact', el('sidebar-contact-wrap'), el('contact-btn'));
+  sbApplyFixed('portal',  el('sidebar-portal-wrap'),  el('portal-btn'));
+
+  // Admin: bring back anything deleted from the sidebar.
+  var gone = sbDeletedList();
+  if (gone.length) {
+    var rb = document.createElement('button');
+    rb.className = 'sb-page-tool sb-restore-btn';
+    rb.textContent = '↺ Restore deleted buttons (' + gone.length + ')';
+    rb.onclick = function(e){ e.stopPropagation(); sbRestoreDeleted(); };
+    wrap.appendChild(rb);
+  }
 
   // Re-apply the unread badge count (the Messages badge span was just rebuilt).
   if (typeof pmUpdateUnreadIndicators === 'function') pmUpdateUnreadIndicators();
@@ -7659,11 +7661,91 @@ function pageRename(pg) {
   apiSave('pageConfig', pageConfig, function() { renderSidebarPages(); flashSave('Renamed!'); });
 }
 
-// Admin Show/Hide switch under a special pill.
-function specialPillToggle(e, id) {
-  if (e) e.stopPropagation();
-  var pg = pageConfig.find(function(p) { return p.id === id; });
-  if (pg) pageToggleHide(pg);
+// ---- Rename / Hide / Delete for every sidebar button ----
+// Fixed buttons (not in pageConfig) keep their settings here, saved as
+// sidebarBtnSettings: key → { label, hidden, deleted }. The special pills
+// (Class List / Pet Day / Survey) use it only for "deleted".
+var sbBtnSettings = {};
+var SB_FIXED_LABELS = { enrol:'Enrol Here', contact:'Contact Us', home:'Home', stationery:'Order Stationery',
+  lunch:'School Lunch Orders', newsletter:'School Newsletter', notifications:'School notifications',
+  hall:'Hall Bookings', portal:'Register for Messages',
+  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey' };
+
+// Fill an admin row with the ✏ Rename / 🙈 Hide / 🗑 Delete buttons.
+function sbFillTools(row, hidden, onRename, onHide, onDelete) {
+  if (!row) return;
+  row.innerHTML = '';
+  [['✏ Rename', 'Rename', onRename, ''],
+   [hidden ? '👁 Show' : '🙈 Hide', hidden ? 'Show to visitors' : 'Hide from visitors', onHide, hidden ? ' sb-active' : ''],
+   ['🗑 Delete', 'Delete from sidebar', onDelete, ' sb-del']].forEach(function(t) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sb-page-tool' + t[3];
+    b.textContent = t[0];
+    b.title = t[1];
+    b.onclick = function(e) { e.stopPropagation(); t[2](); };
+    row.appendChild(b);
+  });
+}
+
+// Apply a fixed button's saved name / hidden / deleted state and give it a tools row.
+function sbApplyFixed(key, wrapEl, btn) {
+  if (!wrapEl || !btn) return;
+  var st = sbBtnSettings[key] || {};
+  var label = st.label || SB_FIXED_LABELS[key];
+  // Set only the text (the notifications button also holds its unread badge).
+  var tn = Array.prototype.find.call(btn.childNodes, function(n) { return n.nodeType === 3 && n.nodeValue.trim(); });
+  if (tn) tn.nodeValue = label; else btn.insertBefore(document.createTextNode(label), btn.firstChild);
+  wrapEl.classList.toggle('sb-fixed-hidden', !!st.hidden);
+  wrapEl.style.display = st.deleted ? 'none' : '';
+  var row = wrapEl.querySelector(':scope > .sb-fixed-tools');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'sb-page-admin sb-fixed-tools';
+    wrapEl.appendChild(row);
+  }
+  sbFillTools(row, !!st.hidden,
+    function() {
+      var name = prompt('Rename "' + label + '" to:', label);
+      if (!name || !name.trim() || name.trim() === label) return;
+      sbSetFixed(key, { label: name.trim() }, 'Renamed!');
+    },
+    function() { sbSetFixed(key, { hidden: !st.hidden }, st.hidden ? 'Button visible to visitors.' : 'Button hidden from visitors.'); },
+    function() { sbDeleteFixed(key, label); });
+}
+function sbSetFixed(key, changes, msg) {
+  var st = sbBtnSettings[key] = sbBtnSettings[key] || {};
+  Object.keys(changes).forEach(function(k) { st[k] = changes[k]; });
+  apiSave('sidebarBtnSettings', sbBtnSettings, function() { renderSidebarPages(); flashSave(msg); });
+}
+function sbDeleteFixed(key, label) {
+  if (!confirm('Remove "' + label + '" from the sidebar?\n\nYou can bring it back with "Restore deleted buttons" at the bottom of the sidebar.')) return;
+  sbSetFixed(key, { deleted: true }, 'Removed from sidebar.');
+}
+// Everything deleted from the sidebar: flagged fixed buttons + standard pages
+// that were removed from pageConfig.
+function sbDeletedList() {
+  var out = [];
+  Object.keys(sbBtnSettings).forEach(function(k) {
+    if (sbBtnSettings[k] && sbBtnSettings[k].deleted) out.push({ key: k, label: sbBtnSettings[k].label || SB_FIXED_LABELS[k] || k });
+  });
+  PAGE_CONFIG_DEFAULTS.forEach(function(d) {
+    if (!pageConfig.some(function(p) { return p.id === d.id; })) out.push({ page: d });
+  });
+  return out.map(function(x) { if (x.page) x.label = x.page.label; return x; });
+}
+function sbRestoreDeleted() {
+  var gone = sbDeletedList();
+  if (!confirm('Bring these back to the sidebar?\n\n' + gone.map(function(x) { return '• ' + x.label; }).join('\n'))) return;
+  var pagesBack = false;
+  gone.forEach(function(x) {
+    if (x.page) { pageConfig.push({ id: x.page.id, label: x.page.label, hidden: false }); pagesBack = true; }
+    else delete sbBtnSettings[x.key].deleted;
+  });
+  apiSave('sidebarBtnSettings', sbBtnSettings, function() {
+    if (pagesBack) apiSave('pageConfig', pageConfig, function() { renderSidebarPages(); flashSave('Restored!'); });
+    else { renderSidebarPages(); flashSave('Restored!'); }
+  });
 }
 
 function pageToggleHide(pg) {
@@ -11228,18 +11310,18 @@ document.addEventListener('click', function(e) {
        Visibility (published vs hidden) is managed in renderSidebarPages(). -->
   <div id="sidebar-classlist-wrap" style="display:none;">
     <button class="sidebar-btn classlist-reg" id="classlist-btn" onclick="bubbleGo(event,'pg-classlist')">2027 Class List Requests</button>
-    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="classlist-hide-btn" onclick="specialPillToggle(event,'pg-classlist')"></button></div>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-classlist-tools"></div>
   </div>
   <!-- Lamb/Calf/Pet Day registration — bright-purple pill under the class list pill.
        Visibility (published vs hidden) is managed in renderSidebarPages(). -->
   <div id="sidebar-petday-wrap" style="display:none;">
     <button class="sidebar-btn petday-reg" id="petday-btn" onclick="bubbleGo(event,'pg-petday')">Lamb / Calf / Pet Day</button>
-    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="petday-hide-btn" onclick="specialPillToggle(event,'pg-petday')"></button></div>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-petday-tools"></div>
   </div>
   <!-- School Survey — indigo pill under the Pet Day button (only while published). -->
   <div id="sidebar-survey-wrap" style="display:none;">
     <button class="sidebar-btn survey-reg" id="survey-btn" onclick="bubbleGo(event,'pg-survey')">School Survey</button>
-    <div class="sb-page-admin sb-pill-admin"><button class="sb-page-tool" id="survey-hide-btn" onclick="specialPillToggle(event,'pg-survey')"></button></div>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-survey-tools"></div>
   </div>
   <div id="sidebar-contact-wrap">
     <button class="sidebar-btn contact" id="contact-btn" onclick="contactClick(event)">Contact Us</button>
@@ -11262,10 +11344,10 @@ document.addEventListener('click', function(e) {
   </div>
   <div id="sidebar-imp-links"></div>
 
-  <button class="sidebar-btn parent-portal"
-          onclick="window.open('https://auroa-students-production.up.railway.app/parent','_blank','noopener')">
-    Register for Messages
-  </button>
+  <div id="sidebar-portal-wrap">
+  <button class="sidebar-btn parent-portal" id="portal-btn"
+          onclick="window.open('https://auroa-students-production.up.railway.app/parent','_blank','noopener')">Register for Messages</button>
+  </div>
 
   <div id="sidebar-audio-wrap">
     <div id="sidebar-audio-label">Page Audio</div>
