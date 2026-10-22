@@ -1435,10 +1435,8 @@ body.is-admin .pd-admin{display:block;}
 }
 .trips-btn:hover{background:linear-gradient(#b85046,#9e4239);}
 .trips-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f3c34,0 2px 6px rgba(0,0,0,0.18);}
-.trips-btn.is-current{background:linear-gradient(#8f3c34,#702e28);box-shadow:0 4px 0 #5a241f,0 6px 12px rgba(0,0,0,0.18);}
 .trips-year{display:none;}
 .trips-year.is-current{display:block;}
-.trips-year-h{color:#1a2b4a;font-size:20px;font-weight:700;margin:0 0 8px;}
 
 /* ---- 2027 CLASS LIST REQUESTS PAGE ---- */
 .cl-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
@@ -4039,7 +4037,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
   </div>
 
   <!-- ======== SCHOOL TRIPS PAGE ======== -->
-  <!-- One button per year group; each shows its own admin-editable text box. -->
+  <!-- One button per year group; each opens that year's page (pg-trip). -->
   <div id="pg-trips" class="page">
     <div class="pg-header" id="ph-trips"></div>
     <div class="pg-body">
@@ -4048,22 +4046,145 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         <h1 class="pg-title">School Trips</h1>
       </div>
       <div class="trips-btn-grid">
-        <button type="button" class="trips-btn" data-year="y14" onclick="tripsShowYear('y14')">Year 1–4</button>
-        <button type="button" class="trips-btn" data-year="y5" onclick="tripsShowYear('y5')">Year 5</button>
-        <button type="button" class="trips-btn" data-year="y6" onclick="tripsShowYear('y6')">Year 6</button>
-        <button type="button" class="trips-btn" data-year="y7" onclick="tripsShowYear('y7')">Year 7</button>
-        <button type="button" class="trips-btn" data-year="y8" onclick="tripsShowYear('y8')">Year 8</button>
+        <button type="button" class="trips-btn" data-year="y14" onclick="tripsOpenYear('y14')">Year 1–4</button>
+        <button type="button" class="trips-btn" data-year="y5" onclick="tripsOpenYear('y5')">Year 5</button>
+        <button type="button" class="trips-btn" data-year="y6" onclick="tripsOpenYear('y6')">Year 6</button>
+        <button type="button" class="trips-btn" data-year="y7" onclick="tripsOpenYear('y7')">Year 7</button>
+        <button type="button" class="trips-btn" data-year="y8" onclick="tripsOpenYear('y8')">Year 8</button>
       </div>
-      <div class="trips-year" id="trips-year-y14"><h2 class="trips-year-h">Year 1–4 Trips</h2>
-        <div class="editable" id="ec-trips-y14"><p>Information about Year 1–4 trips will appear here.</p></div></div>
-      <div class="trips-year" id="trips-year-y5"><h2 class="trips-year-h">Year 5 Trips</h2>
-        <div class="editable" id="ec-trips-y5"><p>Information about Year 5 trips will appear here.</p></div></div>
-      <div class="trips-year" id="trips-year-y6"><h2 class="trips-year-h">Year 6 Trips</h2>
-        <div class="editable" id="ec-trips-y6"><p>Information about Year 6 trips will appear here.</p></div></div>
-      <div class="trips-year" id="trips-year-y7"><h2 class="trips-year-h">Year 7 Trips</h2>
-        <div class="editable" id="ec-trips-y7"><p>Information about Year 7 trips will appear here.</p></div></div>
-      <div class="trips-year" id="trips-year-y8"><h2 class="trips-year-h">Year 8 Trips</h2>
-        <div class="editable" id="ec-trips-y8"><p>Information about Year 8 trips will appear here.</p></div></div>
+    </div>
+  </div>
+
+  <!-- ======== SCHOOL TRIP (YEAR GROUP) PAGE ======== -->
+  <!-- Opened from a year button on School Trips; shows that year's section
+       (admin-editable text + 3 image slots). -->
+  <div id="pg-trip" class="page">
+    <div class="pg-header" id="ph-trip"></div>
+    <div class="pg-body">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="showPage('pg-trips')">← Back</button>
+        <h1 class="pg-title" id="trip-title">School Trips</h1>
+      </div>
+      <div class="trips-year" id="trips-year-y14">
+        <div class="editable" id="ec-trips-y14"><p>Trip details and information for Year 1–4 will appear here.</p></div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y14-1" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-1',this)"></label>
+            <button onclick="removeTripImg('y14-1')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y14-2" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-2',this)"></label>
+            <button onclick="removeTripImg('y14-2')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y14-3" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y14-3',this)"></label>
+            <button onclick="removeTripImg('y14-3')">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="trips-year" id="trips-year-y5">
+        <div class="editable" id="ec-trips-y5"><p>Trip details and information for Year 5 will appear here.</p></div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y5-1" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-1',this)"></label>
+            <button onclick="removeTripImg('y5-1')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y5-2" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-2',this)"></label>
+            <button onclick="removeTripImg('y5-2')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y5-3" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y5-3',this)"></label>
+            <button onclick="removeTripImg('y5-3')">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="trips-year" id="trips-year-y6">
+        <div class="editable" id="ec-trips-y6"><p>Trip details and information for Year 6 will appear here.</p></div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y6-1" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-1',this)"></label>
+            <button onclick="removeTripImg('y6-1')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y6-2" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-2',this)"></label>
+            <button onclick="removeTripImg('y6-2')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y6-3" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y6-3',this)"></label>
+            <button onclick="removeTripImg('y6-3')">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="trips-year" id="trips-year-y7">
+        <div class="editable" id="ec-trips-y7"><p>Trip details and information for Year 7 will appear here.</p></div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y7-1" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-1',this)"></label>
+            <button onclick="removeTripImg('y7-1')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y7-2" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-2',this)"></label>
+            <button onclick="removeTripImg('y7-2')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y7-3" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y7-3',this)"></label>
+            <button onclick="removeTripImg('y7-3')">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="trips-year" id="trips-year-y8">
+        <div class="editable" id="ec-trips-y8"><p>Trip details and information for Year 8 will appear here.</p></div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y8-1" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-1',this)"></label>
+            <button onclick="removeTripImg('y8-1')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y8-2" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-2',this)"></label>
+            <button onclick="removeTripImg('y8-2')">Remove</button>
+          </div>
+        </div>
+        <div class="cl-full-img-slot">
+          <img loading="lazy" decoding="async" id="trip-img-y8-3" alt="" style="display:none">
+          <div class="cl-img-admin-bar">
+            <label>Upload Image<input type="file" accept="image/*" onchange="uploadTripImg('y8-3',this)"></label>
+            <button onclick="removeTripImg('y8-3')">Remove</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -5279,6 +5400,8 @@ function fetchState(_retry) {
 
       classroomImages = data.classroomImages || {};
       renderClassroomImages();
+      tripImages = data.tripImages || {};
+      renderTripImages();
       if (data.hitColWidths) { hitColWidths = data.hitColWidths; applyHitWidths(); }
 
       // Bus tables
@@ -5985,7 +6108,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','trips'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','trips','trip'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -6754,14 +6877,52 @@ function pdDownloadCsv() {
 }
 
 // ===================== SCHOOL TRIPS =====================
-// Show one year group's trip info (null = none open, just the buttons).
-function tripsShowYear(year) {
-  document.querySelectorAll('#pg-trips .trips-btn').forEach(function(b) {
-    b.classList.toggle('is-current', b.getAttribute('data-year') === year);
-  });
-  document.querySelectorAll('#pg-trips .trips-year').forEach(function(d) {
+var TRIP_YEARS = { y14: 'Year 1\u20134', y5: 'Year 5', y6: 'Year 6', y7: 'Year 7', y8: 'Year 8' };
+var tripImages = {};   // slot ('y5-1') → uploaded filename
+// Open one year group's trip page.
+function tripsOpenYear(year) {
+  el('trip-title').textContent = TRIP_YEARS[year] + ' Trips';
+  document.querySelectorAll('#pg-trip .trips-year').forEach(function(d) {
     d.classList.toggle('is-current', d.id === 'trips-year-' + year);
   });
+  renderTripImages();
+  showPage('pg-trip');
+}
+function renderTripImages() {
+  Object.keys(TRIP_YEARS).forEach(function(y) {
+    ['1','2','3'].forEach(function(n) {
+      var slot = y + '-' + n, img = el('trip-img-' + slot);
+      if (!img) return;
+      if (tripImages[slot]) { img.src = '/uploads/' + tripImages[slot]; img.style.display = 'block'; }
+      else { img.removeAttribute('src'); img.style.display = 'none'; }
+      // Visitors don't see empty slots.
+      img.parentNode.style.display = (tripImages[slot] || isAdmin) ? '' : 'none';
+    });
+  });
+}
+function uploadTripImg(slot, input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/trip/' + slot, { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.filename) throw new Error('no file');
+      tripImages[slot] = data.filename;
+      renderTripImages();
+      flashSave('Image saved!');
+    })
+    .catch(function() { flashSave('Upload failed.'); });
+  input.value = '';
+}
+function removeTripImg(slot) {
+  fetch('/api/trip-image/' + slot, { method: 'DELETE' })
+    .then(function() {
+      delete tripImages[slot];
+      renderTripImages();
+      flashSave('Removed!');
+    });
 }
 
 // ===================== 2027 CLASS LIST REQUESTS =====================
@@ -6949,7 +7110,6 @@ function showPage(id) {
   if (id === 'pg-petday') {
     if (isAdmin && typeof pdLoadResults === 'function') pdLoadResults();
   }
-  if (id === 'pg-trips' && typeof tripsShowYear === 'function') tripsShowYear(null);
   if (id === 'pg-classlist') {
     if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
@@ -7422,7 +7582,7 @@ var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
   'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests',
-  'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips',
+  'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips', 'pg-trip': 'School Trip',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
   'pg-linkdetail': 'Link Page',

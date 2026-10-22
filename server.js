@@ -789,6 +789,26 @@ app.post('/api/upload/classroom/:slot', uploader('classroom').single('image'), r
   res.json({ filename: req.file.filename });
 });
 
+// School Trips year pages: 3 image slots per year (slot = 'y5-1' etc.).
+const TRIP_SLOT = /^(y14|y5|y6|y7|y8)-[1-3]$/;
+app.post('/api/upload/trip/:slot', uploader('trip').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  if (!TRIP_SLOT.test(req.params.slot)) { deleteFile(req.file.filename); return res.status(400).json({ error: 'Bad slot' }); }
+  const data = load();
+  if (!data.tripImages) data.tripImages = {};
+  if (data.tripImages[req.params.slot]) deleteFile(data.tripImages[req.params.slot]);
+  data.tripImages[req.params.slot] = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+app.delete('/api/trip-image/:slot', (req, res) => {
+  const slot = req.params.slot;
+  const data = load();
+  if (!data.tripImages) data.tripImages = {};
+  if (data.tripImages[slot]) { deleteFile(data.tripImages[slot]); delete data.tripImages[slot]; save(data); }
+  res.json({ ok: true });
+});
+
 app.delete('/api/classroom-image/:slot', (req, res) => {
   const slot = req.params.slot;
   const data = load();
