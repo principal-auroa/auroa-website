@@ -456,7 +456,7 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/],
-  ['POST', /^\/health-profile\/submit$/],
+  ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
 ];
@@ -1265,8 +1265,46 @@ function shpReadAll(cb) {
     cb(list);
   });
 }
+// Parents must sign in with Google before sending a profile. The browser gets
+// an ID token from Google Identity Services; we ask Google to verify it and
+// record the account's email with the name the parent typed for it.
+// GOOGLE_CLIENT_ID (Railway variable) = the OAuth "Web application" client ID.
+function googleClientId() { return envClean('GOOGLE_CLIENT_ID'); }
+function verifyGoogleIdToken(idToken, cb) {
+  const clientId = googleClientId();
+  if (!clientId || !idToken) return cb(null);
+  const url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken);
+  const r = require('https').get(url, (resp) => {
+    let body = '';
+    resp.on('data', d => { body += d; if (body.length > 20000) resp.destroy(); });
+    resp.on('end', () => {
+      let t = null;
+      try { t = JSON.parse(body); } catch (e) {}
+      const ok = resp.statusCode === 200 && t && t.aud === clientId &&
+        (t.iss === 'accounts.google.com' || t.iss === 'https://accounts.google.com') &&
+        (t.email_verified === true || t.email_verified === 'true') && t.email &&
+        Number(t.exp) * 1000 > Date.now();
+      cb(ok ? { email: String(t.email).toLowerCase(), googleName: String(t.name || ''), sub: String(t.sub || '') } : null);
+    });
+  });
+  r.on('error', () => cb(null));
+  r.setTimeout(8000, () => r.destroy());
+}
+app.get('/api/health-profile/config', (req, res) => {
+  res.json({ googleClientId: googleClientId() });
+});
 app.post('/api/health-profile/submit', (req, res) => {
-  const b = req.body || {}, a = (b.answers && typeof b.answers === 'object') ? b.answers : {};
+  const b = req.body || {};
+  if (!googleClientId()) return res.status(503).json({ error: 'Google sign-in is not set up yet.' });
+  const accountName = String(b.accountName || '').trim().slice(0, 200);
+  if (!accountName) return res.status(400).json({ error: 'Please type the name of the person this Google account belongs to (required).' });
+  verifyGoogleIdToken(String(b.googleToken || ''), (acct) => {
+    if (!acct) return res.status(401).json({ error: 'google-signin', message: 'Your Google sign-in has expired or could not be checked — please sign in again.' });
+    shpSave(req, res, b, Object.assign({ accountName }, acct));
+  });
+});
+function shpSave(req, res, b, account) {
+  const a = (b.answers && typeof b.answers === 'object') ? b.answers : {};
   const year = String(b.year || '');
   if (!SHP_YEAR.test(year)) return res.status(400).json({ error: 'Bad year group' });
   const answers = {};
@@ -1284,11 +1322,11 @@ app.post('/api/health-profile/submit', (req, res) => {
     }
   }
   shpReadAll((list) => {
-    list.push({ ts: Date.now(), year, answers });
+    list.push({ ts: Date.now(), year, account, answers });
     if (list.length > 5000) list = list.slice(-5000);
     fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true }));
   });
-});
+}
 app.post('/api/health-profile/results', (req, res) => {
   shpReadAll((list) => res.json({ profiles: list }));
 });

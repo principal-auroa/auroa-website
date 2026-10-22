@@ -1476,6 +1476,12 @@ body.is-admin .shp-admin-btn{display:inline-block;}
 .shp-panel[hidden]{display:none;}
 .shp-h{color:#1a2b4a;font-size:18px;font-weight:700;margin:0 0 2px;}
 .shp-sub{color:#666;font-size:13px;margin:0 0 6px;}
+.shp-signin{background:#f5f8fc;border:1.5px solid #d6e2f0;border-radius:12px;padding:14px 16px;margin:10px 0 6px;}
+.shp-signin-h{color:#1a2b4a;font-weight:700;font-size:14px;margin:0 0 4px;}
+.shp-signin p{color:#555;font-size:13px;margin:0 0 10px;line-height:1.5;}
+.shp-signed{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:#14532d;}
+.shp-signed button{background:none;border:none;color:#1a2b4a;text-decoration:underline;cursor:pointer;font-size:12px;padding:0;}
+#shp-form.shp-locked .shp-locked-part{opacity:0.4;pointer-events:none;}
 .shp-q{margin:16px 0 6px;font-weight:600;color:#333;font-size:14px;line-height:1.45;}
 .shp-q .hb-required{margin-left:3px;}
 .shp-panel .hb-input{width:100%;box-sizing:border-box;}
@@ -6961,11 +6967,86 @@ function shpAdminToggle() {
   btn.classList.toggle('is-open', open);
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
+// ---- Google sign-in (required before a profile can be sent) ----
+// The server checks the Google ID token and saves the account's email with the
+// name the parent types for it. GOOGLE_CLIENT_ID is set in Railway.
+var _shpGoogle = null;          // { token, email, name } once signed in
+var _shpClientId = null;        // null = not fetched yet, '' = not set up
+var _gisLoading = null;
+function shpLoadGoogle(cb) {
+  if (_shpClientId !== null && window.google && google.accounts) return cb();
+  if (!_gisLoading) {
+    _gisLoading = fetch('/api/health-profile/config').then(function(r) { return r.json(); })
+      .then(function(c) {
+        _shpClientId = (c && c.googleClientId) || '';
+        if (!_shpClientId) return;
+        return new Promise(function(resolve, reject) {
+          var sc = document.createElement('script');
+          sc.src = 'https://accounts.google.com/gsi/client';
+          sc.async = true; sc.onload = resolve; sc.onerror = reject;
+          document.head.appendChild(sc);
+        });
+      })
+      .catch(function() { _gisLoading = null; if (_shpClientId === null) _shpClientId = ''; });
+  }
+  _gisLoading.then(cb, cb);
+}
+// Read the email/name out of Google's ID token (display only — the server verifies it).
+function shpTokenInfo(token) {
+  try {
+    var p = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(escape(atob(p + '==='.slice((p.length + 3) % 4)))));
+  } catch (e) { return {}; }
+}
+function shpRenderSignin() {
+  var box = el('shp-signin'), form = el('shp-form');
+  if (!box) return;
+  if (_shpGoogle) {
+    box.innerHTML = '<div class="shp-signed">✅ Signed in as <b>' + lunchEsc(_shpGoogle.email) + '</b>' +
+      '<button type="button" onclick="shpSignOut()">Use a different account</button></div>';
+    if (form) form.classList.remove('shp-locked');
+    return;
+  }
+  if (form) form.classList.add('shp-locked');
+  box.innerHTML = '<div class="shp-signin-h">Step 1 — Sign in with Google <span class="hb-required">*</span></div>' +
+    '<p>Please sign in with your Google (Gmail) account before filling in the form. The school records which account sent each health profile.</p>' +
+    '<div id="shp-gbtn"><span style="font-size:13px;color:#888;">Loading Google sign-in…</span></div>';
+  shpLoadGoogle(function() {
+    var b = el('shp-gbtn');
+    if (!b) return;
+    if (!_shpClientId || !(window.google && google.accounts)) {
+      b.innerHTML = '<span style="font-size:13px;color:#c0392b;">' + (_shpClientId === ''
+        ? 'Online health profiles aren\u2019t open yet — please contact the school office.'
+        : 'Google sign-in could not load. Please check your connection and try again.') + '</span>';
+      return;
+    }
+    google.accounts.id.initialize({ client_id: _shpClientId, callback: shpOnGoogle, auto_select: false });
+    b.innerHTML = '';
+    google.accounts.id.renderButton(b, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' });
+  });
+}
+function shpOnGoogle(resp) {
+  var info = shpTokenInfo(resp && resp.credential);
+  if (!info.email) return;
+  _shpGoogle = { token: resp.credential, email: info.email, name: info.name || '' };
+  var nm = document.querySelector('#shp-form [name="accountName"]');
+  if (nm && !nm.value && info.name) nm.value = info.name;
+  shpRenderSignin();
+}
+function shpSignOut() {
+  _shpGoogle = null;
+  if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
+  shpRenderSignin();
+}
+
 function shpRenderForm() {
   var wrap = el('shp-form-wrap');
   var h = '<h3 class="shp-h">Student Health Profile</h3>' +
     '<p class="shp-sub">' + lunchEsc(TRIP_YEARS[_tripYear] || '') + ' trip — please complete one profile for each child. <span class="hb-required">*</span> required</p>' +
-    '<form id="shp-form" onsubmit="event.preventDefault(); shpSubmit();">';
+    '<form id="shp-form" class="shp-locked" onsubmit="event.preventDefault(); shpSubmit();">' +
+    '<div id="shp-signin" class="shp-signin"></div><div class="shp-locked-part">' +
+    '<div class="shp-q" id="shp-q-accountName">Your full name (the person this Google account belongs to) <span class="hb-required">*</span></div>' +
+    '<input class="hb-input" type="text" name="accountName" maxlength="200" autocomplete="name">';
   SHP_QUESTIONS.forEach(function(q) {
     var req = q.required ? ' <span class="hb-required">*</span>' : '';
     if (q.type === 'agree') {
@@ -6984,8 +7065,10 @@ function shpRenderForm() {
       if (q.otherKey) h += '<input class="hb-input sv-other-in" type="text" name="' + q.otherKey + '" maxlength="300" placeholder="Other — please state">';
     }
   });
-  h += '<div class="abs-submit-row"><button id="shp-submit-btn" type="submit" class="hb-submit-btn">Submit health profile</button><span id="shp-status" class="hb-err"></span></div></form>';
+  h += '<div class="abs-submit-row"><button id="shp-submit-btn" type="submit" class="hb-submit-btn">Submit health profile</button><span id="shp-status" class="hb-err"></span></div></div></form>';
   wrap.innerHTML = h;
+  if (_shpGoogle && _shpGoogle.name) wrap.querySelector('[name="accountName"]').value = _shpGoogle.name;
+  shpRenderSignin();
 }
 function shpCollect() {
   var form = el('shp-form'), answers = {}, missing = null;
@@ -7008,6 +7091,17 @@ function shpCollect() {
 function shpSubmit() {
   var status = el('shp-status'), btn = el('shp-submit-btn');
   status.textContent = '';
+  if (!_shpGoogle) {
+    status.textContent = 'Please sign in with Google first (Step 1 at the top).';
+    el('shp-signin').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  var accountName = el('shp-form').querySelector('[name="accountName"]').value.trim();
+  if (!accountName) {
+    status.textContent = 'Please type your full name (the person this Google account belongs to).';
+    el('shp-q-accountName').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   var c = shpCollect();
   if (c.missing) {
     status.textContent = c.missing.type === 'agree' ? 'Please tick each agreement to continue.' : 'Please answer: ' + c.missing.label.slice(0, 60) + (c.missing.label.length > 60 ? '…' : '');
@@ -7016,9 +7110,15 @@ function shpSubmit() {
     return;
   }
   btn.disabled = true; btn.textContent = 'Sending…';
-  fetch('/api/health-profile/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: _tripYear, answers: c.answers }) })
+  fetch('/api/health-profile/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: _tripYear, answers: c.answers, accountName: accountName, googleToken: _shpGoogle.token }) })
     .then(function(r) { return r.json(); })
     .then(function(b) {
+      if (b && b.error === 'google-signin') {
+        // Token expired (they last about an hour) — sign in again; answers stay filled in.
+        _shpGoogle = null; shpRenderSignin();
+        el('shp-signin').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        throw new Error(b.message);
+      }
       if (!b || !b.ok) throw new Error(b && b.error || 'rejected');
       el('shp-form-wrap').innerHTML = '<div class="pd-thanks"><strong>Thank you!</strong><br>The health profile for ' + lunchEsc(c.answers.name) + ' has been sent to the school.' +
         '<br><br><button type="button" class="hb-submit-btn" onclick="shpRenderForm()">Fill in another profile</button></div>';
@@ -7026,7 +7126,7 @@ function shpSubmit() {
     })
     .catch(function(e) {
       btn.disabled = false; btn.textContent = 'Submit health profile';
-      status.textContent = (e && e.message && /required/i.test(e.message)) ? e.message : 'Could not send — please try again.';
+      status.textContent = (e && e.message && /required|sign in|set up/i.test(e.message)) ? e.message : 'Could not send — please try again.';
     });
 }
 // ---- Admin: responses (newest first), this year group unless "All year groups" ----
@@ -7066,9 +7166,10 @@ function shpRenderResults() {
   if (!list.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No responses yet for ' + lunchEsc(TRIP_YEARS[_tripYear] || '') + '.</span>'; return; }
   var byKey = {}; SHP_QUESTIONS.forEach(function(q) { byKey[q.key] = q; });
   var html = '<div class="pd-reg-table-wrap"><table class="pd-reg-table shp-res-table"><tr>' +
-    '<th>Child</th><th>Year group</th><th>Medication</th><th>Injury / illness</th><th>Allergies</th><th>Safety info</th><th>Sent</th><th></th></tr>';
+    '<th>Child</th><th>Sent by (Google account)</th><th>Year group</th><th>Medication</th><th>Injury / illness</th><th>Allergies</th><th>Safety info</th><th>Sent</th><th></th></tr>';
   list.forEach(function(r) {
     html += '<tr><td class="shp-name">' + lunchEsc(shpAnswerText(r, byKey.name)) + '</td>' +
+      '<td>' + shpAccountHtml(r) + '</td>' +
       '<td>' + lunchEsc(TRIP_YEARS[r.year] || r.year || '') + '</td>' +
       '<td>' + lunchEsc(shpAnswerText(r, byKey.medication)) + '</td>' +
       '<td>' + lunchEsc(shpAnswerText(r, byKey.injuries)) + '</td>' +
@@ -7081,10 +7182,18 @@ function shpRenderResults() {
   html += '</table></div><div id="shp-detail"></div>';
   out.innerHTML = html;
 }
+// Who sent a profile: typed name + verified Google email (older ones have none).
+function shpAccountHtml(r) {
+  var a = r.account;
+  if (!a || !a.email) return '<span style="color:#999">—</span>';
+  return lunchEsc(a.accountName || '') + '<br><span style="font-size:12px;color:#555;">' + lunchEsc(a.email) + '</span>';
+}
 function shpShowDetail(ts) {
   var r = _shpLast.filter(function(x) { return Number(x.ts) === ts; })[0], box = el('shp-detail');
   if (!r || !box) return;
-  var h = '<div class="shp-detail"><div><b>' + lunchEsc(TRIP_YEARS[r.year] || r.year || '') + '</b> — sent ' + lunchEsc(new Date(r.ts).toLocaleString()) + '</div>';
+  var h = '<div class="shp-detail"><div><b>' + lunchEsc(TRIP_YEARS[r.year] || r.year || '') + '</b> — sent ' + lunchEsc(new Date(r.ts).toLocaleString()) + '</div>' +
+    '<div><b>Sent by (Google account)</b><br>' + shpAccountHtml(r) +
+    (r.account && r.account.googleName ? '<br><span style="font-size:12px;color:#555;">Name on the Google account: ' + lunchEsc(r.account.googleName) + '</span>' : '') + '</div>';
   SHP_QUESTIONS.forEach(function(q) { h += '<div><b>' + lunchEsc(q.label) + '</b><br>' + (lunchEsc(shpAnswerText(r, q)) || '<span style="color:#999">—</span>') + '</div>'; });
   h += '<button type="button" class="abar-btn" style="font-size:11px;padding:3px 12px;" onclick="el(\'shp-detail\').innerHTML=\'\'">Close</button></div>';
   box.innerHTML = h;
@@ -7105,10 +7214,11 @@ function shpClearResults() {
 // Every answer as a column, one row per response. Opens in Excel/Numbers.
 function shpDownloadCsv() {
   var list = shpVisible();
-  var head = ['Sent', 'Year group'].concat(SHP_QUESTIONS.map(function(q) { return q.label; }));
+  var head = ['Sent', 'Sent by (name)', 'Google account email', 'Name on Google account', 'Year group'].concat(SHP_QUESTIONS.map(function(q) { return q.label; }));
   var lines = [head.map(pdCsvCell).join(',')];
   list.forEach(function(r) {
-    lines.push([new Date(r.ts).toLocaleString(), TRIP_YEARS[r.year] || r.year || ''].concat(SHP_QUESTIONS.map(function(q) { return shpAnswerText(r, q); })).map(pdCsvCell).join(','));
+    var acct = r.account || {};
+    lines.push([new Date(r.ts).toLocaleString(), acct.accountName || '', acct.email || '', acct.googleName || '', TRIP_YEARS[r.year] || r.year || ''].concat(SHP_QUESTIONS.map(function(q) { return shpAnswerText(r, q); })).map(pdCsvCell).join(','));
   });
   var all = el('shp-all-years') && el('shp-all-years').checked, d = new Date();
   var fname = 'Student Health Profiles ' + (all ? 'all years' : (TRIP_YEARS[_tripYear] || _tripYear)) + ' ' + String(d.getDate()).padStart(2, '0') + '-' +
