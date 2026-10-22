@@ -1737,6 +1737,11 @@ function serveSpaWithMarker(req, res, marker) {
        .send(html.replace('</head>', marker + '</head>'));
   });
 }
+// Privacy policy (linked from the Google sign-in setup for the Health Profile).
+app.get('/privacy', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
 app.get('/sport/:sportId', (req, res) => {
   serveSpaWithMarker(req, res,
     `<script>window.__autoSportId=${JSON.stringify(req.params.sportId)};</script>`);
