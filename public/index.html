@@ -29,6 +29,28 @@
   } catch (e) {}
 })();
 </script>
+<script>
+/* Live editing: a random ID for this page, sent as the X-Live-Client header on
+   every /api request so the server never echoes a page's own saves back to it
+   (see the LIVE EDITING block in server.js and the live script at the end). */
+window.LIVE_ID = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+(function() {
+  var orig = window.fetch;
+  if (!orig) return;
+  window.fetch = function(input, init) {
+    try {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (url.indexOf('/api/') === 0 || url.indexOf(location.origin + '/api/') === 0) {
+        init = Object.assign({}, init || {});
+        var h = new Headers(init.headers || (typeof input !== 'string' && input.headers) || {});
+        h.set('X-Live-Client', window.LIVE_ID);
+        init.headers = h;
+      }
+    } catch (e) {}
+    return orig.call(this, input, init);
+  };
+})();
+</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#1a2b4a">
 <link rel="apple-touch-icon" href="/icon.svg">
@@ -3035,6 +3057,17 @@ body.is-admin .nl-save-bar{display:flex;}
 .nl-save-status{font-size:13px;color:#555;}
 .nl-save-status.ok{color:#27ae60;}
 .nl-save-status.err{color:#c0392b;}
+/* Live editing: who else is editing, and which box they are in */
+.live-who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;opacity:.95;}
+.live-who .live-me{cursor:pointer;text-decoration:underline dotted;}
+.live-who .live-dot{width:8px;height:8px;border-radius:50%;background:#2ecc71;display:inline-block;}
+.live-who .live-other{background:rgba(255,255,255,.14);border-radius:10px;padding:2px 8px;}
+.live-who .live-note{color:#ffe08a;}
+.live-busy{outline:2px dashed #e67e22 !important;outline-offset:2px;}
+.live-badge{position:absolute;z-index:900;background:#e67e22;color:#fff;font-size:11px;font-weight:700;
+  padding:2px 8px;border-radius:8px 8px 8px 0;pointer-events:none;white-space:nowrap;font-family:'Quicksand',sans-serif;}
+.live-conflict{background:#fff4e5;border:1px solid #f0a64b;color:#7a4300;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;}
+.live-conflict button{margin:8px 8px 0 0;padding:4px 10px;border-radius:8px;border:1px solid #c98a3a;background:#fff;cursor:pointer;font-family:inherit;}
 .nl-snapshots{display:flex;flex-direction:column;gap:8px;}
 .nl-snapshots:empty::before{content:'No newsletters saved yet.';color:#888;font-size:13px;}
 .nl-snapshot-row{
@@ -3267,6 +3300,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 <!-- ADMIN BOTTOM BAR -->
 <div id="admin-bar">
   <span style="font-weight:700;">Admin Mode</span>
+  <span id="live-who" class="live-who"></span>
 </div>
 
 <!-- APP -->
@@ -5126,7 +5160,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
 // ===================== FETCH STATE =====================
 function fetchState(_retry) {
-  fetch('/api/state', { cache: 'no-store' })
+  return fetch('/api/state', { cache: 'no-store' })
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(data) {
       enrolLink = data.enrolLink || '';
@@ -5141,6 +5175,7 @@ function fetchState(_retry) {
       newsletterSnapshots = Array.isArray(data.newsletterSnapshots) ? data.newsletterSnapshots : [];
       nlBaseRev = (newsletterData && newsletterData.rev) || 0;
       if (typeof renderNewsletter === 'function') renderNewsletter();
+      if (isAdmin && typeof nlResetBase === 'function') nlResetBase();
       hallBookings = Array.isArray(data.hallBookings) ? data.hallBookings : [];
       if (typeof renderHbCalendar === 'function') renderHbCalendar();
       if (typeof renderHbAdmin === 'function') renderHbAdmin();
@@ -5296,7 +5331,8 @@ function fetchState(_retry) {
       var neAutoSaveTimers = {};
       ['ne1','ne2','year78b','year78c','homevideo'].forEach(function(k) {
         var box = el('ec-' + k);
-        if (!box) return;
+        if (!box || box._neAutoBound) return;   // fetchState runs again on login / live refresh
+        box._neAutoBound = true;
         box.addEventListener('input', function() {
           clearTimeout(neAutoSaveTimers[k]);
           neAutoSaveTimers[k] = setTimeout(function() {
@@ -5306,7 +5342,7 @@ function fetchState(_retry) {
       });
       // Hide the under-video text box for visitors when it's empty (admins always
       // see it so they can type); keep it in sync as the admin edits.
-      (function(){ var hv = el('ec-homevideo'); if (hv) { hv.addEventListener('input', hvUpdateTextEmpty); hvUpdateTextEmpty(); } })();
+      (function(){ var hv = el('ec-homevideo'); if (hv) { if (!hv._hvBound) { hv._hvBound = true; hv.addEventListener('input', hvUpdateTextEmpty); } hvUpdateTextEmpty(); } })();
       importantLinks.forEach(function(lnk) {
         if (pc[lnk.id]) lnk.content = pc[lnk.id];
       });
@@ -12105,12 +12141,40 @@ var newsletterPublished = null;
 var nlBaseRev = 0;
 // This page's own ID + a running save number. Several saves from this page can
 // be in flight at once (logout fires a normal save AND a beacon save; autosaves
-// can overlap on a slow connection). They all carry the same baseRev, so without
-// this the server rejected our own second save as "edited on another device".
-// The server accepts a newer-numbered save from the page that wrote last, and
-// ignores an older-numbered one that arrives late.
-var nlClientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+// can overlap on a slow connection). The server accepts a newer-numbered save
+// from the page that saved a box last, and ignores an older one arriving late.
+var nlClientId = window.LIVE_ID;
 var nlSeq = 0;
+
+// Box-by-box saving, so several admins can edit the newsletter at once.
+// For each box this page remembers the server version it is editing
+// (nlFieldRevs) and what that box held at the time (nlLastRead for text boxes,
+// read back from the page; nlBaseVals for images/lists, as JSON). A save sends
+// only the boxes that differ, and other admins' saves are merged in live
+// without touching boxes being edited here.
+var NL_TEXT_FIELDS = {
+  termLabel:              { id: 'nl-term-label', text: true },
+  principalMessage:       { id: 'nl-principal-msg' },
+  importantDates:         { id: 'nl-important-dates' },
+  photosText:             { id: 'nl-photos-text' },
+  customSectionTitle:     { id: 'nl-custom-title', text: true },
+  customSectionText:      { id: 'nl-custom-msg' },
+  studentsWeekMessage:    { id: 'nl-sotw-msg' },
+  campsDayTrips:          { id: 'nl-camps' },
+  schoolAccountsPayments: { id: 'nl-school-accounts' }
+};
+var NL_FIELD_LABELS = {
+  termLabel: 'Term / week heading', principalMessage: "Principal's message",
+  importantDates: 'Important dates', photosText: 'Text under the photos',
+  customSectionTitle: 'Extra section heading', customSectionText: 'Extra section text',
+  studentsWeekMessage: 'Students of the week', campsDayTrips: 'Camps & day trips',
+  schoolAccountsPayments: 'School accounts & payments', notices: 'Notices',
+  weekPhotos: 'Photos of the week', extraPhotos: 'Extra photos'
+};
+var nlFieldRevs = {};
+var nlLastRead = {};
+var nlBaseVals = {};
+var nlTouched = {};      // field -> edit counter, bumped on every edit in that box
 
 function nlSetImage(slotEl, imgEl, filename) {
   if (filename) {
@@ -12413,27 +12477,28 @@ window.addEventListener('pagehide', function() {
 });
 
 // When an installed PWA is resumed from the background — iOS especially FREEZES
-// the page rather than reloading it — this page can still be holding a
-// newsletter draft from an old session. Pull the current version and, if the
-// server is newer AND the admin isn't mid-edit, refresh in place. This stops a
-// resumed phone from editing (or saving over) weeks-old content; the server's
-// stale-write guard is the backstop if a stale save still slips through.
+// the page rather than reloading it — this page can be holding an old copy of
+// the newsletter, and the live stream may have missed saves while it slept.
+// Pull the current draft and merge in every box that is newer than ours (boxes
+// being edited here are left alone; the server's per-box guard is the backstop).
+// Also used when the live stream reconnects.
 function nlMaybeRefreshOnResume() {
   if (!window.isAdmin) return;
   if (!el('nl-term-label')) return;               // newsletter not in the DOM
-  var ae = document.activeElement;
-  if (ae && ae.closest && ae.closest('#pg-newsletter')) return;  // actively typing — leave it
   fetch('/api/newsletter/current', { cache: 'no-store' })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(b) {
-      if (!b) return;
-      var serverRev = (b.newsletter && b.newsletter.rev) || 0;
-      if (serverRev <= (nlBaseRev || 0)) return;  // we already have the latest
-      newsletterData = b.newsletter || newsletterData;
+      if (!b || !b.newsletter) return;
+      var srv = b.newsletter;
       newsletterPublished = b.published || null;
       if (Array.isArray(b.snapshots)) newsletterSnapshots = b.snapshots;
-      nlBaseRev = serverRev;
-      if (typeof renderNewsletter === 'function') renderNewsletter();
+      if ((srv.rev || 0) > (nlBaseRev || 0)) nlBaseRev = srv.rev;
+      var revs = srv.fieldRevs || {}, fields = {};
+      Object.keys(revs).forEach(function(f) {
+        if ((revs[f] || 0) > (nlFieldRevs[f] || 0)) fields[f] = { value: srv[f], rev: revs[f] };
+      });
+      if (Object.keys(fields).length) nlApplyRemote(fields);
+      if (typeof renderNewsletterSnapshots === 'function') renderNewsletterSnapshots();
     })
     .catch(function() {});
 }
@@ -12624,15 +12689,13 @@ function collectNoticeEdits() {
   });
 }
 
-// Capture the current newsletter editor state into a draft object.
-// Used by both saveNewsletter (fetch) and nlBeaconSave (sendBeacon).
-function nlBuildDraft() {
+// Every box's current value, read from the page (text) or newsletterData
+// (images, photo lists, notices).
+function nlReadFields() {
   // Sync the in-memory newsletterData from the live DOM (text fields only —
-  // not images) BEFORE building the payload. Without this, the POST is built
-  // straight from the DOM but newsletterData keeps the OLD text, so when the
-  // admin navigates away and back the page re-renders from that stale copy and
-  // the just-saved text visibly reverts (even though the server has it). Keeping
-  // them in lockstep means the re-render always shows what was saved.
+  // not images) BEFORE reading. Without this, newsletterData keeps the OLD
+  // text, so when the admin navigates away and back the page re-renders from
+  // that stale copy and the just-saved text visibly reverts.
   nlCollectAllTextEdits();
   collectNoticeEdits();
   var datesEl   = el('nl-important-dates');
@@ -12640,9 +12703,6 @@ function nlBuildDraft() {
   var campsEdEl = el('nl-camps');
   var sapEdEl   = el('nl-school-accounts');
   return {
-    baseRev: nlBaseRev,
-    clientId: nlClientId,
-    seq: ++nlSeq,
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
     principalImage: newsletterData.principalImage || null,
@@ -12661,27 +12721,84 @@ function nlBuildDraft() {
     uniformPortraitImage: newsletterData.uniformPortraitImage || null,
     uniformLandscapeImage: newsletterData.uniformLandscapeImage || null,
     importantDatesImage: newsletterData.importantDatesImage || null,
-    principalMessage: (el('nl-principal-msg').innerHTML || '').replace(/ /g, ' '),
+    principalMessage: (el('nl-principal-msg').innerHTML || '').replace(/\u00a0/g, ' '),
     notices: (newsletterData.notices || []).map(function(n) {
       return { id: n.id, caption: n.caption || '', filename: n.filename || null };
     })
   };
 }
 
+// Remember one box as "what the server has", so it only counts as changed
+// once it is edited here.
+function nlSetBase(f, value) {
+  if (NL_TEXT_FIELDS[f]) nlLastRead[f] = value;
+  else nlBaseVals[f] = JSON.stringify(value);
+}
+
+// Call after the admin draft has been loaded from the server and rendered.
+function nlResetBase() {
+  if (!window.isAdmin || !el('nl-term-label') || !newsletterData) return;
+  nlFieldRevs = Object.assign({}, newsletterData.fieldRevs || {});
+  nlTouched = {};
+  var read = nlReadFields();
+  Object.keys(read).forEach(function(f) { nlSetBase(f, read[f]); });
+}
+
+function nlDirtyFields(read) {
+  return Object.keys(read).filter(function(f) {
+    if (NL_TEXT_FIELDS[f]) {
+      return !!nlTouched[f] || (nlLastRead[f] !== undefined && read[f] !== nlLastRead[f]);
+    }
+    return nlBaseVals[f] === undefined || JSON.stringify(read[f]) !== nlBaseVals[f];
+  });
+}
+function nlHasDirty() {
+  if (!el('nl-term-label') || !window.isAdmin) return false;
+  try { return nlDirtyFields(nlReadFields()).length > 0; } catch (e) { return false; }
+}
+
+// Which box an element belongs to (for edit tracking and "X is editing").
+function nlFieldOf(node) {
+  if (!node || !node.closest) return null;
+  if (node.closest('#nl-notices')) return 'notices';
+  for (var f in NL_TEXT_FIELDS) {
+    if (node.closest('#' + NL_TEXT_FIELDS[f].id)) return f;
+  }
+  return null;
+}
+document.addEventListener('input', function(e) {
+  var f = nlFieldOf(e.target);
+  if (f && NL_TEXT_FIELDS[f]) nlTouched[f] = (nlTouched[f] || 0) + 1;
+}, true);
+
+// The save request: only the changed boxes, each with the version it was
+// editing. Shared by saveNewsletter (fetch) and nlBeaconSave (sendBeacon).
+function nlBuildChanges() {
+  var read = nlReadFields();
+  var changes = {}, bases = {}, gens = {};
+  nlDirtyFields(read).forEach(function(f) {
+    changes[f] = read[f];
+    bases[f] = nlFieldRevs[f] || 0;
+    gens[f] = nlTouched[f] || 0;
+  });
+  if (!Object.keys(changes).length) return null;
+  return {
+    body: { clientId: nlClientId, seq: ++nlSeq, changes: changes, bases: bases },
+    gens: gens
+  };
+}
+
 // Normal auto-save via fetch — returns a Promise so the status indicator
 // reflects the real outcome. Snapshots are never created here.
 function saveNewsletter() {
-  var draft = nlBuildDraft();
+  var req = nlBuildChanges();
+  if (!req) return Promise.resolve({ ok: true, rev: nlBaseRev });
   return fetch('/api/newsletter/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(draft)
+    body: JSON.stringify(req.body)
   })
   .then(function(r) {
-    // 409 = stale-write guard: the server has a newer newsletter than this
-    // page was editing (edited elsewhere, or this page was resumed from an old
-    // session). Do NOT treat as a failure-to-retry — reload the latest so we
-    // never overwrite newer content, and tell the admin.
     if (r.status === 409) {
       return r.json().then(function(b) { nlHandleStale(b && b.rev); return { ok: true, stale: true }; });
     }
@@ -12691,15 +12808,123 @@ function saveNewsletter() {
   .then(function(b) {
     if (b && b.stale) return b;          // already handled above
     if (!b || b.ok !== true) throw new Error('save failed');
-    // Advance our version stamp so the next save is accepted.
-    if (typeof b.rev === 'number') { nlBaseRev = b.rev; if (newsletterData) newsletterData.rev = b.rev; }
-    // DO NOT reassign newsletterData = draft here. The draft is a snapshot
-    // taken when the save was built; any notices/images added during the
-    // network round-trip would otherwise be silently wiped on the response.
-    // The DOM and per-upload handlers keep newsletterData up to date as-is.
+    if (typeof b.rev === 'number' && b.rev > nlBaseRev) { nlBaseRev = b.rev; if (newsletterData) newsletterData.rev = b.rev; }
+    // Boxes the server took: they now match the server. A box edited again
+    // while the save was on its way stays marked as changed.
+    Object.keys(b.applied || {}).forEach(function(f) {
+      nlFieldRevs[f] = b.applied[f];
+      nlSetBase(f, req.body.changes[f]);
+      if (nlTouched[f] === req.gens[f]) delete nlTouched[f];
+    });
+    if (b.conflicts && Object.keys(b.conflicts).length) nlHandleConflicts(b.conflicts, req.body.changes);
+    // DO NOT reassign newsletterData = draft here. Notices/images added during
+    // the round-trip would otherwise be silently wiped on the response.
     return b;
   });
 }
+
+// Someone else saved a box this page had also changed, and theirs got there
+// first. Theirs is kept (so nobody's newer work is lost); this page shows it,
+// and keeps a copy of what was typed here so it can be pasted back in.
+var nlConflictCopies = {};
+function nlHandleConflicts(conflicts, mine) {
+  var fields = {}, names = [];
+  Object.keys(conflicts).forEach(function(f) {
+    var c = conflicts[f];
+    fields[f] = { value: c.value, rev: c.rev };
+    nlConflictCopies[f] = mine[f];
+    names.push((NL_FIELD_LABELS[f] || f) + ' (' + (c.by || 'another admin') + ')');
+  });
+  nlApplyRemote(fields, { force: true });
+  var box = el('nl-conflict-msg');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'nl-conflict-msg';
+    box.className = 'live-conflict';
+    var status = el('nl-save-status');
+    var host = el('pg-newsletter');
+    if (status && status.parentNode) status.parentNode.insertBefore(box, status);
+    else if (host) host.insertBefore(box, host.firstChild);
+    else return;
+  }
+  box.innerHTML = '';
+  var p = document.createElement('div');
+  p.textContent = 'Someone else saved the same box just before you, so their version was kept: ' +
+    names.join(', ') + '. Your version has not been lost — copy it below and paste it back in if it is still needed.';
+  box.appendChild(p);
+  var copy = document.createElement('button');
+  copy.type = 'button';
+  copy.textContent = 'Copy my version';
+  copy.onclick = function() {
+    var text = Object.keys(nlConflictCopies).map(function(f) {
+      var v = nlConflictCopies[f];
+      if (typeof v !== 'string') return '';
+      var d = document.createElement('div'); d.innerHTML = v;
+      return (NL_FIELD_LABELS[f] || f) + ':\n' + (d.innerText || d.textContent || '');
+    }).filter(Boolean).join('\n\n');
+    var ok = function() { copy.textContent = 'Copied'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function() { prompt('Copy your version:', text); });
+    else prompt('Copy your version:', text);
+  };
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.textContent = 'Dismiss';
+  close.onclick = function() { nlConflictCopies = {}; box.remove(); };
+  box.appendChild(copy);
+  box.appendChild(close);
+}
+
+// Merge boxes saved elsewhere ({field: {value, rev}}) into this page. A box
+// changed here and not yet saved is left alone (unless force) — its own save
+// will then come back as a conflict rather than silently replacing either copy.
+var nlRenderPending = false;
+function nlApplyRemote(fields, opts) {
+  opts = opts || {};
+  if (!el('nl-term-label') || !newsletterData) return;
+  var dirty = {};
+  if (!opts.force) nlDirtyFields(nlReadFields()).forEach(function(f) { dirty[f] = true; });
+  else nlReadFields();   // pull the page's text into newsletterData first
+  var took = [], needFull = false;
+  Object.keys(fields).forEach(function(f) {
+    var v = fields[f];
+    if (!v || dirty[f]) return;
+    newsletterData[f] = v.value;
+    nlFieldRevs[f] = v.rev;
+    if (!newsletterData.fieldRevs) newsletterData.fieldRevs = {};
+    newsletterData.fieldRevs[f] = v.rev;
+    if (opts.force) delete nlTouched[f];
+    took.push(f);
+    if (!NL_TEXT_FIELDS[f]) needFull = true;
+  });
+  if (!took.length) return;
+  var ae = document.activeElement;
+  var typingHere = ae && ae.closest && ae.closest('#pg-newsletter') && ae.isContentEditable;
+  if (needFull && !typingHere) {
+    renderNewsletter();
+  } else {
+    // Update just the text boxes, so the cursor in the box being typed in stays put.
+    took.forEach(function(f) {
+      var t = NL_TEXT_FIELDS[f];
+      var node = t && el(t.id);
+      if (!node) return;
+      if (t.text) node.textContent = newsletterData[f] || '';
+      else node.innerHTML = nlContentToHtml(newsletterData[f]);
+    });
+    if (needFull) nlRenderPending = true;   // images/notices: redraw when they stop typing
+  }
+  var read = nlReadFields();
+  took.forEach(function(f) { nlSetBase(f, read[f]); });
+}
+document.addEventListener('focusout', function() {
+  if (!nlRenderPending) return;
+  setTimeout(function() {
+    var ae = document.activeElement;
+    if (ae && ae.closest && ae.closest('#pg-newsletter') && ae.isContentEditable) return;
+    nlRenderPending = false;
+    nlReadFields();
+    renderNewsletter();
+  }, 50);
+});
 
 // Our save was rejected because the server holds a newer newsletter. Reload the
 // latest (so the good copy is never clobbered) and let the admin know.
@@ -12725,8 +12950,9 @@ function nlBeaconSave() {
   if (!window.isAdmin || !el('nl-term-label')) return;
   if (!navigator.sendBeacon) return;
   try {
-    var draft = nlBuildDraft();
-    var blob = new Blob([JSON.stringify(draft)], { type: 'application/json' });
+    var req = nlBuildChanges();
+    if (!req) return;
+    var blob = new Blob([JSON.stringify(req.body)], { type: 'application/json' });
     navigator.sendBeacon('/api/newsletter/save', blob);
   } catch (e) {}
 }
@@ -14063,7 +14289,15 @@ function joinGroupSubmit() {
     });
   };
 
+  // True while an edit is waiting to be saved or a save is on its way, so a
+  // live refresh never redraws a page over unsaved work.
+  window.hasPendingAutoSave = function() {
+    return Object.keys(_autoTimers).some(function(k) { return !!_autoTimers[k]; }) ||
+           Object.keys(_saveInFlight).some(function(k) { return !!_saveInFlight[k]; });
+  };
+
   function runAutoSave(kind) {
+    _autoTimers[kind] = null;
     if (_saveInFlight[kind]) {
       // Another save is in flight; queue one more after it finishes
       _autoTimers[kind] = setTimeout(function() { runAutoSave(kind); }, 400);
@@ -15148,6 +15382,234 @@ body.is-admin #install-popup{display:none;}
       if (btn) btn.style.display = 'none';
     }
   });
+})();
+</script>
+
+<!-- LIVE EDITING -->
+<script>
+// While an admin is logged in, this page keeps a live stream open to the
+// server (/api/live). Through it the page learns who else is editing and
+// where, gets other admins' newsletter saves box by box (nlApplyRemote), and
+// is told about every other save so it can refresh itself — but only when
+// that can't disturb unsaved work here.
+(function() {
+  var es = null, started = false, connectedOnce = false;
+  var others = [], beat = null, refreshTimer = null, presTimer = null, noteTimer = null;
+  var lastField = null, note = '';
+
+  function myName() { try { return localStorage.getItem('auroa_editor_name') || ''; } catch (e) { return ''; } }
+  function setName(n) { try { localStorage.setItem('auroa_editor_name', n); } catch (e) {} }
+  function askName() {
+    var n = (prompt('Your first name — shown to anyone else editing the website at the same time:', myName()) || '').trim().slice(0, 40);
+    if (n) setName(n);
+    return n;
+  }
+  function ensureName() {
+    var lu = el('lu');
+    if (lu && lu.value.trim()) setName(lu.value.trim().slice(0, 40));
+    return myName() || askName() || 'Another admin';
+  }
+
+  function pageInfo() {
+    var a = document.querySelector('.page.active');
+    var id = a ? a.id : '';
+    var label = '';
+    if (id === 'pg-sport' && el('sd-name')) label = el('sd-name').textContent;
+    else if (id === 'pg-event' && el('ev-name')) label = el('ev-name').textContent;
+    else if (id === 'pg-newsletter') label = 'Newsletter';
+    else {
+      var h = a && a.querySelector('h1, h2');
+      label = h ? h.textContent : id.replace(/^pg-/, '');
+    }
+    return { id: id, label: String(label || '').replace(/\s+/g, ' ').trim().slice(0, 40) };
+  }
+  // The box this admin is typing in, by element id (shown to the others).
+  function currentField() {
+    var ae = document.activeElement;
+    if (!ae || !ae.closest) return null;
+    var f = typeof nlFieldOf === 'function' ? nlFieldOf(ae) : null;
+    if (f === 'notices') return 'nl-notices';
+    if (f && NL_TEXT_FIELDS[f]) return NL_TEXT_FIELDS[f].id;
+    if (!ae.isContentEditable) return null;
+    var box = ae.closest('[id]');
+    return box ? box.id : null;
+  }
+
+  function sendPresence() {
+    if (!started) return;
+    var pi = pageInfo();
+    lastField = currentField();
+    fetch('/api/live/presence', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: window.LIVE_ID, name: myName() || 'Another admin',
+                             page: pi.id, pageLabel: pi.label, field: lastField })
+    }).then(function(r) { return r.json(); })
+      .then(function(b) { if (b && b.reconnect) connect(); })
+      .catch(function() {});
+  }
+  function presenceSoon() {
+    clearTimeout(presTimer);
+    presTimer = setTimeout(function() { if (currentField() !== lastField || !lastField) sendPresence(); }, 150);
+  }
+
+  function connect() {
+    if (es) { try { es.close(); } catch (e) {} es = null; }
+    if (!started || !window.EventSource) return;
+    var pi = pageInfo();
+    es = new EventSource('/api/live?clientId=' + encodeURIComponent(window.LIVE_ID) +
+      '&name=' + encodeURIComponent(myName() || 'Another admin') +
+      '&page=' + encodeURIComponent(pi.id) + '&pageLabel=' + encodeURIComponent(pi.label));
+    es.addEventListener('presence', function(e) {
+      try { others = (JSON.parse(e.data).list || []).filter(function(c) { return c.clientId !== window.LIVE_ID; }); } catch (err) { others = []; }
+      render();
+    });
+    es.addEventListener('nl', function(e) {
+      var d; try { d = JSON.parse(e.data); } catch (err) { return; }
+      if (typeof d.rev === 'number' && d.rev > (nlBaseRev || 0)) nlBaseRev = d.rev;
+      if (typeof nlApplyRemote === 'function') nlApplyRemote(d.fields || {});
+      showNote((d.by || 'Someone') + ' updated the newsletter');
+    });
+    es.addEventListener('changed', function(e) {
+      var d = {}; try { d = JSON.parse(e.data); } catch (err) {}
+      if (d.by) showNote(d.by + ' saved a change');
+      queueRefresh();
+    });
+    es.onopen = function() {
+      // Reconnected after a drop or the phone sleeping: catch up on anything missed.
+      if (connectedOnce) {
+        if (typeof nlMaybeRefreshOnResume === 'function') nlMaybeRefreshOnResume();
+        queueRefresh();
+      }
+      connectedOnce = true;
+    };
+    es.onerror = function() {
+      // The browser retries on its own; if it has given up (e.g. logged out
+      // elsewhere), try again in a while for as long as this page is admin.
+      if (es && es.readyState === 2) setTimeout(function() { if (started && window.isAdmin) connect(); }, 15000);
+    };
+  }
+
+  // ---- refreshing this page with other admins' saves ----
+  function safeToRefresh() {
+    if (!window.isAdmin) return false;
+    if (typeof window.hasPendingAutoSave === 'function' && window.hasPendingAutoSave()) return false;
+    var ae = document.activeElement;
+    if (ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return false;
+    if (typeof nlHasDirty === 'function' && nlHasDirty()) return false;
+    return true;
+  }
+  function queueRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(tryRefresh, 800);
+  }
+  function tryRefresh() {
+    if (!started) return;
+    if (!safeToRefresh()) { refreshTimer = setTimeout(tryRefresh, 2000); return; }
+    var p = typeof fetchState === 'function' ? fetchState() : null;
+    if (p && p.then) p.then(redrawDetail);
+  }
+  // fetchState refreshes the data behind the sport / event detail pages but
+  // not the open table, so redraw it if one is showing.
+  function redrawDetail() {
+    if (!safeToRefresh()) return;
+    if (document.querySelector('#pg-sport.active') && currentSportId && sportsData[currentSportId]) {
+      renderSdGroups(sportsData[currentSportId]);
+    }
+    if (document.querySelector('#pg-event.active') && currentEventId && eventsData[currentEventId]) {
+      var ev = eventsData[currentEventId];
+      renderEvTextRows(ev.textRows && ev.textRows.length ? ev.textRows : ['']);
+      renderEvImages(ev.images || []);
+      renderEvPdf();
+    }
+  }
+
+  // ---- showing who else is here ----
+  function showNote(t) {
+    note = t; render();
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function() { note = ''; render(); }, 4000);
+  }
+  function render() {
+    var box = el('live-who');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!started) { clearBadges(); return; }
+    var dot = document.createElement('span'); dot.className = 'live-dot'; box.appendChild(dot);
+    var me = document.createElement('span');
+    me.className = 'live-me';
+    me.title = 'Change the name other editors see';
+    me.textContent = 'You: ' + (myName() || 'Another admin');
+    me.onclick = function() { if (askName()) { sendPresence(); render(); } };
+    box.appendChild(me);
+    var here = pageInfo().id;
+    others.forEach(function(o) {
+      var s = document.createElement('span');
+      s.className = 'live-other';
+      s.textContent = o.name + ' — ' + (o.page === here ? 'on this page' : (o.pageLabel || 'editing'));
+      box.appendChild(s);
+    });
+    if (note) {
+      var n = document.createElement('span'); n.className = 'live-note'; n.textContent = note; box.appendChild(n);
+    }
+    drawBadges();
+  }
+  var badgeEls = [];
+  function clearBadges() {
+    badgeEls.forEach(function(b) { b.remove(); });
+    badgeEls = [];
+    document.querySelectorAll('.live-busy').forEach(function(n) { n.classList.remove('live-busy'); });
+  }
+  function drawBadges() {
+    clearBadges();
+    if (!started) return;
+    others.forEach(function(o) {
+      if (!o.field) return;
+      var node = document.getElementById(o.field);
+      if (!node || !node.offsetParent) return;
+      var r = node.getBoundingClientRect();
+      node.classList.add('live-busy');
+      var b = document.createElement('div');
+      b.className = 'live-badge';
+      b.textContent = '✏ ' + o.name + ' is editing this';
+      b.style.top = Math.max(0, r.top + window.scrollY - 20) + 'px';
+      b.style.left = Math.max(0, r.left + window.scrollX) + 'px';
+      document.body.appendChild(b);
+      badgeEls.push(b);
+    });
+  }
+  window.addEventListener('resize', function() { if (badgeEls.length) drawBadges(); });
+  setInterval(function() { if (started && others.some(function(o) { return o.field; })) drawBadges(); }, 1500);
+
+  // ---- start / stop with admin mode ----
+  function start() {
+    if (started) { render(); return; }
+    started = true;
+    connectedOnce = false;
+    ensureName();
+    connect();
+    clearInterval(beat);
+    beat = setInterval(sendPresence, 20000);
+    render();
+  }
+  function stop() {
+    started = false;
+    clearInterval(beat);
+    clearTimeout(refreshTimer);
+    if (es) { try { es.close(); } catch (e) {} es = null; }
+    others = [];
+    render();
+  }
+
+  var _enter = window.enterAdmin, _exit = window.exitAdmin, _show = window.showPage;
+  window.enterAdmin = function() { var r = _enter.apply(this, arguments); try { start(); } catch (e) {} return r; };
+  window.exitAdmin  = function() { var r = _exit.apply(this, arguments);  try { stop(); } catch (e) {} return r; };
+  window.showPage   = function() { var r = _show.apply(this, arguments);  try { if (started) { sendPresence(); render(); } } catch (e) {} return r; };
+  document.addEventListener('focusin', function() { if (started) presenceSoon(); });
+  document.addEventListener('focusout', function() { if (started) presenceSoon(); });
+  window.addEventListener('pagehide', function() { if (es) { try { es.close(); } catch (e) {} } });
+  window.addEventListener('pageshow', function(e) { if (e.persisted && started) connect(); });
+  document.addEventListener('DOMContentLoaded', function() { var lu = el('lu'); if (lu && !lu.value) lu.value = myName(); });
+  if (window.isAdmin) start();
 })();
 </script>
 </body>

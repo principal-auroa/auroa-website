@@ -467,6 +467,98 @@ app.use('/api', (req, res, next) => {
   return res.status(401).json({ error: 'Admin login required' });
 });
 
+// ==================== LIVE EDITING ====================
+// Every logged-in admin page holds one Server-Sent Events stream (/api/live).
+// The server pushes three kinds of message down it:
+//   presence — who else is editing, on which page, in which box
+//   nl       — newsletter boxes another admin just saved (merged per box)
+//   changed  — any other admin save, so open pages can refresh themselves
+// Each page has a random client ID, sent as the X-Live-Client header on every
+// /api call, so a page is never told about its own saves.
+const liveClients = new Map();   // clientId -> { res, token, name, page, pageLabel, field, ts }
+
+function liveClientId(req) { return String(req.get('X-Live-Client') || '').slice(0, 40); }
+function liveSend(res, type, payload) {
+  try { res.write('event: ' + type + '\ndata: ' + JSON.stringify(payload) + '\n\n'); } catch (e) {}
+}
+function liveBroadcast(type, payload, exceptId) {
+  liveClients.forEach((c, id) => { if (id !== exceptId) liveSend(c.res, type, payload); });
+}
+function livePresenceList() {
+  const now = Date.now(), out = [];
+  liveClients.forEach((c, id) => {
+    out.push({ clientId: id, name: c.name, page: c.page, pageLabel: c.pageLabel,
+               field: (now - c.ts < 60000) ? c.field : null });
+  });
+  return out;
+}
+function liveBroadcastPresence() { liveBroadcast('presence', { list: livePresenceList() }); }
+function liveCleanName(v) { return String(v || '').replace(/[<>]/g, '').trim().slice(0, 40) || 'Another admin'; }
+function liveNameOf(req) {
+  const c = liveClients.get(liveClientId(req));
+  return c ? c.name : 'Another admin';
+}
+
+app.get('/api/live', (req, res) => {
+  const id = String(req.query.clientId || '').slice(0, 40);
+  if (!id) return res.status(400).end();
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.flushHeaders();
+  res.write('retry: 3000\n\n');
+  const old = liveClients.get(id);
+  if (old) { try { old.res.end(); } catch (e) {} }
+  liveClients.set(id, {
+    res, token: parseCookies(req).auroa_admin,
+    name: liveCleanName(req.query.name), page: String(req.query.page || '').slice(0, 60),
+    pageLabel: String(req.query.pageLabel || '').slice(0, 60), field: null, ts: Date.now()
+  });
+  liveBroadcastPresence();
+  // Keep proxies from closing an idle stream, and drop it once the session
+  // cookie it was opened with has expired.
+  const ping = setInterval(() => {
+    const c = liveClients.get(id);
+    if (!c || c.res !== res) return clearInterval(ping);
+    if (!tokenValid(c.token)) { clearInterval(ping); try { res.end(); } catch (e) {} return; }
+    try { res.write(': ping\n\n'); } catch (e) {}
+  }, 25000);
+  req.on('close', () => {
+    clearInterval(ping);
+    const c = liveClients.get(id);
+    if (c && c.res === res) { liveClients.delete(id); liveBroadcastPresence(); }
+  });
+});
+
+app.post('/api/live/presence', (req, res) => {
+  const b = req.body || {};
+  const c = liveClients.get(String(b.clientId || '').slice(0, 40));
+  if (!c) return res.json({ ok: false, reconnect: true });
+  c.name = liveCleanName(b.name);
+  c.page = String(b.page || '').slice(0, 60);
+  c.pageLabel = String(b.pageLabel || '').slice(0, 60);
+  c.field = b.field ? String(b.field).slice(0, 60) : null;
+  c.ts = Date.now();
+  liveBroadcastPresence();
+  res.json({ ok: true });
+});
+
+// Tell other open admin pages that something was saved, so they can refresh.
+// The newsletter sends its own, finer-grained 'nl' message instead.
+const LIVE_QUIET = /^\/(live\/|newsletter\/save$|upload|login$|logout$|client-log$|push\/|admin-status$)/;
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || LIVE_QUIET.test(req.path)) return next();
+  const from = liveClientId(req);
+  res.on('finish', () => {
+    if (res.statusCode >= 400 || !liveClients.size) return;
+    liveBroadcast('changed', { path: req.path, by: liveClients.has(from) ? liveClients.get(from).name : '' }, from);
+  });
+  next();
+});
+
 app.post('/api/login', (req, res) => {
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
   if (loginBlocked(ip)) return res.status(429).json({ error: 'Too many attempts — please wait a few minutes.' });
@@ -502,6 +594,7 @@ app.get('/api/state', (req, res) => {
     newsletterSnapshots = [],               // heavy archived bodies — send metadata only
     lunchOrders = [],                       // other families' orders (PII) — admins only
     newsletter: newsletterDraft,            // unpublished draft — admins only
+    _nlLive,                                // live-editing bookkeeping (who saved which box) — server-only
     ...rest
   } = data;
   const isAdmin = isAdminReq(req);
@@ -1504,92 +1597,133 @@ function nlBackup(prior, tag) {
 app.get('/api/newsletter/current', (req, res) => {
   const data = load();
   res.set('Cache-Control', 'no-store');
+  // The draft is admin-only (same rule as /api/state); visitors get null.
+  const admin = isAdminReq(req);
   res.json({
-    newsletter: data.newsletter || null,
+    newsletter: admin ? (data.newsletter || null) : null,
     published: data.newsletterPublished || null,
     snapshots: data.newsletterSnapshots || [],
-    rev: (data.newsletter && data.newsletter.rev) || 0
+    rev: admin ? ((data.newsletter && data.newsletter.rev) || 0) : 0
   });
 });
 
-// Save (or update) the current newsletter draft + create/update a public snapshot.
+// Each newsletter box, and how to clean what a browser sends for it.
+const NL_RICH = (max) => (v) => sanitiseRich(v || '').slice(0, max);
+const NL_IMG  = (v) => v || null;
+const NL_FIELDS = {
+  termLabel:              (v) => String(v || '').trim().slice(0, 200) || 'Newsletter',
+  headerImage:            NL_IMG,
+  principalImage:         NL_IMG,
+  principalMessage:       NL_RICH(200000),
+  importantDates:         NL_RICH(100000),
+  studentsWeekImage:      NL_IMG,
+  weekPhotos:             (v) => Array.isArray(v) ? v.slice(0, 5).map(fn => fn || null) : [],
+  extraPhotos:            (v) => Array.isArray(v) ? v.slice(0, 4).map(fn => fn || null) : [],
+  photosText:             NL_RICH(100000),
+  customSectionTitle:     (v) => String(v || '').slice(0, 200),
+  customSectionImage:     NL_IMG,
+  customSectionText:      NL_RICH(100000),
+  studentsWeekMessage:    NL_RICH(100000),
+  campsDayTrips:          NL_RICH(100000),
+  schoolAccountsPayments: NL_RICH(100000),
+  uniformPortraitImage:   NL_IMG,
+  uniformLandscapeImage:  NL_IMG,
+  importantDatesImage:    NL_IMG,
+  footerImage:            NL_IMG,
+  notices: (v) => Array.isArray(v) ? v.slice(0, 50).map((n, idx) => ({
+    id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
+    caption: String((n && n.caption) || '').slice(0, 500),
+    filename: (n && n.filename) || null
+  })) : []
+};
+
+// Save the newsletter draft. Several admins can edit at once: a page sends only
+// the boxes it changed, and the server merges them into the current draft box
+// by box, so two people working on different boxes never overwrite each other.
+//
+// Each box remembers the version (fieldRevs) and the page that last saved it.
+// A page sends, for each changed box, the version it was editing. If someone
+// else has saved that box since, the change is refused for that box only and
+// the newer text is sent back (conflicts), so newer work is never overwritten
+// by an older copy — e.g. a phone that was left open on an old session.
+// A page's own saves can overlap (logout fires a save AND a beacon); a lower
+// save number arriving late from the page that saved the box last is ignored.
 app.post('/api/newsletter/save', (req, res) => {
   const b = req.body || {};
   const data = load();
-  const curRev = (data.newsletter && typeof data.newsletter.rev === 'number') ? data.newsletter.rev : 0;
-  const baseRev = Number(b.baseRev);
-
-  // Stale-write guard. The newsletter draft is a single shared object; every
-  // admin browser overwrites it wholesale. A page resumed from an old session
-  // (classically an installed PWA frozen for days on a phone) still holds the
-  // newsletter as it looked when that page first loaded — its save would revert
-  // the draft, TEXT AND IMAGES, to that old state. A client may only overwrite
-  // the draft if it was editing the CURRENT version (baseRev >= stored rev).
-  // Pre-guard clients send no numeric baseRev and must reload before they can
-  // save again. Rejected saves return the current rev so the client can resync.
-  //
-  // Saves from the page that wrote the current version are always its own
-  // (overlapping autosaves, logout's save + beacon), so they are not stale:
-  // accept a higher save number, and quietly ignore a lower one that arrived
-  // late so it can't put older text back.
+  const cur = data.newsletter || {};
+  const curRev = (typeof cur.rev === 'number') ? cur.rev : 0;
   const clientId = String(b.clientId || '').slice(0, 40);
   const seq = Number(b.seq);
-  const cur = data.newsletter || {};
-  const sameClient = !!clientId && cur.lastClient === clientId && Number.isFinite(seq);
-  if (sameClient && seq <= (Number(cur.lastSeq) || 0)) {
-    return res.json({ ok: true, rev: curRev, ignored: true });
-  }
-  if (!sameClient && (!Number.isFinite(baseRev) || baseRev < curRev)) {
-    return res.status(409).json({ ok: false, stale: true, rev: curRev });
+  const live = data._nlLive || (data._nlLive = { by: {}, byName: {}, seq: {} });
+  const fieldRevs = Object.assign({}, cur.fieldRevs || {});
+  const rev = Math.max(Date.now(), curRev + 1);
+
+  // Pages loaded before box-by-box saving existed send the whole draft with a
+  // single baseRev. Accept it only if it was editing the current version.
+  if (!b.changes || typeof b.changes !== 'object') {
+    const sameClient = !!clientId && cur.lastClient === clientId && Number.isFinite(seq);
+    if (sameClient && seq <= (Number(cur.lastSeq) || 0)) return res.json({ ok: true, rev: curRev, ignored: true });
+    const baseRev = Number(b.baseRev);
+    if (!sameClient && (!Number.isFinite(baseRev) || baseRev < curRev)) {
+      return res.status(409).json({ ok: false, stale: true, rev: curRev });
+    }
+    const draft = { rev, lastClient: clientId || null, lastSeq: Number.isFinite(seq) ? seq : 0, fieldRevs: {} };
+    Object.keys(NL_FIELDS).forEach(f => {
+      draft[f] = NL_FIELDS[f](b[f]);
+      draft.fieldRevs[f] = rev;
+      live.by[f] = clientId; live.byName[f] = 'Another admin'; live.seq[f] = draft.lastSeq;
+    });
+    nlBackup(data.newsletter, 'save');
+    data.newsletter = draft;
+    save(data, { label: 'Newsletter', silent: true });
+    liveBroadcast('changed', { path: '/newsletter/save', by: '' }, clientId);
+    return res.json({ ok: true, rev });
   }
 
-  const draft = {
-    termLabel: String(b.termLabel || '').trim().slice(0, 200) || 'Newsletter',
-    headerImage: b.headerImage || null,
-    principalImage: b.principalImage || null,
-    principalMessage: sanitiseRich(b.principalMessage || '').slice(0, 200000),
-    importantDates: sanitiseRich(b.importantDates || '').slice(0, 100000),
-    studentsWeekImage: b.studentsWeekImage || null,
-    weekPhotos: Array.isArray(b.weekPhotos) ? b.weekPhotos.slice(0, 5).map(function (fn) { return fn || null; }) : [],
-    extraPhotos: Array.isArray(b.extraPhotos) ? b.extraPhotos.slice(0, 4).map(function (fn) { return fn || null; }) : [],
-    photosText: sanitiseRich(b.photosText || '').slice(0, 100000),
-    customSectionTitle: String(b.customSectionTitle || '').slice(0, 200),
-    customSectionImage: b.customSectionImage || null,
-    customSectionText: sanitiseRich(b.customSectionText || '').slice(0, 100000),
-    studentsWeekMessage: sanitiseRich(b.studentsWeekMessage || '').slice(0, 100000),
-    campsDayTrips: sanitiseRich(b.campsDayTrips || '').slice(0, 100000),
-    schoolAccountsPayments: sanitiseRich(b.schoolAccountsPayments || '').slice(0, 100000),
-    uniformPortraitImage: b.uniformPortraitImage || null,
-    uniformLandscapeImage: b.uniformLandscapeImage || null,
-    importantDatesImage: b.importantDatesImage || null,
-    footerImage: b.footerImage || null,
-    notices: Array.isArray(b.notices) ? b.notices.slice(0, 50).map((n, idx) => ({
-      id: String((n && n.id) || ('nt_' + (idx + 1))).slice(0, 32),
-      caption: String((n && n.caption) || '').slice(0, 500),
-      filename: (n && n.filename) || null
-    })) : [],
-    // New version stamp. Strictly increases (Date.now() > any prior rev), so
-    // the next save from this client must carry this value to be accepted.
-    rev: Math.max(Date.now(), curRev + 1),
-    lastClient: clientId || null,
-    lastSeq: Number.isFinite(seq) ? seq : 0
-  };
+  const bases = (b.bases && typeof b.bases === 'object') ? b.bases : {};
+  const name = liveNameOf(req);
+  const applied = {}, conflicts = {}, sent = {};
+  Object.keys(b.changes).forEach(f => {
+    if (!NL_FIELDS[f]) return;
+    const fieldRev = Number(fieldRevs[f]) || 0;
+    const mine = !!clientId && live.by[f] === clientId;
+    if (mine && Number.isFinite(seq) && seq <= (Number(live.seq[f]) || 0)) return;  // late duplicate
+    if (!mine && (Number(bases[f]) || 0) < fieldRev) {
+      conflicts[f] = { value: cur[f], rev: fieldRev, by: live.byName[f] || 'Another admin' };
+      return;
+    }
+    applied[f] = NL_FIELDS[f](b.changes[f]);
+  });
+
+  const names = Object.keys(applied);
+  if (!names.length) return res.json({ ok: true, rev: curRev, applied: {}, conflicts });
+
+  const draft = Object.assign({}, cur);
+  names.forEach(f => {
+    draft[f] = applied[f];
+    fieldRevs[f] = rev;
+    live.by[f] = clientId || null; live.byName[f] = name; live.seq[f] = Number.isFinite(seq) ? seq : 0;
+    sent[f] = { value: applied[f], rev };
+  });
+  if (!draft.termLabel) draft.termLabel = 'Newsletter';
+  draft.fieldRevs = fieldRevs;
+  draft.rev = rev;
+  draft.lastClient = clientId || null;
+  draft.lastSeq = Number.isFinite(seq) ? seq : 0;
 
   nlBackup(data.newsletter, 'save');   // keep the prior draft recoverable
   data.newsletter = draft;
   if (!Array.isArray(data.newsletterSnapshots)) data.newsletterSnapshots = [];
-
   // Auto-save ONLY persists the live draft. Snapshots (the shareable links
-  // shown in "Saved newsletters") are touched only by /api/newsletter/publish,
-  // i.e. the explicit Save Newsletter button. This prevents auto-save from
-  // creating or mutating snapshot copies as the admin types.
-  //
+  // shown in "Saved newsletters") are touched only by /api/newsletter/publish.
   // `silent` so editing the draft does NOT bump the public version: visitors
-  // must only be told the newsletter changed when it is actually PUBLISHED,
-  // not on every keystroke while an admin edits the draft. (Undo history is
-  // still recorded — that's controlled by `skipHistory`, not `silent`.)
+  // are only told the newsletter changed when it is actually PUBLISHED.
   save(data, { label: 'Newsletter', silent: true });
-  res.json({ ok: true, rev: draft.rev });
+  liveBroadcast('nl', { rev, fields: sent, by: name }, clientId);
+  const appliedRevs = {};
+  names.forEach(f => { appliedRevs[f] = rev; });
+  res.json({ ok: true, rev, applied: appliedRevs, conflicts });
 });
 
 // Explicit publish — creates a new shareable snapshot (or updates the
