@@ -1489,7 +1489,19 @@ app.post('/api/newsletter/save', (req, res) => {
   // the draft if it was editing the CURRENT version (baseRev >= stored rev).
   // Pre-guard clients send no numeric baseRev and must reload before they can
   // save again. Rejected saves return the current rev so the client can resync.
-  if (!Number.isFinite(baseRev) || baseRev < curRev) {
+  //
+  // Saves from the page that wrote the current version are always its own
+  // (overlapping autosaves, logout's save + beacon), so they are not stale:
+  // accept a higher save number, and quietly ignore a lower one that arrived
+  // late so it can't put older text back.
+  const clientId = String(b.clientId || '').slice(0, 40);
+  const seq = Number(b.seq);
+  const cur = data.newsletter || {};
+  const sameClient = !!clientId && cur.lastClient === clientId && Number.isFinite(seq);
+  if (sameClient && seq <= (Number(cur.lastSeq) || 0)) {
+    return res.json({ ok: true, rev: curRev, ignored: true });
+  }
+  if (!sameClient && (!Number.isFinite(baseRev) || baseRev < curRev)) {
     return res.status(409).json({ ok: false, stale: true, rev: curRev });
   }
 
@@ -1520,7 +1532,9 @@ app.post('/api/newsletter/save', (req, res) => {
     })) : [],
     // New version stamp. Strictly increases (Date.now() > any prior rev), so
     // the next save from this client must carry this value to be accepted.
-    rev: Math.max(Date.now(), curRev + 1)
+    rev: Math.max(Date.now(), curRev + 1),
+    lastClient: clientId || null,
+    lastSeq: Number.isFinite(seq) ? seq : 0
   };
 
   nlBackup(data.newsletter, 'save');   // keep the prior draft recoverable

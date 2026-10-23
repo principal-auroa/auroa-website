@@ -11993,6 +11993,14 @@ var newsletterPublished = null;
 // the server can reject a stale overwrite (see the stale-write guard). Updated
 // on every load and successful save.
 var nlBaseRev = 0;
+// This page's own ID + a running save number. Several saves from this page can
+// be in flight at once (logout fires a normal save AND a beacon save; autosaves
+// can overlap on a slow connection). They all carry the same baseRev, so without
+// this the server rejected our own second save as "edited on another device".
+// The server accepts a newer-numbered save from the page that wrote last, and
+// ignores an older-numbered one that arrives late.
+var nlClientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+var nlSeq = 0;
 
 function nlSetImage(slotEl, imgEl, filename) {
   if (filename) {
@@ -12523,6 +12531,8 @@ function nlBuildDraft() {
   var sapEdEl   = el('nl-school-accounts');
   return {
     baseRev: nlBaseRev,
+    clientId: nlClientId,
+    seq: ++nlSeq,
     termLabel: ((el('nl-term-label').textContent || '').trim()) || 'Newsletter',
     headerImage: newsletterData.headerImage || null,
     principalImage: newsletterData.principalImage || null,
