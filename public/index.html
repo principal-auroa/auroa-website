@@ -4811,6 +4811,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
             <datalist id="abs-last-names"></datalist>
           </div>
         </div>
+        <label class="hb-label" for="abs-parent">Parent / caregiver name (the person sending this) <span class="hb-required">*</span></label>
+        <input id="abs-parent" class="hb-input" type="text" required maxlength="100" list="abs-parent-names" autocomplete="name">
+        <datalist id="abs-parent-names"></datalist>
 
         <label class="hb-label">Date of absence &amp; reason <span class="hb-required">*</span></label>
         <div id="abs-entries"></div>
@@ -10319,7 +10322,7 @@ function absInitEntries() {
 }
 // Remember previously-entered names on this device so they suggest while typing.
 function absLoadNames() {
-  [['first','abs-first-names'], ['last','abs-last-names']].forEach(function(pair){
+  [['first','abs-first-names'], ['last','abs-last-names'], ['parent','abs-parent-names']].forEach(function(pair){
     var dl = el(pair[1]);
     if (!dl) return;
     var list = [];
@@ -10330,9 +10333,9 @@ function absLoadNames() {
     }).join('');
   });
 }
-function absRememberName(first, last) {
+function absRememberName(first, last, parent) {
   try {
-    [['first', first], ['last', last]].forEach(function(pair){
+    [['first', first], ['last', last], ['parent', parent]].forEach(function(pair){
       var val = String(pair[1] || '').trim();
       if (!val) return;
       var key = 'abs_' + pair[0] + '_names';
@@ -10371,6 +10374,8 @@ function submitAbsence() {
   var first = (el('abs-first').value || '').trim();
   var last  = (el('abs-last').value || '').trim();
   if (!first || !last) { absStatus("Please enter the student's first and last name."); return; }
+  var parent = (el('abs-parent').value || '').trim();
+  if (!parent) { absStatus('Please enter your name (the parent or caregiver sending this).'); el('abs-parent').focus(); return; }
   var two = function(n){ n = String(n); return n.length < 2 ? '0' + n : n; };
   var entries = [];
   var rows = document.querySelectorAll('#abs-entries .abs-entry');
@@ -10392,7 +10397,7 @@ function submitAbsence() {
   absStatus('');
   fetch('/api/absence', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ firstName: first, lastName: last, entries: entries })
+    body: JSON.stringify({ firstName: first, lastName: last, parentName: parent, entries: entries })
   })
   .then(function(r){ return r.json().then(function(b){ return { ok: r.ok, body: b }; }); })
   .then(function(res){
@@ -10400,8 +10405,8 @@ function submitAbsence() {
     if (!res.ok) { absStatus((res.body && res.body.error) || 'Could not submit. Please try again.'); return; }
     var n = (res.body && res.body.count) || entries.length;
     absStatus('✓ ' + n + (n === 1 ? ' absence' : ' absences') + ' recorded — thank you.', true);
-    absRememberName(first, last);
-    el('abs-first').value = ''; el('abs-last').value = '';
+    absRememberName(first, last, parent);
+    el('abs-first').value = ''; el('abs-last').value = '';   // parent name stays for a sibling's absence
     absResetEntries();
     if (isAdmin) absRenderAdmin();
   })
@@ -10432,6 +10437,7 @@ function absRenderAdmin() {
         '<span class="abs-reason-tag">' + lunchEsc(a.reason || '') + '</span>' +
         '<h4>' + lunchEsc(((a.firstName || '') + ' ' + (a.lastName || '')).trim()) + '</h4>' +
         '<div class="abs-meta"><strong>Absent:</strong> ' + lunchEsc(absFmtDate(a.date)) + '</div>' +
+        '<div class="abs-meta"><strong>Sent by:</strong> ' + (a.parentName ? lunchEsc(a.parentName) : '<span style="color:#999;">not given</span>') + '</div>' +
         (a.detail ? '<div class="abs-meta"><strong>Detail:</strong> ' + lunchEsc(a.detail) + '</div>' : '') +
         '<div class="abs-meta" style="color:#999;font-size:11px;">Submitted ' + lunchEsc(submitted) + '</div>';
       var del = document.createElement('button');

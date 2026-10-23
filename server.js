@@ -1094,6 +1094,8 @@ app.post('/api/absence', (req, res) => {
   const firstName = String(b.firstName || '').trim();
   const lastName  = String(b.lastName  || '').trim();
   if (!firstName || !lastName) return res.status(400).json({ error: 'Please enter the student\'s first and last name.' });
+  const parentName = String(b.parentName || '').trim();
+  if (!parentName) return res.status(400).json({ error: 'Please enter your name (the parent or caregiver sending this).' });
   // Accept one or many date+reason entries (parents can list multiple days).
   const rawEntries = Array.isArray(b.entries) && b.entries.length
     ? b.entries
@@ -1113,6 +1115,7 @@ app.post('/api/absence', (req, res) => {
       id: 'abs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
       firstName: firstName.slice(0, 100),
       lastName:  lastName.slice(0, 100),
+      parentName: parentName.slice(0, 100),
       reason,
       detail:    detail.slice(0, 1000),
       date,
