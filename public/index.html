@@ -5162,10 +5162,10 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===================== FETCH STATE =====================
-function fetchState(_retry) {
-  return fetch('/api/state', { cache: 'no-store' })
-    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function(data) {
+// Put a loaded copy of the site's content (/api/state) on the page. Runs for
+// every load (and again on login / live refresh), and for the copy kept on
+// this device when the server can't be reached.
+function applyState(data) {
       enrolLink = data.enrolLink || '';
       stationeryLink = data.stationeryLink || '';
       contactImage = data.contactImage || null;
@@ -5457,27 +5457,89 @@ function fetchState(_retry) {
 
       renderImpDropdown();
       applyHeaderToAllPages();
+}
+
+// The last content this device loaded, so the app still shows the newsletter
+// and pages when the server can't be reached — a weak signal, or the minute
+// or so while a new version of the site is being deployed. Private, admin-only
+// parts (lunch orders, the unpublished newsletter draft) are never stored.
+var STATE_CACHE_KEY = 'auroa_state_cache_v1';
+function stateSaveCache(data) {
+  try {
+    var copy = Object.assign({}, data, { lunchOrders: [], newsletter: undefined });
+    localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(copy));
+  } catch (e) {}
+}
+function stateLoadCache() {
+  try { return JSON.parse(localStorage.getItem(STATE_CACHE_KEY) || 'null'); } catch (e) { return null; }
+}
+var stateLive = false;        // the server's content has been shown this session
+var stateFromCache = false;   // the device's saved copy is being shown meanwhile
+var stateRetryTimer = null;
+function stateLogFail(kind, detail) {
+  if (typeof window.pmBeacon === 'function') window.pmBeacon(kind, null, detail);
+}
+
+function fetchState(_retry) {
+  var n = _retry || 0;
+  clearTimeout(stateRetryTimer);
+  return fetch('/api/state', { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(data) {
+      stateSaveCache(data);
+      try {
+        applyState(data);
+      } catch (e) {
+        // The content arrived but drawing part of a page failed — a bug, not
+        // the connection. Record it, and don't loop re-downloading.
+        console.warn('Could not show state:', e);
+        stateLogFail('state-render-error', (e && (e.stack || e.message)) || String(e));
+      }
+      stateLive = true;
+      stateFromCache = false;
       // State loaded — clear any "couldn't load" banner from a prior attempt.
       var _sle = document.getElementById('state-load-error'); if (_sle) _sle.remove();
     })
     .catch(function(e) {
       console.warn('Could not load state:', e);
-      // /api/state failed — most often a stale service worker intercepting the
-      // request inside an installed PWA, or a brief network blip. Retry a few
-      // times with the HTTP cache bypassed before giving up.
-      var n = _retry || 0;
-      if (n < 3) { setTimeout(function() { fetchState(n + 1); }, 600 * (n + 1)); return; }
-      // Still failing: keep the default navigation working so the menu isn't
-      // empty, AND show a visible Reload prompt so the app never sits blank.
-      if (!pageConfig.length) {
-        pageConfig = PAGE_CONFIG_DEFAULTS.map(function(p) {
-          return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
-        });
+      if (n === 0) stateLogFail('state-load-fail', (e && e.message) || String(e));
+      // Already showing the server's content (this was a refresh): a few quick
+      // retries, then leave the page as it is.
+      if (stateLive) {
+        if (n < 3) stateRetryTimer = setTimeout(function() { fetchState(n + 1); }, 1500 * (n + 1));
+        return;
       }
-      renderSidebarPages();
-      showStateLoadError();
+      // Nothing from the server yet: show the copy saved on this device right
+      // away, and keep trying quietly in the background (sooner when the
+      // phone reconnects or the app is reopened — see below).
+      if (!stateFromCache) {
+        var cached = stateLoadCache();
+        if (cached) {
+          try { applyState(cached); stateFromCache = true; } catch (e2) {}
+        }
+      }
+      var delay = n < 3 ? 600 * (n + 1) : Math.min(30000, 3000 * (n - 2));
+      stateRetryTimer = setTimeout(function() { fetchState(n + 1); }, delay);
+      // Only show the red bar when there is nothing at all to show.
+      if (n >= 3 && !stateFromCache) {
+        if (!pageConfig.length) {
+          pageConfig = PAGE_CONFIG_DEFAULTS.map(function(p) {
+            return { id: p.id, label: p.label || p.id, hidden: !!p.hidden };
+          });
+        }
+        renderSidebarPages();
+        showStateLoadError();
+      }
     });
 }
+function stateRetryNow() {
+  if (stateLive) return;
+  fetchState(3);
+}
+window.addEventListener('online', stateRetryNow);
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') stateRetryNow();
+});
 
 // Visible recovery when /api/state can't be loaded after retries, so an
 // installed app stuck on a bad cache shows a Reload button instead of blank
