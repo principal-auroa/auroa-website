@@ -1354,6 +1354,18 @@ const SHP_FIELDS = [
   ['agreeMeds', 'one', ['Yes'], true], ['agreeInform', 'one', ['Yes'], true], ['agreeTreatment', 'one', ['Yes'], true],
   ['agreeCosts', 'one', ['Yes'], true], ['agreeDiscipline', 'one', ['Yes'], true],
 ];
+// Each profile's signature is a PNG kept OUT of /uploads (which is public):
+// DATA_DIR/health-signatures/<ts>.png, served only to admins.
+const SHP_SIG_DIR = path.join(DATA_DIR, 'health-signatures');
+function shpSigFile(ts) { return path.join(SHP_SIG_DIR, String(Number(ts)) + '.png'); }
+function shpDecodeSignature(dataUrl) {
+  const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) return null;
+  const buf = Buffer.from(m[1], 'base64');
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (buf.length < 100 || buf.length > 600000 || !buf.subarray(0, 8).equals(PNG)) return null;
+  return buf;
+}
 function shpReadAll(cb) {
   fs.readFile(HEALTH_FILE, 'utf8', (err, txt) => {
     let list = [];
@@ -1403,6 +1415,8 @@ function shpSave(req, res, b, account) {
   const a = (b.answers && typeof b.answers === 'object') ? b.answers : {};
   const year = String(b.year || '');
   if (!SHP_YEAR.test(year)) return res.status(400).json({ error: 'Bad year group' });
+  const sig = shpDecodeSignature(b.signature);
+  if (!sig) return res.status(400).json({ error: 'Please sign the form (the signature box at the bottom) — required.' });
   const answers = {};
   for (const [key, type, arg, required] of SHP_FIELDS) {
     const v = a[key];
@@ -1418,11 +1432,26 @@ function shpSave(req, res, b, account) {
     }
   }
   shpReadAll((list) => {
-    list.push({ ts: Date.now(), year, account, answers });
+    let ts = Date.now();
+    while (list.some(r => Number(r.ts) === ts)) ts++;   // ts names the signature file — keep it unique
+    try {
+      fs.mkdirSync(SHP_SIG_DIR, { recursive: true });
+      fs.writeFileSync(shpSigFile(ts), sig);
+    } catch (e) {
+      return res.status(500).json({ error: 'Could not save the signature — please try again.' });
+    }
+    list.push({ ts, year, account, answers, signed: true });
     if (list.length > 5000) list = list.slice(-5000);
     fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true }));
   });
 }
+// Admin-only (not in PUBLIC_API): the signature image for one profile.
+app.get('/api/health-profile/signature/:ts', (req, res) => {
+  const f = shpSigFile(req.params.ts);
+  if (!/^\d+$/.test(req.params.ts) || !fs.existsSync(f)) return res.status(404).end();
+  res.set('Cache-Control', 'private, no-store');
+  res.type('png').sendFile(f);
+});
 app.post('/api/health-profile/results', (req, res) => {
   shpReadAll((list) => res.json({ profiles: list }));
 });
@@ -1433,6 +1462,7 @@ app.post('/api/health-profile/delete', (req, res) => {
     const idx = list.findIndex(r => Number(r.ts) === ts);
     if (idx === -1) return res.json({ ok: true, deleted: 0 });
     list.splice(idx, 1);
+    fs.unlink(shpSigFile(ts), () => {});
     fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
   });
 });

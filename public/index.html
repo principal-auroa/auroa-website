@@ -1496,6 +1496,32 @@ body:not(.is-admin) .trip-imgs:not(:has(.trip-img-card)){display:none;}
 body.is-admin .shp-admin-btn{display:inline-block;}
 .shp-panel{background:#fff;border:2px solid #1a2b4a;border-radius:12px;padding:18px 20px;margin-bottom:18px;}
 .shp-panel[hidden]{display:none;}
+/* Health profile signature: a box on the form, and a full-screen pad to sign on */
+.shp-sig-box{margin-top:6px;border:2px dashed #9aa6b8;border-radius:12px;background:#fafbfd;min-height:130px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1a2b4a;font-weight:700;font-size:15px;padding:8px;text-align:center;}
+.shp-sig-box.has-sig{border-style:solid;border-color:#27ae60;background:#fff;}
+.shp-sig-box img{max-width:100%;max-height:160px;display:block;}
+.shp-sig-actions{display:flex;gap:10px;margin-top:6px;font-size:13px;}
+.shp-sig-actions button{background:none;border:none;color:#1a2b4a;text-decoration:underline;cursor:pointer;font-family:inherit;padding:0;}
+.sig-pad{position:fixed;inset:0;z-index:100000;background:#fff;display:flex;flex-direction:column;
+  width:100vw;height:100vh;height:100dvh;font-family:'Quicksand',sans-serif;}
+.sig-pad-top{display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));
+  background:#1a2b4a;color:#fff;flex-wrap:wrap;}
+.sig-pad-top .sig-pad-t{flex:1;min-width:140px;font-weight:700;font-size:15px;}
+.sig-pad-top button{border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;}
+.sig-pad-top .sig-done{background:#27ae60;color:#fff;}
+.sig-pad-top .sig-clear,.sig-pad-top .sig-cancel{background:#fff;color:#1a2b4a;}
+.sig-pad-area{flex:1;position:relative;touch-action:none;padding-bottom:env(safe-area-inset-bottom);}
+.sig-pad-area canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+.sig-pad-line{position:absolute;left:8%;right:8%;bottom:28%;border-bottom:2px solid #c9d1dd;pointer-events:none;}
+.sig-pad-tip{position:absolute;left:0;right:0;bottom:12%;text-align:center;font-size:13px;color:#8a95a8;pointer-events:none;display:none;}
+@media (orientation:portrait){.sig-pad-tip{display:block;}}
+.sig-pad-x{position:absolute;left:8%;bottom:calc(28% + 6px);font-size:26px;color:#9aa6b8;pointer-events:none;}
+@media (min-width:900px) and (min-height:600px) and (hover:hover){
+  .sig-pad{inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);width:860px;height:420px;border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;}
+}
+.shp-detail .shp-sig-img{max-width:100%;width:420px;border:1px solid #ddd;border-radius:8px;background:#fff;}
 .shp-h{color:#1a2b4a;font-size:18px;font-weight:700;margin:0 0 2px;}
 .shp-sub{color:#666;font-size:13px;margin:0 0 6px;}
 .shp-signin{background:#f5f8fc;border:1.5px solid #d6e2f0;border-radius:12px;padding:14px 16px;margin:10px 0 6px;}
@@ -7166,10 +7192,152 @@ function shpRenderForm() {
       if (q.otherKey) h += '<input class="hb-input sv-other-in" type="text" name="' + q.otherKey + '" maxlength="300" placeholder="Other — please state">';
     }
   });
+  h += '<div class="shp-q" id="shp-q-signature">Parent / caregiver signature <span class="hb-required">*</span></div>' +
+    '<div id="shp-sig-box" class="shp-sig-box" role="button" tabindex="0" onclick="shpOpenSignature()" onkeydown="if(event.key===\'Enter\')shpOpenSignature()"></div>' +
+    '<div class="shp-sig-actions"><button type="button" id="shp-sig-clear" onclick="shpClearSignature()" hidden>Clear signature</button></div>';
   h += '<div class="abs-submit-row"><button id="shp-submit-btn" type="submit" class="hb-submit-btn">Submit health profile</button><span id="shp-status" class="hb-err"></span></div></div></form>';
   wrap.innerHTML = h;
   if (_shpGoogle && _shpGoogle.name) wrap.querySelector('[name="accountName"]').value = _shpGoogle.name;
+  _shpSignature = null;
+  shpRenderSignatureBox();
   shpRenderSignin();
+}
+
+// ---- Signature: tap the box to sign on a full-screen pad ----
+var _shpSignature = null;   // PNG data URL of the parent's signature
+function shpRenderSignatureBox() {
+  var box = el('shp-sig-box'), clr = el('shp-sig-clear');
+  if (!box) return;
+  box.innerHTML = '';
+  box.classList.toggle('has-sig', !!_shpSignature);
+  if (_shpSignature) {
+    var img = document.createElement('img');
+    img.src = _shpSignature; img.alt = 'Your signature';
+    box.appendChild(img);
+  } else {
+    box.textContent = '✍️ Tap here to sign';
+  }
+  if (clr) clr.hidden = !_shpSignature;
+}
+function shpClearSignature() { _shpSignature = null; shpRenderSignatureBox(); }
+function shpOpenSignature() {
+  openSignaturePad('Sign with your finger (or mouse)', function(dataUrl) {
+    _shpSignature = dataUrl;
+    shpRenderSignatureBox();
+  });
+}
+
+// Full-screen signing pad. Fills the phone screen in portrait and landscape;
+// turning the phone redraws what has been signed so far at the new size.
+// Calls onDone with a cropped PNG data URL, or not at all if cancelled.
+function openSignaturePad(title, onDone) {
+  var strokes = [];          // each: { w, h, pts: [[x, y], ...] } — size of the pad when drawn
+  var cur = null;
+  var pad = document.createElement('div');
+  pad.className = 'sig-pad';
+  pad.innerHTML = '<div class="sig-pad-top"><div class="sig-pad-t"></div>' +
+    '<button type="button" class="sig-clear">Clear</button><button type="button" class="sig-cancel">Cancel</button>' +
+    '<button type="button" class="sig-done">Done</button></div>' +
+    '<div class="sig-pad-area"><div class="sig-pad-line"></div><div class="sig-pad-x">✕</div>' +
+    '<div class="sig-pad-tip">Tip: turn your phone sideways for more room</div><canvas></canvas></div>';
+  pad.querySelector('.sig-pad-t').textContent = title;
+  document.body.appendChild(pad);
+  var area = pad.querySelector('.sig-pad-area'), canvas = pad.querySelector('canvas'), ctx = canvas.getContext('2d');
+  var prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  // Real full screen where the phone allows it (Android); the pad already
+  // covers the window either way.
+  var wentFull = false;
+  if (window.matchMedia && matchMedia('(pointer: coarse)').matches && pad.requestFullscreen) {
+    pad.requestFullscreen().then(function() { wentFull = true; }).catch(function() {});
+  }
+
+  function lineWidth() { return Math.max(2.5, Math.min(canvas.clientWidth, canvas.clientHeight) / 110); }
+  function size() {
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(canvas.clientWidth * dpr);
+    canvas.height = Math.round(canvas.clientHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+  // Strokes are scaled to fit the current size, keeping their shape.
+  function redraw() {
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#10204a'; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = lineWidth();
+    strokes.forEach(function(st) {
+      var k = Math.min(W / st.w, H / st.h), ox = (W - st.w * k) / 2, oy = (H - st.h * k) / 2;
+      ctx.beginPath();
+      st.pts.forEach(function(p, i) {
+        var x = ox + p[0] * k, y = oy + p[1] * k;
+        if (i === 0) { ctx.moveTo(x, y); ctx.lineTo(x + 0.1, y + 0.1); } else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    });
+  }
+  function pos(e) { var r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  canvas.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    cur = { w: canvas.clientWidth, h: canvas.clientHeight, pts: [pos(e)] };
+    strokes.push(cur);
+    redraw();
+  });
+  canvas.addEventListener('pointermove', function(e) {
+    if (!cur) return;
+    e.preventDefault();
+    var list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    if (!list.length) list = [e];
+    list.forEach(function(ev) { cur.pts.push(pos(ev)); });
+    redraw();
+  });
+  function end() { cur = null; }
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  var onResize = function() { setTimeout(size, 60); };
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+
+  function close() {
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('orientationchange', onResize);
+    document.body.style.overflow = prevOverflow;
+    if (wentFull && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function() {});
+    pad.remove();
+  }
+  // The signature on its own: trimmed to the ink, on white, at most 900px wide.
+  function exportPng() {
+    var W = canvas.clientWidth, H = canvas.clientHeight, minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    strokes.forEach(function(st) {
+      var k = Math.min(W / st.w, H / st.h), ox = (W - st.w * k) / 2, oy = (H - st.h * k) / 2;
+      st.pts.forEach(function(p) {
+        var x = ox + p[0] * k, y = oy + p[1] * k;
+        minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      });
+    });
+    var padPx = lineWidth() * 3;
+    minX = Math.max(0, minX - padPx); minY = Math.max(0, minY - padPx);
+    maxX = Math.min(W, maxX + padPx); maxY = Math.min(H, maxY + padPx);
+    var cw = Math.max(1, maxX - minX), ch = Math.max(1, maxY - minY);
+    var scale = Math.min(900 / cw, 2);
+    var out = document.createElement('canvas');
+    out.width = Math.round(cw * scale); out.height = Math.round(ch * scale);
+    var o = out.getContext('2d');
+    o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(canvas, minX * canvas.width / W, minY * canvas.height / H, cw * canvas.width / W, ch * canvas.height / H,
+                0, 0, out.width, out.height);
+    return out.toDataURL('image/png');
+  }
+  pad.querySelector('.sig-clear').onclick = function() { strokes = []; redraw(); };
+  pad.querySelector('.sig-cancel').onclick = close;
+  pad.querySelector('.sig-done').onclick = function() {
+    var ink = strokes.reduce(function(n, st) { return n + st.pts.length; }, 0);
+    if (ink < 8) { alert('Please sign in the white area first.'); return; }
+    var url = exportPng();
+    close();
+    onDone(url);
+  };
+  size();
 }
 function shpCollect() {
   var form = el('shp-form'), answers = {}, missing = null;
@@ -7204,6 +7372,11 @@ function shpSubmit() {
     return;
   }
   var c = shpCollect();
+  if (!c.missing && !_shpSignature) {
+    status.textContent = 'Please sign the form — tap the signature box above the Submit button.';
+    el('shp-q-signature').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   if (c.missing) {
     status.textContent = c.missing.type === 'agree' ? 'Please tick each agreement to continue.' : 'Please answer: ' + c.missing.label.slice(0, 60) + (c.missing.label.length > 60 ? '…' : '');
     var q = el('shp-q-' + c.missing.key) || el('shp-form');
@@ -7211,7 +7384,7 @@ function shpSubmit() {
     return;
   }
   btn.disabled = true; btn.textContent = 'Sending…';
-  fetch('/api/health-profile/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: _tripYear, answers: c.answers, accountName: accountName, googleToken: _shpGoogle.token }) })
+  fetch('/api/health-profile/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: _tripYear, answers: c.answers, accountName: accountName, googleToken: _shpGoogle.token, signature: _shpSignature }) })
     .then(function(r) { return r.json(); })
     .then(function(b) {
       if (b && b.error === 'google-signin') {
@@ -7296,6 +7469,10 @@ function shpShowDetail(ts) {
     '<div><b>Sent by (Google account)</b><br>' + shpAccountHtml(r) +
     (r.account && r.account.googleName ? '<br><span style="font-size:12px;color:#555;">Name on the Google account: ' + lunchEsc(r.account.googleName) + '</span>' : '') + '</div>';
   SHP_QUESTIONS.forEach(function(q) { h += '<div><b>' + lunchEsc(q.label) + '</b><br>' + (lunchEsc(shpAnswerText(r, q)) || '<span style="color:#999">—</span>') + '</div>'; });
+  h += '<div><b>Parent / caregiver signature</b><br>' + (r.signed
+    ? '<img class="shp-sig-img" src="/api/health-profile/signature/' + Number(r.ts) + '" alt="Signature">' +
+      '<br><span style="font-size:12px;color:#555;">Signed ' + lunchEsc(new Date(r.ts).toLocaleString()) + (r.account && r.account.accountName ? ' by ' + lunchEsc(r.account.accountName) : '') + '</span>'
+    : '<span style="color:#999">Not signed (sent before signatures were required)</span>') + '</div>';
   h += '<button type="button" class="abar-btn" style="font-size:11px;padding:3px 12px;" onclick="el(\'shp-detail\').innerHTML=\'\'">Close</button></div>';
   box.innerHTML = h;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -7315,11 +7492,11 @@ function shpClearResults() {
 // Every answer as a column, one row per response. Opens in Excel/Numbers.
 function shpDownloadCsv() {
   var list = shpVisible();
-  var head = ['Sent', 'Sent by (name)', 'Google account email', 'Name on Google account', 'Year group'].concat(SHP_QUESTIONS.map(function(q) { return q.label; }));
+  var head = ['Sent', 'Sent by (name)', 'Google account email', 'Name on Google account', 'Signed', 'Year group'].concat(SHP_QUESTIONS.map(function(q) { return q.label; }));
   var lines = [head.map(pdCsvCell).join(',')];
   list.forEach(function(r) {
     var acct = r.account || {};
-    lines.push([new Date(r.ts).toLocaleString(), acct.accountName || '', acct.email || '', acct.googleName || '', TRIP_YEARS[r.year] || r.year || ''].concat(SHP_QUESTIONS.map(function(q) { return shpAnswerText(r, q); })).map(pdCsvCell).join(','));
+    lines.push([new Date(r.ts).toLocaleString(), acct.accountName || '', acct.email || '', acct.googleName || '', r.signed ? 'Yes' : 'No', TRIP_YEARS[r.year] || r.year || ''].concat(SHP_QUESTIONS.map(function(q) { return shpAnswerText(r, q); })).map(pdCsvCell).join(','));
   });
   var all = el('shp-all-years') && el('shp-all-years').checked, d = new Date();
   var fname = 'Student Health Profiles ' + (all ? 'all years' : (TRIP_YEARS[_tripYear] || _tripYear)) + ' ' + String(d.getDate()).padStart(2, '0') + '-' +
