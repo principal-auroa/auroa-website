@@ -459,6 +459,10 @@ const PUBLIC_API = [
   ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
+  // Upcoming events shown in the Auroa Assessments staff calendar, and events
+  // pushed from it. The sync routes check CALENDAR_SYNC_KEY themselves.
+  ['GET',  /^\/upcoming-events\/list$/],
+  ['PUT',  /^\/sync\/upcoming-events\/[^/]+$/], ['DELETE', /^\/sync\/upcoming-events\/[^/]+$/],
 ];
 app.use('/api', (req, res, next) => {
   const isPublic = PUBLIC_API.some(([m, re]) => m === req.method && re.test(req.path));
@@ -2265,6 +2269,16 @@ app.delete('/api/hall-bookings/:id', (req, res) => {
 });
 
 // ---- Upcoming events (calendar) ----
+// Times are "HH:MM" (24h, half-hour steps from the form). endTime is optional;
+// when given it must be after the start time.
+function ueTimeMin(t) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? (+m[1]) * 60 + (+m[2]) : -1; }
+function uePad(t) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? m[1].padStart(2, '0') + ':' + m[2] : ''; }
+function ueEndTime(b, allDay, time) {
+  const e = uePad(String(b.endTime || '').trim());
+  if (allDay || !e) return { endTime: '' };
+  if (ueTimeMin(e) <= ueTimeMin(time)) return { error: 'The finish time must be after the start time.' };
+  return { endTime: e };
+}
 app.post('/api/upcoming-events', (req, res) => {
   const b = req.body || {};
   const date = String(b.date || '').trim();
@@ -2282,6 +2296,8 @@ app.post('/api/upcoming-events', (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date) endDate = date;
   // Highlight colour: accept #rgb or #rrggbb, else fall back to the default.
   if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
+  const et = ueEndTime(b, allDay, time);
+  if (et.error) return res.status(400).json({ error: et.error });
 
   const data = load();
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
@@ -2291,6 +2307,7 @@ app.post('/api/upcoming-events', (req, res) => {
     date,
     endDate,
     time: allDay ? '' : time,
+    endTime: et.endTime,
     allDay,
     name: name.slice(0, 200),
     details: details.slice(0, 4000),
@@ -2325,16 +2342,22 @@ app.put('/api/upcoming-events/:id', (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Pick a date.' });
   if (!allDay && !/^\d{1,2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Pick a time.' });
   if (!name)                            return res.status(400).json({ error: 'Event name is required.' });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date) endDate = date;
   if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
+  const et = ueEndTime(b, allDay, time);
+  if (et.error) return res.status(400).json({ error: et.error });
 
   const data = load();
   if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
   const ev = data.upcomingEvents.find(e => e.id === req.params.id);
   if (!ev) return res.status(404).json({ error: 'Event not found' });
+  // The form no longer has an end date; keep an older multi-day event's end
+  // date unless one is sent.
+  if (b.endDate === undefined) endDate = (ev.endDate && ev.endDate >= date) ? ev.endDate : date;
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date) endDate = date;
   ev.date = date;
   ev.endDate = endDate;
   ev.time = allDay ? '' : time;
+  ev.endTime = et.endTime;
   ev.allDay = allDay;
   ev.name = name.slice(0, 200);
   ev.details = details.slice(0, 4000);
@@ -2349,6 +2372,79 @@ app.delete('/api/upcoming-events/:id', (req, res) => {
   const before = data.upcomingEvents.length;
   data.upcomingEvents = data.upcomingEvents.filter(e => e.id !== req.params.id);
   save(data, { silent: true });
+  res.json({ ok: true, removed: before - data.upcomingEvents.length });
+});
+
+// ---- Link with the Auroa Assessments staff calendar ----
+// Public list of events (the same events the public calendar shows) for the
+// staff calendar to display.
+app.get('/api/upcoming-events/list', (req, res) => {
+  const data = load();
+  const list = (Array.isArray(data.upcomingEvents) ? data.upcomingEvents : []).map(e => ({
+    id: e.id, extId: e.extId || '', date: e.date, endDate: e.endDate || e.date,
+    time: e.time || '', endTime: e.endTime || '', allDay: !!e.allDay,
+    name: e.name, details: e.details || '', color: e.color || '#dbeafe'
+  }));
+  res.json({ events: list });
+});
+
+// Events pushed from the staff calendar ("Add to website calendar" ticked).
+// Authenticated by the shared CALENDAR_SYNC_KEY (set in both apps' Railway
+// variables), not the admin login. :extId is the staff app's id for the event.
+function syncKeyOk(req) {
+  const want = process.env.CALENDAR_SYNC_KEY || '';
+  const got = String(req.headers['x-sync-key'] || '');
+  if (!want || got.length !== want.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
+app.put('/api/sync/upcoming-events/:extId', (req, res) => {
+  if (!process.env.CALENDAR_SYNC_KEY) return res.status(503).json({ error: 'Calendar link not set up on the website (CALENDAR_SYNC_KEY).' });
+  if (!syncKeyOk(req)) return res.status(401).json({ error: 'Bad sync key' });
+  const extId = String(req.params.extId).slice(0, 60);
+  const b = req.body || {};
+  const date = String(b.date || '').trim();
+  const allDay = b.allDay === true || b.allDay === 'true';
+  const time = allDay ? '' : uePad(String(b.time || '').trim());
+  const name = String(b.name || '').trim();
+  let color = String(b.color || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Bad date' });
+  if (!allDay && !time) return res.status(400).json({ error: 'Pick a time.' });
+  if (!name) return res.status(400).json({ error: 'Event name is required.' });
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
+  const et = ueEndTime(b, allDay, time);
+  if (et.error) return res.status(400).json({ error: et.error });
+  const fields = {
+    date, endDate: date, time, endTime: et.endTime, allDay,
+    name: name.slice(0, 200), details: sanitiseRich(String(b.details || '')).slice(0, 4000), color
+  };
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  let ev = data.upcomingEvents.find(e => e.extId === extId);
+  const isNew = !ev;
+  if (ev) Object.assign(ev, fields);
+  else {
+    const now = Date.now();
+    ev = Object.assign({ id: 'ue_' + now + '_' + Math.random().toString(36).slice(2, 8), extId, source: 'auroa-app', createdAt: now }, fields);
+    data.upcomingEvents.push(ev);
+  }
+  save(data, { label: 'Upcoming Events' });
+  // A new event notifies subscribers, the same as adding one on the website.
+  if (isNew) notifyAll({
+    title: 'New event: ' + ev.name,
+    body:  ev.date + (ev.allDay ? ' — all day' : ' at ' + ev.time) + (ev.details ? '\n\n' + ev.details.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''),
+    url:   '/',
+    source: 'event'
+  }).catch(e => console.warn('[notify] event trigger failed:', e.message));
+  res.json({ ok: true, event: ev, created: isNew });
+});
+app.delete('/api/sync/upcoming-events/:extId', (req, res) => {
+  if (!process.env.CALENDAR_SYNC_KEY) return res.status(503).json({ error: 'Calendar link not set up on the website (CALENDAR_SYNC_KEY).' });
+  if (!syncKeyOk(req)) return res.status(401).json({ error: 'Bad sync key' });
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  const before = data.upcomingEvents.length;
+  data.upcomingEvents = data.upcomingEvents.filter(e => e.extId !== req.params.extId);
+  if (data.upcomingEvents.length !== before) save(data, { label: 'Upcoming Events' });
   res.json({ ok: true, removed: before - data.upcomingEvents.length });
 });
 

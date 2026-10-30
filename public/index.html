@@ -4003,39 +4003,31 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
       <div id="ue-admin" class="ue-admin">
         <h3 class="ue-admin-h" id="ue-form-heading">Add an event</h3>
         <form id="ue-form" onsubmit="event.preventDefault(); submitUpcomingEvent();">
-          <div class="hb-row">
-            <div class="hb-field">
-              <label class="hb-label" for="ue-date">Start date <span class="hb-required">*</span></label>
-              <input id="ue-date" class="hb-input" type="date" required />
-            </div>
-            <div class="hb-field">
-              <label class="hb-label" for="ue-end-date">End date <span style="color:#888;font-weight:normal;">(optional)</span></label>
-              <input id="ue-end-date" class="hb-input" type="date" />
-            </div>
-          </div>
-          <div class="hb-row">
-            <div class="hb-field">
-              <label class="hb-label">Time <span class="hb-required">*</span></label>
-              <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px;cursor:pointer;">
-                <input type="checkbox" id="ue-allday" onchange="ueToggleAllDay()" style="width:16px;height:16px;cursor:pointer;"> All day
-              </label>
-              <div id="ue-time-selects" style="display:flex;gap:6px;">
-                <select id="ue-hour" class="hb-input" style="flex:1;padding:8px;"></select>
-                <select id="ue-min" class="hb-input" style="flex:1;padding:8px;"><option value="00">00</option><option value="30">30</option></select>
-                <select id="ue-ampm" class="hb-input" style="flex:1;padding:8px;"><option value="AM">AM</option><option value="PM">PM</option></select>
-              </div>
-            </div>
-            <div class="hb-field">
-              <label class="hb-label" for="ue-color">Highlight colour</label>
-              <input id="ue-color" class="hb-input" type="color" value="#dbeafe" style="height:42px;padding:3px;cursor:pointer;" />
-            </div>
-          </div>
+          <!-- Same fields, in the same order, as "Add event" on the Auroa
+               Assessments staff calendar (which can also push events here). -->
           <label class="hb-label" for="ue-name">Event name <span class="hb-required">*</span></label>
           <input id="ue-name" class="hb-input" type="text" required placeholder="e.g. School Disco" maxlength="200" />
-          <label class="hb-label" for="ue-details">Event details</label>
+          <label class="hb-label" for="ue-date">Date <span class="hb-required">*</span></label>
+          <input id="ue-date" class="hb-input" type="date" required />
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin:10px 0 4px;cursor:pointer;">
+            <input type="checkbox" id="ue-allday" onchange="ueToggleAllDay()" style="width:16px;height:16px;cursor:pointer;"> All day
+          </label>
+          <div class="hb-row" id="ue-time-selects">
+            <div class="hb-field">
+              <label class="hb-label" for="ue-start">Starts</label>
+              <select id="ue-start" class="hb-input" style="padding:8px;"></select>
+            </div>
+            <div class="hb-field">
+              <label class="hb-label" for="ue-end">Finishes</label>
+              <select id="ue-end" class="hb-input" style="padding:8px;"></select>
+            </div>
+          </div>
+          <label class="hb-label" for="ue-details">Description</label>
           <!-- Rich text: the floating format toolbar (bold, colour, bullets, link)
                attaches to any contenteditable field when text is selected. -->
           <div id="ue-details" class="hb-input ue-details-rich" contenteditable="true" data-placeholder="Anything parents should know about this event…"></div>
+          <label class="hb-label" for="ue-color">Highlight colour</label>
+          <input id="ue-color" class="hb-input" type="color" value="#dbeafe" style="height:42px;max-width:120px;padding:3px;cursor:pointer;" />
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;">
             <button id="ue-submit-btn" class="hb-submit-btn" type="submit" style="flex:1;">+ Add event</button>
             <button id="ue-cancel-btn" class="hb-submit-btn" type="button" style="display:none;background:#888;" onclick="ueCancelEdit()">Cancel</button>
@@ -15009,7 +15001,7 @@ function renderUeCalendar() {
 function openUeModal(ev) {
   if (!ev) return;
   el('ue-modal-title').textContent = ev.name;
-  el('ue-modal-meta').textContent = ueFmtRange(ev) + (ev.allDay ? ' · All day' : ' at ' + hbFmtTime(ev.time));
+  el('ue-modal-meta').textContent = ueFmtRange(ev) + ' · ' + ueFmtTimes(ev);
   el('ue-modal-details').innerHTML = (ev.details && ev.details.trim()) ? ev.details : 'No further details.';
   el('ue-modal').classList.add('open');
 }
@@ -15026,7 +15018,6 @@ function ueStartEdit(id) {
   if (!ev) return;
   ueEditingId = id;
   el('ue-date').value = ev.date || '';
-  el('ue-end-date').value = (ev.endDate && ev.endDate !== ev.date) ? ev.endDate : '';
   ueWriteTime(ev);
   el('ue-color').value = ev.color || '#dbeafe';
   el('ue-name').value = ev.name || '';
@@ -15041,7 +15032,6 @@ function ueStartEdit(id) {
 function ueCancelEdit() {
   ueEditingId = null;
   el('ue-date').value = '';
-  el('ue-end-date').value = '';
   ueWriteTime(null);
   el('ue-color').value = '#dbeafe';
   el('ue-name').value = '';
@@ -15052,38 +15042,49 @@ function ueCancelEdit() {
   var msg = el('ue-form-msg'); if (msg) msg.textContent = '';
 }
 
-// ---- Event time picker (hour + :00/:30 + AM/PM, or All day) ----
+// ---- Event times: Starts / Finishes in half-hour steps, or All day ----
+// (matches the Auroa Assessments staff calendar's Add event form)
+function ueTimeOptions(sel, value) {
+  var html = '', found = false;
+  for (var m = 6 * 60; m <= 21 * 60 + 30; m += 30) {
+    var v = String(Math.floor(m / 60)).padStart(2, '0') + ':' + (m % 60 ? '30' : '00');
+    if (v === value) found = true;
+    html += '<option value="' + v + '"' + (v === value ? ' selected' : '') + '>' + hbFmtTime(v) + '</option>';
+  }
+  // Keep an older event's time that isn't on the half-hour list.
+  if (value && !found) html = '<option value="' + value + '" selected>' + hbFmtTime(value) + '</option>' + html;
+  sel.innerHTML = html;
+}
 function ueBuildHours() {
-  var sel = el('ue-hour'); if (!sel || sel.options.length) return;
-  var html = ''; for (var i = 1; i <= 12; i++) html += '<option value="' + i + '">' + (i < 10 ? '0' + i : i) + '</option>';
-  sel.innerHTML = html; sel.value = '9';
+  var s1 = el('ue-start'), s2 = el('ue-end');
+  if (s1 && !s1.options.length) ueTimeOptions(s1, '09:00');
+  if (s2 && !s2.options.length) ueTimeOptions(s2, '10:00');
 }
 function ueToggleAllDay() {
   var on = !!(el('ue-allday') && el('ue-allday').checked);
-  ['ue-hour', 'ue-min', 'ue-ampm'].forEach(function(id) { var s = el(id); if (s) { s.disabled = on; s.style.opacity = on ? '0.4' : '1'; } });
+  var box = el('ue-time-selects'); if (box) box.style.display = on ? 'none' : '';
 }
-// Read the form controls into { time:"HH:MM" (24h) or "", allDay:bool }.
+function uePadTime(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? (m[1].length < 2 ? '0' + m[1] : m[1]) + ':' + m[2] : ''; }
+// Read the form controls into { time, endTime ("HH:MM" 24h or ""), allDay }.
 function ueReadTime() {
-  if (el('ue-allday') && el('ue-allday').checked) return { time: '', allDay: true };
-  var h12 = parseInt(el('ue-hour').value, 10) % 12;
-  var h = (el('ue-ampm').value === 'PM') ? h12 + 12 : h12;
-  return { time: (h < 10 ? '0' + h : '' + h) + ':' + el('ue-min').value, allDay: false };
+  if (el('ue-allday') && el('ue-allday').checked) return { time: '', endTime: '', allDay: true };
+  return { time: el('ue-start').value, endTime: el('ue-end').value, allDay: false };
 }
-// Populate the controls from an event (or reset to a 9:00 AM default for null).
+// Populate the controls from an event (or reset to 9am–10am for null).
 function ueWriteTime(ev) {
-  ueBuildHours();
   var allDay = !!(ev && ev.allDay);
   if (el('ue-allday')) el('ue-allday').checked = allDay;
-  var m = /^(\d{1,2}):(\d{2})$/.exec((ev && ev.time) || '');
-  if (m) {
-    var h = parseInt(m[1], 10), ampm = h >= 12 ? 'PM' : 'AM', h12 = h % 12; if (h12 === 0) h12 = 12;
-    el('ue-hour').value = String(h12);
-    el('ue-min').value = (m[2] === '30') ? '30' : '00';
-    el('ue-ampm').value = ampm;
-  } else {
-    el('ue-hour').value = '9'; el('ue-min').value = '00'; el('ue-ampm').value = 'AM';
-  }
+  var t = uePadTime(ev && ev.time) || '09:00';
+  var e = uePadTime(ev && ev.endTime);
+  if (!e) { var h = Math.min(23, parseInt(t, 10) + 1); e = (h < 10 ? '0' + h : '' + h) + t.slice(2); }
+  ueTimeOptions(el('ue-start'), t);
+  ueTimeOptions(el('ue-end'), e);
   ueToggleAllDay();
+}
+// "9am – 10am", "9:30am", or "All day".
+function ueFmtTimes(ev) {
+  if (ev.allDay) return 'All day';
+  return hbFmtTime(ev.time) + (ev.endTime ? ' – ' + hbFmtTime(ev.endTime) : '');
 }
 window.addEventListener('DOMContentLoaded', ueBuildHours);
 
@@ -15094,8 +15095,8 @@ function submitUpcomingEvent() {
   var _t = ueReadTime();
   var payload = {
     date:    el('ue-date').value,
-    endDate: el('ue-end-date').value,
     time:    _t.time,
+    endTime: _t.endTime,
     allDay:  _t.allDay,
     name:    el('ue-name').value.trim(),
     details: ((el('ue-details').textContent || '').trim() ? el('ue-details').innerHTML : ''),
@@ -15159,7 +15160,7 @@ function renderUeAdminList() {
     row.innerHTML =
       '<div><span style="display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:6px;background:' + lunchEsc(ev.color || '#dbeafe') + ';border:1px solid rgba(0,0,0,0.15);"></span>' +
       '<strong>' + lunchEsc(ev.name) + '</strong>' +
-      ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(ev.allDay ? 'All day' : hbFmtTime(ev.time)) + '</span></div>';
+      ' <span class="ue-row-meta">— ' + lunchEsc(ueFmtRange(ev)) + ' ' + lunchEsc(ueFmtTimes(ev)) + (ev.extId ? ' · from the staff calendar' : '') + '</span></div>';
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
     var edit = document.createElement('button');
