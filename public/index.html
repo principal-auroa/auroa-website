@@ -289,7 +289,8 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   padding:12px 20px;text-align:center;display:block;
   width:calc(100% - 32px);cursor:pointer;
 }
-.sidebar-btn.classlist-reg{
+.sidebar-btn.classlist-reg,
+.sidebar-btn.triathlon-reg{
   color:#fff;font-weight:400;font-size:16px;
   border:none;border-left:none;
   border-radius:8px;margin:0 16px 14px;
@@ -299,6 +300,7 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 #sidebar-petday-wrap{position:relative;}
 #sidebar-survey-wrap{position:relative;}
 #sidebar-classlist-wrap{position:relative;}
+#sidebar-triathlon-wrap{position:relative;}
 /* Admin-only Show/Hide switch under each special pill; a hidden pill is
    faded for the admin (visitors don't see it at all). */
 .sb-pill-admin{margin-top:-8px;margin-bottom:12px;}
@@ -367,6 +369,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.petday-reg{--bt:#b061f5;--bb:#9333ea;--bl:#7e22ce;--be:#6b21a8;}
 .sidebar-btn.survey-reg{--bt:#7b74e8;--bb:#5b52d6;--bl:#4a41b8;--be:#382f92;}
 .sidebar-btn.classlist-reg{--bt:#e86aa0;--bb:#d14b85;--bl:#b33a6f;--be:#8c2b56;}
+.sidebar-btn.triathlon-reg{--bt:#3b9be8;--bb:#1f7fd1;--bl:#1a68ad;--be:#134f84;}
 .sidebar-btn.camps-page{--bt:#2bb3c9;--bb:#1c96ab;--bl:#167c8e;--be:#0f5e6c;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
@@ -374,7 +377,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
-.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.camps-page,
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.triathlon-reg,.sidebar-btn.camps-page,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
 .sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -396,7 +399,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
 }
-.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.camps-page:hover,
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.triathlon-reg:hover,.sidebar-btn.camps-page:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
 .sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -407,7 +410,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
              0 4px 0 var(--be),
              0 8px 16px rgba(0,0,0,0.4);
 }
-.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.camps-page:active,
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.triathlon-reg:active,.sidebar-btn.camps-page:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
 .sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
@@ -589,6 +592,9 @@ body:not(.is-admin) .pd-booklet-box:not(.has-img){display:none;}
 #pd-topimg-section{margin-top:22px;}
 body:not(.is-admin) #pd-topimg-box:not(.has-img){display:none;}
 body.is-admin #pd-topimg-box.has-img .img-remove-btn{display:flex;}
+#tri-img-section{margin-top:22px;}
+body:not(.is-admin) #tri-img-box:not(.has-img){display:none;}
+body.is-admin #tri-img-box.has-img .img-remove-btn{display:flex;}
 .pd-booklet-upload-btn{
   display:none;background:#1a2b4a;color:#fff;
   padding:8px 20px;border-radius:6px;cursor:pointer;
@@ -3752,6 +3758,61 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== TRIATHLON ENTRIES PAGE ======== -->
+  <div id="pg-triathlon" class="page">
+    <div class="pg-header" id="ph-triathlon"></div>
+    <div class="pg-body" style="max-width:720px;margin:0 auto;">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Triathlon</h1>
+      </div>
+
+      <div id="tri-admin" class="pd-admin">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Entries (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="triLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="triDownloadCsv()">⬇ Download</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#c0392b;" onclick="triClearResults()">🗑 Clear</button>
+          <span id="tri-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="tri-results"></div>
+      </div>
+
+      <div id="tri-form-wrap">
+        <p class="abs-intro">Enter your child in the Triathlon. Fill in a separate entry for each child.</p>
+        <form id="tri-form" onsubmit="event.preventDefault(); triSubmit();">
+          <div class="abs-name-row">
+            <div class="abs-name-col">
+              <label class="hb-label" for="tri-first">Child's first name <span class="hb-required">*</span></label>
+              <input id="tri-first" class="hb-input" type="text" required maxlength="100">
+            </div>
+            <div class="abs-name-col">
+              <label class="hb-label" for="tri-last">Child's last name <span class="hb-required">*</span></label>
+              <input id="tri-last" class="hb-input" type="text" required maxlength="100">
+            </div>
+          </div>
+          <label class="hb-label">Age group <span class="hb-required">*</span></label>
+          <div class="pd-cats" id="tri-ages"></div>
+          <div class="abs-submit-row">
+            <button id="tri-submit-btn" type="submit" class="hb-submit-btn">Enter</button>
+            <span id="tri-status" class="hb-err"></span>
+          </div>
+        </form>
+      </div>
+      <!-- Image under the form (admin upload; everyone sees; hidden until one is added). -->
+      <div id="tri-img-section">
+        <div class="img-box pd-topimg-box" id="tri-img-box">
+          <div class="placeholder">No image — upload one as admin</div>
+          <img loading="lazy" decoding="async" id="tri-img" style="display:none;" alt="" />
+          <label class="upload-overlay" for="tri-img-file"><span>Click to replace image</span></label>
+          <input class="file-in" id="tri-img-file" type="file" accept="image/*" onchange="triImgUpload(this)" />
+          <button class="img-remove-btn" onclick="event.stopPropagation();triImgRemove()" title="Remove image">✕</button>
+        </div>
+        <label class="pd-booklet-upload-btn" for="tri-img-file">&#8679; Upload Image</label>
+      </div>
+    </div>
+  </div>
+
   <!-- ======== LAMB / CALF / PET DAY REGISTRATION PAGE ======== -->
   <div id="pg-petday" class="page">
     <div class="pg-header" id="ph-petday"></div>
@@ -5300,6 +5361,11 @@ function applyState(data) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-classlist'; })) {
         pageConfig.push({ id:'pg-classlist', label:'2027 Class List Requests', hidden:true });
       }
+      // Triathlon entries: starts HIDDEN (admin publishes it with the 👁 Show
+      // switch under its pill when entries open).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-triathlon'; })) {
+        pageConfig.push({ id:'pg-triathlon', label:'Triathlon', hidden:true });
+      }
       // Camps / Day Trips page: starts HIDDEN (admin publishes it with the 👁 Show
       // toggle in the sidebar when there's something to show).
       if (!pageConfig.some(function(p){ return p.id === 'pg-camps'; })) {
@@ -5320,6 +5386,7 @@ function applyState(data) {
       ['0','1'].forEach(function(i){ if (pdBook[i]) applyPdBooklet(i, '/uploads/' + pdBook[i]); });
       if (typeof pdBookletUpdateSection === 'function') pdBookletUpdateSection();
       if (data.petdayTopImage) applyPdTopImg('/uploads/' + data.petdayTopImage);
+      if (data.triathlonImage) applyTriImg('/uploads/' + data.triathlonImage);
       var eduFooterImgs = data.educateFooterImages || {};
       ['1','2','3','4','5','6'].forEach(function(slot) {
         if (eduFooterImgs[slot]) applyEduFooterImg(slot, '/uploads/' + eduFooterImgs[slot]);
@@ -6197,7 +6264,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','trips','trip'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','triathlon','trips','trip'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -6683,6 +6750,173 @@ function svDownloadCsv() {
   var fname = 'Parent Survey ' + String(d.getDate()).padStart(2, '0') + '-' +
               String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
   var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+// ===================== TRIATHLON ENTRIES =====================
+var TRI_AGES = ['5', '6', '7', '8', '9', '10', '11', '12', '13'];
+function triBuildAges() {
+  var box = el('tri-ages');
+  if (!box || box.children.length) return;
+  box.innerHTML = TRI_AGES.map(function(a, i) {
+    return '<label class="pd-cat"><input type="radio" name="tri-age" value="' + a + '"' + (i ? '' : ' required') + '> ' + a + ' years</label>';
+  }).join('');
+}
+window.addEventListener('DOMContentLoaded', triBuildAges);
+
+function triSubmit() {
+  var status = el('tri-status');
+  var btn = el('tri-submit-btn');
+  status.textContent = '';
+  var age = document.querySelector('input[name="tri-age"]:checked');
+  var payload = {
+    first: el('tri-first').value.trim(),
+    last:  el('tri-last').value.trim(),
+    age:   age ? age.value : ''
+  };
+  if (!payload.first || !payload.last) { status.textContent = 'Please enter your child\'s first and last name.'; return; }
+  if (!payload.age) { status.textContent = 'Please tick an age group.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/triathlon/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (!b || !b.ok) throw new Error('rejected');
+    el('tri-form-wrap').innerHTML =
+      '<div class="pd-thanks"><strong>Thank you!</strong><br>' + lunchEsc(payload.first + ' ' + payload.last) +
+      ' is entered in the ' + lunchEsc(payload.age) + ' years age group.' +
+      '<br><br><button type="button" class="hb-submit-btn" onclick="location.reload()">Enter another child</button></div>';
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Enter';
+    status.textContent = 'Could not send the entry — please try again.';
+  });
+}
+
+// ---- Image under the form (admin upload; everyone sees) ----
+function applyTriImg(src) {
+  var img = el('tri-img'); if (!img) return;
+  img.src = src; img.style.display = 'block';
+  var box = el('tri-img-box');
+  if (box) { box.classList.add('has-img'); box.style.border = 'none'; var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = 'none'; }
+}
+function triImgUpload(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData(); fd.append('image', input.files[0]);
+  flashSave('<span class="spinner"></span>Uploading…');
+  fetch('/api/upload/triathlon-img', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d && d.filename) { applyTriImg('/uploads/' + d.filename); flashSave('Image saved!'); } else flashSave('Upload failed.'); })
+    .catch(function(){ flashSave('Upload failed.'); });
+  input.value = '';
+}
+function triImgRemove() {
+  if (!confirm('Remove this image?')) return;
+  fetch('/api/triathlon-img', { method: 'DELETE' })
+    .then(function(r){ return r.json(); })
+    .then(function(){
+      var img = el('tri-img'); if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+      var box = el('tri-img-box'); if (box) { box.classList.remove('has-img'); box.style.border = ''; var ph = box.querySelector('.placeholder'); if (ph) ph.style.display = ''; }
+      flashSave('Image removed');
+    })
+    .catch(function(){ flashSave('Could not remove image.'); });
+}
+
+// ---- Admin: entries, grouped by age (youngest first, newest first in each) ----
+var _triLast = [];
+var _triSortName = false;
+function triLoadResults() {
+  var out = el('tri-results');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/triathlon/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    _triLast = (b && b.entries) || [];
+    var cnt = el('tri-admin-count');
+    if (cnt) cnt.textContent = _triLast.length + ' entr' + (_triLast.length === 1 ? 'y' : 'ies');
+    triRenderResults();
+  })
+  .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load entries.</span>'; });
+}
+function triToggleSort() { _triSortName = !_triSortName; triRenderResults(); }
+function triRenderResults() {
+  var out = el('tri-results');
+  if (!out) return;
+  var regs = _triLast || [];
+  if (!regs.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No entries yet.</span>'; return; }
+  var groups = {};
+  regs.forEach(function(r) { (groups[r.age] = groups[r.age] || []).push(r); });
+  var ages = TRI_AGES.filter(function(a) { return groups[a]; })
+    .concat(Object.keys(groups).filter(function(a) { return TRI_AGES.indexOf(a) < 0; }));
+  var summary = TRI_AGES.map(function(a) { return a + ' yrs: ' + ((groups[a] || []).length); }).join('  •  ');
+  var html = '<div style="font-size:13px;color:#1a2b4a;font-weight:700;margin:6px 0 8px;">' + summary + '</div>';
+  html += '<div class="pd-reg-table-wrap"><table class="pd-reg-table"><tr>' +
+    '<th class="pd-sortable" onclick="triToggleSort()" title="Sort by name">Child' + (_triSortName ? ' ▲' : '') + '</th>' +
+    '<th>Age group</th><th>Entered</th><th></th></tr>';
+  ages.forEach(function(a) {
+    var rows = groups[a].slice();
+    if (_triSortName) rows.sort(function(x, y) {
+      return ((x.first || '') + ' ' + (x.last || '')).toLowerCase().localeCompare(((y.first || '') + ' ' + (y.last || '')).toLowerCase());
+    });
+    else rows.sort(function(x, y) { return (Number(y.ts) || 0) - (Number(x.ts) || 0); });
+    html += '<tr><td colspan="4" style="background:#1a2b4a;color:#fff;font-weight:800;padding:6px 10px;">' +
+      lunchEsc(a) + ' years (' + rows.length + ')</td></tr>';
+    rows.forEach(function(r) {
+      html += '<tr><td>' + lunchEsc((r.first || '') + ' ' + (r.last || '')) + '</td>' +
+        '<td class="pd-reg-cat">' + lunchEsc(r.age) + ' years</td>' +
+        '<td>' + lunchEsc(new Date(r.ts).toLocaleDateString()) + '</td>' +
+        '<td style="text-align:center;"><button type="button" title="Delete this entry" onclick="triDeleteEntry(' + Number(r.ts) + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:800;cursor:pointer;padding:1px 8px;line-height:1.4;">✕</button></td></tr>';
+    });
+  });
+  html += '</table></div>';
+  out.innerHTML = html;
+}
+function triClearResults() {
+  var n = _triLast.length;
+  if (!confirm('Delete ALL ' + n + ' entr' + (n === 1 ? 'y' : 'ies') + '? A backup copy is kept on the server.')) return;
+  fetch('/api/triathlon/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Cleared ' + b.cleared + ' entr' + (b.cleared === 1 ? 'y' : 'ies')); triLoadResults(); }
+    else flashSave('Could not clear.');
+  })
+  .catch(function() { flashSave('Could not clear.'); });
+}
+function triDeleteEntry(ts) {
+  var r = _triLast.find(function(x) { return Number(x.ts) === Number(ts); });
+  var who = r ? ((r.first || '') + ' ' + (r.last || '')).trim() : '';
+  if (!confirm('Delete ' + (who ? who + '’s' : 'this') + ' entry? This cannot be undone.')) return;
+  fetch('/api/triathlon/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ts: Number(ts) })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(b) {
+    if (b && b.ok) { flashSave('Entry deleted.'); triLoadResults(); }
+    else flashSave('Could not delete.');
+  })
+  .catch(function() { flashSave('Could not delete.'); });
+}
+function triDownloadCsv() {
+  var lines = [['Child first', 'Child last', 'Age group', 'Entered'].map(pdCsvCell).join(',')];
+  _triLast.slice().sort(function(a, b) { return (Number(a.age) - Number(b.age)) || ((Number(a.ts) || 0) - (Number(b.ts) || 0)); })
+    .forEach(function(r) {
+      lines.push([r.first, r.last, r.age + ' years', new Date(r.ts).toLocaleString()].map(pdCsvCell).join(','));
+    });
+  var d = new Date();
+  var fname = 'Triathlon entries ' + String(d.getDate()).padStart(2, '0') + '-' +
+              String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = fname;
@@ -7706,6 +7940,9 @@ function showPage(id) {
   if (id === 'pg-classlist') {
     if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
+  if (id === 'pg-triathlon') {
+    if (isAdmin && typeof triLoadResults === 'function') triLoadResults();
+  }
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
   document.body.classList.add('on-' + id);
@@ -7915,7 +8152,7 @@ function clearCalEditor() {
 function renderSidebarPages() {
   var wrap = el('sidebar-pages');
   // Pages with their own coloured pill under Enrol Here → sidebar element prefix.
-  var SPECIAL_PILLS = { 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
+  var SPECIAL_PILLS = { 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
   if (!wrap) return;
   wrap.innerHTML = '';
 
@@ -8009,7 +8246,7 @@ function renderSidebarPages() {
                           'pg-buses':1, 'pg-year78':1, 'pg-apple':1, 'pg-camps':1 };
   pageConfig.forEach(function(pg) {
     if (alreadyRendered[pg.id]) return;
-    // Class List, Pet Day + School Survey each have their own coloured pill
+    // Triathlon, Class List, Pet Day + School Survey each have their own coloured pill
     // under Enrol Here (with its own Show/Hide switch), so skip them here.
     if (SPECIAL_PILLS[pg.id]) return;
     renderPage(pg, null);
@@ -8065,7 +8302,7 @@ var sbBtnSettings = {};
 var SB_FIXED_LABELS = { enrol:'Enrol Here', contact:'Contact Us', home:'Home', stationery:'Order Stationery',
   lunch:'School Lunch Orders', newsletter:'School Newsletter', notifications:'School notifications',
   hall:'Hall Bookings', portal:'Register for Messages',
-  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey' };
+  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey', 'pg-triathlon':'Triathlon' };
 
 // Fill an admin row with the ✏ Rename / 🙈 Hide / 🗑 Delete buttons.
 function sbFillTools(row, hidden, onRename, onHide, onDelete) {
@@ -8246,7 +8483,7 @@ function renderImpDropdown() {
 var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
-  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests',
+  'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests', 'pg-triathlon': 'Triathlon',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips', 'pg-trip': 'School Trip',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
@@ -11705,7 +11942,13 @@ document.addEventListener('click', function(e) {
         style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.6);margin-left:6px;">Cancel</button>
     </div>
   </div>
-  <!-- 2027 Class List Requests — pink pill directly under Enrol Here.
+  <!-- Triathlon entries — blue pill directly under Enrol Here.
+       Visibility (published vs hidden) is managed in renderSidebarPages(). -->
+  <div id="sidebar-triathlon-wrap" style="display:none;">
+    <button class="sidebar-btn triathlon-reg" id="triathlon-btn" onclick="bubbleGo(event,'pg-triathlon')">Triathlon</button>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-triathlon-tools"></div>
+  </div>
+  <!-- 2027 Class List Requests — pink pill under the Triathlon pill.
        Visibility (published vs hidden) is managed in renderSidebarPages(). -->
   <div id="sidebar-classlist-wrap" style="display:none;">
     <button class="sidebar-btn classlist-reg" id="classlist-btn" onclick="bubbleGo(event,'pg-classlist')">2027 Class List Requests</button>

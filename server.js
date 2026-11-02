@@ -455,7 +455,7 @@ const PUBLIC_API = [
   ['POST', /^\/login$/], ['POST', /^\/logout$/],
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
-  ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/],
+  ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
   ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
@@ -723,6 +723,23 @@ app.delete('/api/petday-topimg', (req, res) => {
   const data = load();
   deleteFile(data.petdayTopImage);
   data.petdayTopImage = null;
+  save(data);
+  res.json({ ok: true });
+});
+
+// Image on the Triathlon entries page (admin upload; everyone sees).
+app.post('/api/upload/triathlon-img', uploader('triathlon-img').single('image'), resizeUpload, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const data = load();
+  deleteFile(data.triathlonImage);
+  data.triathlonImage = req.file.filename;
+  save(data);
+  res.json({ filename: req.file.filename });
+});
+app.delete('/api/triathlon-img', (req, res) => {
+  const data = load();
+  deleteFile(data.triathlonImage);
+  data.triathlonImage = null;
   save(data);
   res.json({ ok: true });
 });
@@ -1286,6 +1303,65 @@ app.post('/api/petday/delete', (req, res) => {
     if (idx === -1) return res.json({ ok: true, deleted: 0 });
     list.splice(idx, 1);
     fs.writeFile(PETDAY_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+
+// ---- Triathlon entries ----
+// Public submit; admin (session-gated by the /api middleware) reads/clears.
+const TRIATHLON_FILE = path.join(DATA_DIR, 'triathlon-entries.json');
+const TRIATHLON_AGES = ['5', '6', '7', '8', '9', '10', '11', '12', '13'];
+app.post('/api/triathlon/submit', (req, res) => {
+  const b = req.body || {};
+  const entry = {
+    ts: Date.now(),
+    first: String(b.first || '').trim().slice(0, 100),
+    last:  String(b.last || '').trim().slice(0, 100),
+    age:   String(b.age || '').trim(),
+  };
+  if (!entry.first || !entry.last || !entry.age) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  if (TRIATHLON_AGES.indexOf(entry.age) === -1) {
+    return res.status(400).json({ error: 'Invalid age group' });
+  }
+  fs.readFile(TRIATHLON_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    // Two entries in the same millisecond would share a ts (the delete key).
+    if (list.some(r => r.ts === entry.ts)) entry.ts += 1;
+    list.push(entry);
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(TRIATHLON_FILE, JSON.stringify(list), () => res.json({ ok: true }));
+  });
+});
+app.post('/api/triathlon/results', (req, res) => {
+  fs.readFile(TRIATHLON_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    res.json({ entries: list });
+  });
+});
+app.post('/api/triathlon/clear', (req, res) => {
+  fs.readFile(TRIATHLON_FILE, 'utf8', (err, txt) => {
+    let count = 0;
+    if (!err && txt) {
+      try { count = (JSON.parse(txt) || []).length; } catch (e) {}
+      try { fs.writeFileSync(TRIATHLON_FILE + '.cleared-' + Date.now() + '.bak', txt); } catch (e) {}
+    }
+    fs.writeFile(TRIATHLON_FILE, '[]', () => res.json({ ok: true, cleared: count }));
+  });
+});
+// Delete a single entry by its timestamp (admin-gated).
+app.post('/api/triathlon/delete', (req, res) => {
+  const ts = Number((req.body || {}).ts);
+  if (!ts) return res.status(400).json({ error: 'ts required' });
+  fs.readFile(TRIATHLON_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    const idx = list.findIndex(r => Number(r.ts) === ts);
+    if (idx === -1) return res.json({ ok: true, deleted: 0 });
+    list.splice(idx, 1);
+    fs.writeFile(TRIATHLON_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
   });
 });
 
