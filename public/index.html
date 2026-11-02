@@ -2862,14 +2862,15 @@ body.is-admin .ue-img-del{display:block;}
 /* Event details popup */
 .ue-modal{
   display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,0.55);z-index:3000;
+  /* Just under the format toolbar (3000) so it shows when editing here. */
+  background:rgba(0,0,0,0.55);z-index:2990;
   align-items:center;justify-content:center;padding:20px;
 }
 .ue-modal.open{display:flex;}
 .ue-modal-card{
   background:#fff;border-radius:14px;
   max-width:480px;width:100%;padding:24px 24px 22px;
-  position:relative;
+  position:relative;max-height:calc(100dvh - 40px);overflow-y:auto;box-sizing:border-box;
   box-shadow:0 24px 64px rgba(0,0,0,0.3);
 }
 .ue-modal-close{
@@ -2884,6 +2885,21 @@ body.is-admin .ue-img-del{display:block;}
 .ue-modal-meta{color:#666;font-size:13px;margin-bottom:14px;font-weight:600;}
 .ue-modal-details{color:#333;font-size:14px;line-height:1.5;white-space:pre-wrap;}
 .ue-modal-details ul,.ue-modal-details ol{margin:6px 0;padding-left:22px;}
+/* Admin: Edit / Delete in the popup, and the edit form that replaces the view. */
+.ue-modal-actions{display:none;gap:8px;margin-top:18px;flex-wrap:wrap;}
+body.is-admin .ue-modal-actions{display:flex;}
+.ue-modal-actions button{
+  background:none;border:1px solid #1a2b4a;color:#1a2b4a;border-radius:8px;
+  padding:7px 16px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;
+}
+.ue-modal-actions button:hover{background:#1a2b4a;color:#fff;}
+.ue-modal-actions .uem-del{border-color:#c0392b;color:#c0392b;}
+.ue-modal-actions .uem-del:hover{background:#c0392b;color:#fff;}
+.ue-modal-actions .uem-save{background:#1a2b4a;color:#fff;}
+.ue-modal-actions .uem-save:hover{background:#243d6a;}
+.ue-modal-actions button:disabled{opacity:0.6;cursor:default;}
+.uem-msg{color:#c0392b;font-size:13px;font-weight:600;align-self:center;}
+.uem-note{background:#fff8e6;border:1px solid #f0d58a;color:#7a5b00;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:10px;}
 /* Rich-text Event details box in the admin form. */
 .ue-details-rich{min-height:80px;max-height:240px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;cursor:text;}
 .ue-details-rich:empty::before{content:attr(data-placeholder);color:#9aa3b0;}
@@ -11754,6 +11770,40 @@ document.addEventListener('click', function(e) {
     <h3 id="ue-modal-title"></h3>
     <div class="ue-modal-meta" id="ue-modal-meta"></div>
     <div class="ue-modal-details" id="ue-modal-details"></div>
+    <div class="ue-modal-actions" id="ue-modal-actions">
+      <button type="button" onclick="ueModalEdit()">Edit</button>
+      <button type="button" class="uem-del" id="uem-del-btn" onclick="ueModalDelete()">Delete</button>
+    </div>
+    <!-- Admin edit form (same fields as the Add event form below the calendar). -->
+    <form id="uem-form" style="display:none;" onsubmit="event.preventDefault(); ueModalSave();">
+      <div class="uem-note" id="uem-note" style="display:none;">This event came from the staff calendar. If it is changed there later, that version will replace your edits here.</div>
+      <label class="hb-label" for="uem-name">Event name <span class="hb-required">*</span></label>
+      <input id="uem-name" class="hb-input" type="text" required maxlength="200" />
+      <label class="hb-label" for="uem-date">Date <span class="hb-required">*</span></label>
+      <input id="uem-date" class="hb-input" type="date" required />
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;margin:10px 0 4px;cursor:pointer;">
+        <input type="checkbox" id="uem-allday" onchange="ueModalToggleAllDay()" style="width:16px;height:16px;cursor:pointer;"> All day
+      </label>
+      <div class="hb-row" id="uem-time-selects">
+        <div class="hb-field">
+          <label class="hb-label" for="uem-start">Starts</label>
+          <select id="uem-start" class="hb-input" style="padding:8px;"></select>
+        </div>
+        <div class="hb-field">
+          <label class="hb-label" for="uem-end">Finishes</label>
+          <select id="uem-end" class="hb-input" style="padding:8px;"></select>
+        </div>
+      </div>
+      <label class="hb-label" for="uem-details">Description</label>
+      <div id="uem-details" class="hb-input ue-details-rich" contenteditable="true" data-placeholder="Anything parents should know about this event…"></div>
+      <label class="hb-label" for="uem-color">Highlight colour</label>
+      <input id="uem-color" class="hb-input" type="color" value="#dbeafe" style="height:42px;max-width:120px;padding:3px;cursor:pointer;" />
+      <div class="ue-modal-actions">
+        <button type="submit" class="uem-save" id="uem-save-btn">Save changes</button>
+        <button type="button" onclick="ueModalView()">Cancel</button>
+        <span class="uem-msg" id="uem-msg"></span>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -14998,15 +15048,121 @@ function renderUeCalendar() {
   }
 }
 
+// The event shown in the popup (admins can edit or delete it from there).
+var ueModalId = null;
 function openUeModal(ev) {
   if (!ev) return;
-  el('ue-modal-title').textContent = ev.name;
-  el('ue-modal-meta').textContent = ueFmtRange(ev) + ' · ' + ueFmtTimes(ev);
-  el('ue-modal-details').innerHTML = (ev.details && ev.details.trim()) ? ev.details : 'No further details.';
+  ueModalId = ev.id;
+  ueModalView();
   el('ue-modal').classList.add('open');
 }
 function closeUeModal() {
   el('ue-modal').classList.remove('open');
+  ueModalId = null;
+}
+function ueModalEvent() {
+  return upcomingEvents.find(function(x) { return x.id === ueModalId; });
+}
+// Show the read-only view of the popup's event.
+function ueModalView() {
+  var ev = ueModalEvent();
+  if (!ev) { closeUeModal(); return; }
+  el('ue-modal-title').textContent = ev.name;
+  el('ue-modal-meta').textContent = ueFmtRange(ev) + ' · ' + ueFmtTimes(ev);
+  el('ue-modal-details').innerHTML = (ev.details && ev.details.trim()) ? ev.details : 'No further details.';
+  el('ue-modal-meta').style.display = '';
+  el('ue-modal-details').style.display = '';
+  el('ue-modal-actions').style.display = '';
+  el('uem-form').style.display = 'none';
+  el('uem-del-btn').disabled = false;
+}
+// Swap the view for an edit form filled with the event.
+function ueModalEdit() {
+  var ev = ueModalEvent();
+  if (!ev || !isAdmin) return;
+  el('ue-modal-title').textContent = 'Edit event';
+  el('ue-modal-meta').style.display = 'none';
+  el('ue-modal-details').style.display = 'none';
+  el('ue-modal-actions').style.display = 'none';
+  el('uem-note').style.display = ev.extId ? '' : 'none';
+  el('uem-name').value = ev.name || '';
+  el('uem-date').value = ev.date || '';
+  el('uem-allday').checked = !!ev.allDay;
+  var t = uePadTime(ev.time) || '09:00';
+  var e = uePadTime(ev.endTime);
+  if (!e) { var h = Math.min(23, parseInt(t, 10) + 1); e = (h < 10 ? '0' + h : '' + h) + t.slice(2); }
+  ueTimeOptions(el('uem-start'), t);
+  ueTimeOptions(el('uem-end'), e);
+  ueModalToggleAllDay();
+  el('uem-details').innerHTML = ev.details || '';
+  el('uem-color').value = ev.color || '#dbeafe';
+  el('uem-msg').textContent = '';
+  el('uem-save-btn').disabled = false;
+  el('uem-save-btn').textContent = 'Save changes';
+  el('uem-form').style.display = '';
+  el('uem-name').focus();
+}
+function ueModalToggleAllDay() {
+  el('uem-time-selects').style.display = el('uem-allday').checked ? 'none' : '';
+}
+function ueModalSave() {
+  var id = ueModalId;
+  if (!id) return;
+  var allDay = el('uem-allday').checked;
+  var payload = {
+    date:    el('uem-date').value,
+    time:    allDay ? '' : el('uem-start').value,
+    endTime: allDay ? '' : el('uem-end').value,
+    allDay:  allDay,
+    name:    el('uem-name').value.trim(),
+    details: ((el('uem-details').textContent || '').trim() ? el('uem-details').innerHTML : ''),
+    color:   el('uem-color').value
+  };
+  var btn = el('uem-save-btn'), msg = el('uem-msg');
+  msg.textContent = '';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fetch('/api/upcoming-events/' + encodeURIComponent(id), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, body: b }; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = 'Save changes';
+    if (!res.ok || !res.body || !res.body.event) {
+      msg.textContent = (res.body && res.body.error) || 'Could not save event.';
+      return;
+    }
+    var i = upcomingEvents.findIndex(function(x) { return x.id === id; });
+    if (i > -1) upcomingEvents[i] = res.body.event; else upcomingEvents.push(res.body.event);
+    renderUeCalendar();
+    renderUeAdminList();
+    if (ueModalId === id) ueModalView();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Save changes';
+    msg.textContent = 'Network error — not saved.';
+  });
+}
+function ueModalDelete() {
+  var ev = ueModalEvent();
+  if (!ev || !isAdmin) return;
+  if (!confirm('Delete "' + ev.name + '"?' + (ev.extId ? '\n\nIt came from the staff calendar, so it will come back if it is changed there.' : ''))) return;
+  var id = ev.id, btn = el('uem-del-btn');
+  btn.disabled = true;
+  fetch('/api/upcoming-events/' + encodeURIComponent(id), { method: 'DELETE' })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      upcomingEvents = upcomingEvents.filter(function(x) { return x.id !== id; });
+      if (ueEditingId === id) ueCancelEdit();
+      renderUeCalendar();
+      renderUeAdminList();
+      closeUeModal();
+    })
+    .catch(function() {
+      btn.disabled = false;
+      alert('Could not delete the event. Please try again.');
+    });
 }
 
 // When set, the Add form is editing this existing event instead of adding.
