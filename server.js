@@ -463,6 +463,7 @@ const PUBLIC_API = [
   // pushed from it. The sync routes check CALENDAR_SYNC_KEY themselves.
   ['GET',  /^\/upcoming-events\/list$/],
   ['PUT',  /^\/sync\/upcoming-events\/[^/]+$/], ['DELETE', /^\/sync\/upcoming-events\/[^/]+$/],
+  ['PUT',  /^\/sync\/upcoming-events\/web\/[^/]+$/],
 ];
 app.use('/api', (req, res, next) => {
   const isPublic = PUBLIC_API.some(([m, re]) => m === req.method && re.test(req.path));
@@ -2512,6 +2513,41 @@ app.put('/api/sync/upcoming-events/:extId', (req, res) => {
     source: 'event'
   }).catch(e => console.warn('[notify] event trigger failed:', e.message));
   res.json({ ok: true, event: ev, created: isNew });
+});
+// Edit one of the website's own events from the staff calendar (teachers and
+// admins there can change them). Never creates and never notifies; details
+// are only replaced when sent, so rich text survives a time or colour change.
+app.put('/api/sync/upcoming-events/web/:id', (req, res) => {
+  if (!process.env.CALENDAR_SYNC_KEY) return res.status(503).json({ error: 'Calendar link not set up on the website (CALENDAR_SYNC_KEY).' });
+  if (!syncKeyOk(req)) return res.status(401).json({ error: 'Bad sync key' });
+  const b = req.body || {};
+  const date = String(b.date || '').trim();
+  const allDay = b.allDay === true || b.allDay === 'true';
+  const time = allDay ? '' : uePad(String(b.time || '').trim());
+  const name = String(b.name || '').trim();
+  let color = String(b.color || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Bad date' });
+  if (!allDay && !time) return res.status(400).json({ error: 'Pick a time.' });
+  if (!name) return res.status(400).json({ error: 'Event name is required.' });
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) color = '#dbeafe';
+  const et = ueEndTime(b, allDay, time);
+  if (et.error) return res.status(400).json({ error: et.error });
+  const data = load();
+  if (!Array.isArray(data.upcomingEvents)) data.upcomingEvents = [];
+  const ev = data.upcomingEvents.find(e => e.id === req.params.id && !e.extId);
+  if (!ev) return res.status(404).json({ error: 'That event is no longer on the website.' });
+  // Keep a multi-day event's length when its start date moves.
+  const span = (ev.endDate && ev.date && ev.endDate > ev.date) ? (Date.parse(ev.endDate) - Date.parse(ev.date)) : 0;
+  ev.date = date;
+  ev.endDate = span ? new Date(Date.parse(date) + span).toISOString().slice(0, 10) : date;
+  ev.time = time;
+  ev.endTime = et.endTime;
+  ev.allDay = allDay;
+  ev.name = name.slice(0, 200);
+  ev.color = color;
+  if (b.details !== undefined) ev.details = sanitiseRich(String(b.details || '')).slice(0, 4000);
+  save(data, { label: 'Upcoming Events' });
+  res.json({ ok: true, event: ev });
 });
 app.delete('/api/sync/upcoming-events/:extId', (req, res) => {
   if (!process.env.CALENDAR_SYNC_KEY) return res.status(503).json({ error: 'Calendar link not set up on the website (CALENDAR_SYNC_KEY).' });
