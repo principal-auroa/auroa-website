@@ -8155,6 +8155,8 @@ function renderSidebarPages() {
   var SPECIAL_PILLS = { 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
   if (!wrap) return;
   wrap.innerHTML = '';
+  var top = el('sidebar-top');
+  if (top) top.innerHTML = '';
 
   function findPage(id) {
     for (var i = 0; i < pageConfig.length; i++) {
@@ -8185,8 +8187,9 @@ function renderSidebarPages() {
     wrap.appendChild(div);
   }
 
-  // A fixed (non-page) button; key = its entry in sbBtnSettings.
-  function renderSynthetic(key, label, colorClass, onClick, btnId, lastInGroup) {
+  // A fixed (non-page) button; key = its entry in sbBtnSettings. It goes in
+  // the main list unless another container is given.
+  function renderSynthetic(key, label, colorClass, onClick, btnId, lastInGroup, target) {
     var div = document.createElement('div');
     div.className = 'sb-page-wrap';
     var btn = document.createElement('button');
@@ -8197,7 +8200,7 @@ function renderSidebarPages() {
     btn.textContent = label;
     btn.onclick = onClick;
     div.appendChild(btn);
-    wrap.appendChild(div);
+    (target || wrap).appendChild(div);
     sbApplyFixed(key, div, btn);
     return btn;
   }
@@ -8221,17 +8224,18 @@ function renderSidebarPages() {
   // Student Absence Notification — directly under School Lunch Orders, above Buses.
   renderPage(findPage('pg-absence'), null);
 
-  // School Newsletter + Messages — grey boxes directly under Student Absence.
+  // School Newsletter — grey box directly under Student Absence.
   renderSynthetic('newsletter', 'School Newsletter', 'sb-grey', function(e){ bubbleGo(e, 'pg-newsletter'); });
+  // School notifications — grey box at the very top, above Enrol Here.
   (function(){
-    var btn = renderSynthetic('notifications', 'School notifications', 'sb-grey', function(e){ bubbleGo(e, 'pg-messages'); });
+    var btn = renderSynthetic('notifications', 'School notifications', 'sb-grey', function(e){ bubbleGo(e, 'pg-messages'); }, null, false, top || wrap);
     var badge = document.createElement('span');
     badge.id = 'sidebar-msg-badge';
     badge.className = 'sidebar-msg-badge';
     btn.appendChild(badge);
   })();
 
-  // Hall Bookings (grey) then Buses (gold) under Messages.
+  // Hall Bookings (grey) then Buses (gold) under School Newsletter.
   renderSynthetic('hall', 'Hall Bookings', 'sb-grey', function(e){ bubbleGo(e, 'pg-hall-bookings'); });
   renderPage(findPage('pg-buses'), 'group-gold', true);
 
@@ -11932,6 +11936,8 @@ document.addEventListener('click', function(e) {
 <!-- ===== PERSISTENT SIDEBAR ===== -->
 <nav id="home-sidebar">
   <div id="home-sidebar-title">Quick Links</div>
+  <!-- School notifications sits above Enrol Here (filled by renderSidebarPages). -->
+  <div id="sidebar-top"></div>
   <div id="sidebar-enrol-wrap">
     <button class="sidebar-btn enrol" id="enrol-btn" onclick="enrolClick(event)">Enrol Here</button>
     <div id="enrol-editor">
