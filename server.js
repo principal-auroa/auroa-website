@@ -456,6 +456,7 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
+  ['POST', /^\/push\/ack$/],   // a phone reporting it showed a notification (see push receipts)
   ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
@@ -2658,7 +2659,23 @@ app.post('/api/push/subscribe', (req, res) => {
   // replacement record must KEEP the stored name (and the zombie strike count
   // — otherwise every re-sync resets strikes and dead-but-2xx endpoints are
   // never pruned).
-  const prevSub = data.pushSubscriptions.find(s => s.endpoint === sub.endpoint);
+  // A phone whose subscription was re-created sends its previous endpoint too.
+  // Swap it for the new one everywhere, so the device keeps its name and its
+  // group memberships (group sends target endpoints, so a stale one there means
+  // that phone silently stops getting its group's messages).
+  const oldEndpoint = typeof b.oldEndpoint === 'string' ? b.oldEndpoint : '';
+  const replacing = oldEndpoint && oldEndpoint !== sub.endpoint;
+  const oldSub = replacing ? data.pushSubscriptions.find(s => s.endpoint === oldEndpoint) : null;
+  if (replacing) {
+    data.pushSubscriptions = data.pushSubscriptions.filter(s => s.endpoint !== oldEndpoint);
+    (Array.isArray(data.parentGroups) ? data.parentGroups : []).forEach(g => (g.members || []).forEach(m => {
+      if (Array.isArray(m.endpoints) && m.endpoints.includes(oldEndpoint)) {
+        m.endpoints = m.endpoints.filter(e => e !== oldEndpoint);
+        if (!m.endpoints.includes(sub.endpoint)) m.endpoints.push(sub.endpoint);
+      }
+    }));
+  }
+  const prevSub = data.pushSubscriptions.find(s => s.endpoint === sub.endpoint) || oldSub;
   data.pushSubscriptions = data.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
   const record = Object.assign({}, sub);
   if (name) record.name = name;
@@ -2895,6 +2912,62 @@ app.get('/join-group/:id', (req, res) => {
 // `pushOut` controls whether a push notification + email actually go out.
 // Only manual Messages-page sends push; newsletter/event/group triggers still
 // record their Messages-page card (if any) but do not push notifications.
+// ---- Push receipts ----
+// "Sent" only means Apple/Google accepted the message. To see whether phones
+// actually SHOW it (and how late), the service worker reports back once it has
+// displayed each notification. Kept in a small file of its own, recent sends only.
+const PUSH_RECEIPTS_FILE = path.join(DATA_DIR, 'push-receipts.json');
+let pushReceipts = [];
+try { pushReceipts = JSON.parse(fs.readFileSync(PUSH_RECEIPTS_FILE, 'utf8')) || []; } catch (e) {}
+let _pushReceiptsTimer = null;
+function pushReceiptsSave() {
+  if (_pushReceiptsTimer) return;
+  _pushReceiptsTimer = setTimeout(() => {
+    _pushReceiptsTimer = null;
+    fs.writeFile(PUSH_RECEIPTS_FILE, JSON.stringify(pushReceipts), () => {});
+  }, 2000);
+}
+// Short stable key for an endpoint (the endpoint itself stays out of the file).
+function pushKey(endpoint) {
+  return crypto.createHash('sha256').update(String(endpoint)).digest('hex').slice(0, 16);
+}
+
+// A phone says it has shown message `id`. Only counts devices the message was
+// actually sent to, once each.
+app.post('/api/push/ack', (req, res) => {
+  const b = req.body || {};
+  const r = pushReceipts.find(x => x.id === String(b.id || ''));
+  if (r && b.endpoint) {
+    const k = pushKey(b.endpoint);
+    if (r.targets[k] && !(k in r.shown)) {
+      r.shown[k] = Math.max(0, Date.now() - r.sentAt);
+      pushReceiptsSave();
+    }
+  }
+  res.json({ ok: true });
+});
+
+// Admin: how recent sends actually landed — accepted, shown, how quickly, and
+// which named phones haven't shown it yet.
+app.get('/api/push/receipts', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const list = pushReceipts.slice().reverse().map(r => {
+    const keys = Object.keys(r.targets);
+    const accepted = keys.filter(k => r.targets[k].ok);
+    const delays = Object.values(r.shown);
+    return {
+      id: r.id, title: r.title, sentAt: r.sentAt,
+      targets: keys.length,
+      accepted: accepted.length,
+      shown: delays.length,
+      fast: delays.filter(d => d <= 2 * 60 * 1000).length,
+      late: delays.filter(d => d > 2 * 60 * 1000).length,
+      notShown: accepted.filter(k => !(k in r.shown)).map(k => r.targets[k].name || null)
+    };
+  });
+  res.json({ receipts: list });
+});
+
 async function notifyAll({ title, body, url, source, groupId, image, images, repostNote, pushOut }) {
   const data = load();
   if (!Array.isArray(data.parentMessages))   data.parentMessages   = [];
@@ -2966,7 +3039,8 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
       // A repost note (if any) leads the banner text too.
       body:  (msg.repostNote ? msg.repostNote + '\n\n' : '') +
              msg.body.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1'),
-      url:   msg.url
+      url:   msg.url,
+      id:    msg.id     // lets the phone report back once it has shown it
     };
     if (msg.image) payloadObj.image = '/uploads/' + msg.image;
     if (showOnPage) payloadObj.count = pageCount;
@@ -2976,7 +3050,8 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
     // when the person next wakes their phone) — that was the "messages arrive
     // late in the day" symptom. TTL 3 days: if a phone is off longer than that
     // the alert has gone stale, so it expires rather than popping up days later.
-    const sendOpts = { urgency: 'high', TTL: 3 * 24 * 60 * 60 };
+    // timeout: one hung connection mustn't hold up (or fail) the whole send.
+    const sendOpts = { urgency: 'high', TTL: 3 * 24 * 60 * 60, timeout: 20000 };
     const results = await Promise.allSettled(
       targetSubs.map(s => wp.sendNotification(s, payload, sendOpts))
     );
@@ -2987,6 +3062,20 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
     //    A successful send resets the counter. This stops "zombie" subs that
     //    fail every send (but never return 410) from inflating the fail count
     //    forever. Filter the full subs list, not just targetSubs.
+    //
+    // Problems on OUR side or the push service's (payload too large, rate
+    // limited, push service down, network/timeout) say nothing about the phone,
+    // so they never count as a strike. Nor does an error that hit a big share
+    // of this send's devices at once — that's a send-wide problem, and striking
+    // everyone for it would quietly unsubscribe phones until they reopen the app.
+    const codeCounts = {};
+    results.forEach(r => {
+      if (r.status === 'rejected') { const c = (r.reason && r.reason.statusCode) || 0; codeCounts[c] = (codeCounts[c] || 0) + 1; }
+    });
+    function sendWide(code) {
+      if (!code || code === 413 || code === 429 || code >= 500) return true;
+      return codeCounts[code] >= 3 && codeCounts[code] >= targetSubs.length * 0.3;
+    }
     const deadEndpoints = new Set();
     const failBump = {};   // endpoint -> new failCount (0 = reset)
     targetSubs.forEach((s, i) => {
@@ -2996,6 +3085,8 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
       const code = r.reason && r.reason.statusCode;
       if (code === 410 || code === 404) {
         deadEndpoints.add(s.endpoint);
+      } else if (sendWide(code)) {
+        console.warn('[push] failed', code || '', '(send-wide, no strike)', r.reason && r.reason.message);
       } else {
         const n = (s.failCount || 0) + 1;
         failBump[s.endpoint] = n;
@@ -3005,6 +3096,14 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
       pushStats.failures.push({ name: s.name || null, removed: deadEndpoints.has(s.endpoint) });
     });
     pushStats.removed = deadEndpoints.size;
+    // Start a receipt for this send; phones fill in `shown` as they display it.
+    const targets = {};
+    targetSubs.forEach((s, i) => {
+      targets[pushKey(s.endpoint)] = { name: s.name || null, ok: results[i].status === 'fulfilled' ? 1 : 0 };
+    });
+    pushReceipts.push({ id: msg.id, title: msg.title, sentAt: now, targets, shown: {} });
+    if (pushReceipts.length > 30) pushReceipts = pushReceipts.slice(-30);
+    pushReceiptsSave();
     if (deadEndpoints.size || Object.keys(failBump).length) {
       const d2 = load();
       d2.pushSubscriptions = (d2.pushSubscriptions || [])

@@ -10,7 +10,7 @@
 //   - HTML pages + /api/*         -> network-first with cache fallback, so
 //     content stays fresh when online but still renders when the network drops.
 
-const CACHE = 'auroa-cache-v75';
+const CACHE = 'auroa-cache-v76';
 const SHELL = ['/', '/icon.svg', '/icon-192.png', '/badge-96.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -117,6 +117,7 @@ self.addEventListener('push', (event) => {
   const url   = data.url   || '/';
   const count = typeof data.count === 'number' ? data.count : null;
   const image = typeof data.image === 'string' ? data.image : null;
+  const id    = typeof data.id === 'string' ? data.id : '';
 
   const opts = {
     body,
@@ -127,7 +128,9 @@ self.addEventListener('push', (event) => {
     // succeeded.
     icon:  '/icon-192.png',
     badge: '/badge-96.png',
-    tag:   'auroa-message',
+    // One notification per message: a shared tag made each new message
+    // replace the last one, so a parent could miss an earlier alert.
+    tag:   id ? 'auroa-' + id : 'auroa-message',
     renotify: true,
     data: { url }
   };
@@ -141,7 +144,19 @@ self.addEventListener('push', (event) => {
     .catch(() => self.registration.showNotification(title, { body, data: { url } }))
     .catch(() => {});
 
-  const tasks = [show];
+  // Tell the server this phone has shown it (the office's delivery check).
+  const ack = show.then(async () => {
+    if (!id) return;
+    const sub = await self.registration.pushManager.getSubscription();
+    if (!sub) return;
+    await fetch('/api/push/ack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, endpoint: sub.endpoint })
+    });
+  }).catch(() => {});
+
+  const tasks = [show, ack];
   // Bump the app icon badge (Chrome desktop/Android, Safari iOS 16.4+ PWA).
   if (count != null && self.navigator && typeof self.navigator.setAppBadge === 'function') {
     tasks.push(self.navigator.setAppBadge(count).catch(() => {}));
@@ -175,7 +190,10 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub.toJSON() })
+        body: JSON.stringify({
+          subscription: sub.toJSON(),
+          oldEndpoint: oldSub && oldSub.endpoint !== sub.endpoint ? oldSub.endpoint : undefined
+        })
       });
     } catch (_) {}
   })());

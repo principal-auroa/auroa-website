@@ -4715,6 +4715,12 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
         </div>
       </div>
       <div id="pm-sub-list" style="display:none;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#333;line-height:1.9;"></div>
+      <div class="pm-sub-counts">
+        <div class="pm-sub-count-tile" onclick="pmToggleReceipts()" style="cursor:pointer;flex:1;" title="Tap to see how recent messages landed on phones">
+          <div class="pm-sub-count-label" style="margin-top:0;font-size:13px;color:#1a2b4a;font-weight:700;">📬 Delivery check — tap to see which phones actually showed recent messages, and how quickly</div>
+        </div>
+      </div>
+      <div id="pm-receipts" style="display:none;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#333;line-height:1.7;max-height:420px;overflow-y:auto;"></div>
 
       <div id="pm-groups-admin" class="pm-groups-admin">
         <h3>Create a group</h3>
@@ -14013,11 +14019,16 @@ async function pmResyncSubscription() {
   if (!sub) return;
   try {
     // Include this device's stored name so it survives endpoint rotations
-    // (a rotated endpoint creates a fresh server record).
+    // (a rotated endpoint creates a fresh server record), and the endpoint it
+    // had before so the server moves its group memberships across.
+    var prevEndpoint = pmGetEndpoint();
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), name: pmGetDeviceName() })
+      body: JSON.stringify({
+        subscription: sub.toJSON(), name: pmGetDeviceName(),
+        oldEndpoint: prevEndpoint && prevEndpoint !== sub.endpoint ? prevEndpoint : undefined
+      })
     });
     pmSetSubscribed(true, sub.endpoint);
     pmUpdateSubscribeButton();
@@ -14314,6 +14325,40 @@ function pmRemoveImageAt(i) {
 function pmClearImage() {
   pmPendingImages = [];
   pmRenderImagePreviews();
+}
+
+// Admin: delivery check. Phones report back when they have actually shown a
+// notification, so this separates "accepted by Apple/Google" from "appeared on
+// the phone", and on time (within 2 minutes) from late (phone held it back).
+function pmToggleReceipts() {
+  var box = el('pm-receipts');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.textContent = 'Loading…';
+  fetch('/api/push/receipts')
+    .then(function(r){ return r.json(); })
+    .then(function(b){
+      var list = (b && b.receipts) || [];
+      if (!list.length) { box.innerHTML = 'No messages sent since the delivery check was added. Send one and check back in a few minutes.'; return; }
+      var html = '<div style="color:#888;font-size:12px;margin-bottom:8px;">A phone counts as “shown” once the notification has appeared on it. Phones that were switched off or had no signal will show it when they reconnect. Late or missing usually means the phone’s battery saving held it back.</div>';
+      list.forEach(function(r) {
+        var named = r.notShown.filter(Boolean).sort(function(a, c){ return a.localeCompare(c); });
+        var unnamed = r.notShown.length - named.length;
+        html += '<div style="border-top:1px solid #eee;padding:8px 0;">' +
+          '<strong>' + lunchEsc(r.title) + '</strong> <span style="color:#888;">— ' + lunchEsc(new Date(r.sentAt).toLocaleString()) + '</span><br>' +
+          '<span style="color:#16a34a;">✅ Shown on ' + r.shown + ' of ' + r.accepted + ' phone' + (r.accepted === 1 ? '' : 's') + '</span>' +
+          ' <span style="color:#555;">(' + r.fast + ' within 2 minutes, ' + r.late + ' later)</span>' +
+          (r.targets > r.accepted ? ' <span style="color:#c0392b;">· ' + (r.targets - r.accepted) + ' not accepted</span>' : '');
+        if (r.notShown.length) {
+          html += '<br><span style="color:#c0392b;">Not shown yet:</span> ' + named.map(lunchEsc).join(', ') +
+            (unnamed ? (named.length ? ', ' : '') + '<span style="color:#888;">' + unnamed + ' unnamed</span>' : '');
+        }
+        html += '</div>';
+      });
+      box.innerHTML = html;
+    })
+    .catch(function(){ box.textContent = 'Couldn’t load the delivery check.'; });
 }
 
 // Admin: toggle the list of subscribed devices by name (names only — the
