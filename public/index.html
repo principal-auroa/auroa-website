@@ -14341,18 +14341,28 @@ function pmToggleReceipts() {
     .then(function(b){
       var list = (b && b.receipts) || [];
       if (!list.length) { box.innerHTML = 'No messages sent since the delivery check was added. Send one and check back in a few minutes.'; return; }
-      var html = '<div style="color:#888;font-size:12px;margin-bottom:8px;">A phone counts as “shown” once the notification has appeared on it. Phones that were switched off or had no signal will show it when they reconnect. Late or missing usually means the phone’s battery saving held it back.</div>';
+      var html = '<div style="color:#888;font-size:12px;margin-bottom:8px;">A phone counts as “shown” once the notification has appeared on it and the phone has reported back. Phones only start reporting after the app has been opened once since 4 November, so “can’t report yet” phones may well have received it.</div>';
+      // Names, sorted, duplicates as "Name ×2", unnamed counted.
+      function who(names) {
+        var counts = {}, unnamed = 0;
+        names.forEach(function(n) { if (n) counts[n] = (counts[n] || 0) + 1; else unnamed++; });
+        var parts = Object.keys(counts).sort(function(a, c){ return a.localeCompare(c); })
+          .map(function(n) { return lunchEsc(n) + (counts[n] > 1 ? ' ×' + counts[n] : ''); });
+        if (unnamed) parts.push('<span style="color:#888;">' + unnamed + ' unnamed</span>');
+        return parts.join(', ');
+      }
       list.forEach(function(r) {
-        var named = r.notShown.filter(Boolean).sort(function(a, c){ return a.localeCompare(c); });
-        var unnamed = r.notShown.length - named.length;
         html += '<div style="border-top:1px solid #eee;padding:8px 0;">' +
           '<strong>' + lunchEsc(r.title) + '</strong> <span style="color:#888;">— ' + lunchEsc(new Date(r.sentAt).toLocaleString()) + '</span><br>' +
           '<span style="color:#16a34a;">✅ Shown on ' + r.shown + ' of ' + r.accepted + ' phone' + (r.accepted === 1 ? '' : 's') + '</span>' +
           ' <span style="color:#555;">(' + r.fast + ' within 2 minutes, ' + r.late + ' later)</span>' +
           (r.targets > r.accepted ? ' <span style="color:#c0392b;">· ' + (r.targets - r.accepted) + ' not accepted</span>' : '');
-        if (r.notShown.length) {
-          html += '<br><span style="color:#c0392b;">Not shown yet:</span> ' + named.map(lunchEsc).join(', ') +
-            (unnamed ? (named.length ? ', ' : '') + '<span style="color:#888;">' + unnamed + ' unnamed</span>' : '');
+        if (r.missed && (r.missed.length || r.silent.length || r.unknown.length)) {
+          if (r.missed.length) html += '<br><span style="color:#c0392b;">❌ Missed (' + r.missed.length + ') — these phones have shown other messages, so this one is genuinely missing or held back:</span> ' + who(r.missed);
+          if (r.silent.length) html += '<br><span style="color:#b45309;">🔕 Never shown any (' + r.silent.length + ') — opened the app since the update but no notification has ever appeared; notifications are probably blocked on that phone, or it’s an old record:</span> ' + who(r.silent);
+          if (r.unknown.length) html += '<br><span style="color:#888;">⏳ Can’t report yet (' + r.unknown.length + ') — haven’t opened the app since the update:</span> ' + who(r.unknown);
+        } else if (r.notShown.length) {
+          html += '<br><span style="color:#c0392b;">Not shown yet:</span> ' + who(r.notShown);
         }
         html += '</div>';
       });

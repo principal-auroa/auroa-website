@@ -2916,15 +2916,31 @@ app.get('/join-group/:id', (req, res) => {
 // "Sent" only means Apple/Google accepted the message. To see whether phones
 // actually SHOW it (and how late), the service worker reports back once it has
 // displayed each notification. Kept in a small file of its own, recent sends only.
+//
+// A phone can only report once it has the service worker that reports, which
+// it picks up the next time the app is opened. So for a phone that didn't show
+// a message we also need to know whether it COULD have reported:
+//   reporters — devices that have reported at least once (+ when, last)
+//   since     — when reporting began; a phone that hasn't opened the app since
+//               then (lastSeen is bumped on every open) can't report yet.
 const PUSH_RECEIPTS_FILE = path.join(DATA_DIR, 'push-receipts.json');
-let pushReceipts = [];
-try { pushReceipts = JSON.parse(fs.readFileSync(PUSH_RECEIPTS_FILE, 'utf8')) || []; } catch (e) {}
+let pushReceipts = [], pushReporters = {}, pushReportSince = 0;
+try {
+  const f = JSON.parse(fs.readFileSync(PUSH_RECEIPTS_FILE, 'utf8'));
+  if (Array.isArray(f)) pushReceipts = f;   // first version was just the list of sends
+  else if (f) { pushReceipts = f.sends || []; pushReporters = f.reporters || {}; pushReportSince = f.since || 0; }
+} catch (e) {}
+if (!pushReportSince) pushReportSince = pushReceipts.length ? pushReceipts[0].sentAt : Date.now();
+// Sends from before reporters were tracked: their acks show who can report.
+pushReceipts.forEach(r => Object.keys(r.shown || {}).forEach(k => {
+  pushReporters[k] = Math.max(pushReporters[k] || 0, r.sentAt + r.shown[k]);
+}));
 let _pushReceiptsTimer = null;
 function pushReceiptsSave() {
   if (_pushReceiptsTimer) return;
   _pushReceiptsTimer = setTimeout(() => {
     _pushReceiptsTimer = null;
-    fs.writeFile(PUSH_RECEIPTS_FILE, JSON.stringify(pushReceipts), () => {});
+    fs.writeFile(PUSH_RECEIPTS_FILE, JSON.stringify({ since: pushReportSince, reporters: pushReporters, sends: pushReceipts }), () => {});
   }, 2000);
 }
 // Short stable key for an endpoint (the endpoint itself stays out of the file).
@@ -2941,6 +2957,7 @@ app.post('/api/push/ack', (req, res) => {
     const k = pushKey(b.endpoint);
     if (r.targets[k] && !(k in r.shown)) {
       r.shown[k] = Math.max(0, Date.now() - r.sentAt);
+      pushReporters[k] = Date.now();
       pushReceiptsSave();
     }
   }
@@ -2948,7 +2965,11 @@ app.post('/api/push/ack', (req, res) => {
 });
 
 // Admin: how recent sends actually landed — accepted, shown, how quickly, and
-// which named phones haven't shown it yet.
+// which named phones haven't shown it yet, split three ways:
+//   missed  — has shown other notifications, so it could have reported this one
+//   silent  — opened the app since reporting began but has never shown one
+//             (notifications blocked on that phone, or an old record for it)
+//   unknown — hasn't opened the app since reporting began, so can't report yet
 app.get('/api/push/receipts', (req, res) => {
   res.set('Cache-Control', 'no-store');
   const list = pushReceipts.slice().reverse().map(r => {
@@ -2962,8 +2983,19 @@ app.get('/api/push/receipts', (req, res) => {
       shown: delays.length,
       fast: delays.filter(d => d <= 2 * 60 * 1000).length,
       late: delays.filter(d => d > 2 * 60 * 1000).length,
-      notShown: accepted.filter(k => !(k in r.shown)).map(k => r.targets[k].name || null)
+      notShown: accepted.filter(k => !(k in r.shown)).map(k => r.targets[k].name || null),
+      missed: [], silent: [], unknown: []
     };
+  }).map((out, i, all) => {
+    const r = pushReceipts[pushReceipts.length - 1 - i];
+    Object.keys(r.targets).forEach(k => {
+      const t = r.targets[k];
+      if (!t.ok || (k in r.shown)) return;
+      if (pushReporters[k]) out.missed.push(t.name || null);
+      else if ((t.seen || 0) > pushReportSince) out.silent.push(t.name || null);
+      else out.unknown.push(t.name || null);
+    });
+    return out;
   });
   res.json({ receipts: list });
 });
@@ -3099,7 +3131,7 @@ async function notifyAll({ title, body, url, source, groupId, image, images, rep
     // Start a receipt for this send; phones fill in `shown` as they display it.
     const targets = {};
     targetSubs.forEach((s, i) => {
-      targets[pushKey(s.endpoint)] = { name: s.name || null, ok: results[i].status === 'fulfilled' ? 1 : 0 };
+      targets[pushKey(s.endpoint)] = { name: s.name || null, ok: results[i].status === 'fulfilled' ? 1 : 0, seen: s.lastSeen || 0 };
     });
     pushReceipts.push({ id: msg.id, title: msg.title, sentAt: now, targets, shown: {} });
     if (pushReceipts.length > 30) pushReceipts = pushReceipts.slice(-30);
