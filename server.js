@@ -456,7 +456,8 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
-  ['POST', /^\/push\/ack$/],   // a phone reporting it showed a notification (see push receipts)
+  ['POST', /^\/push\/ack$/],
+  ['POST', /^\/jobs\/apply$/],   // job applications (cover letter + CV upload)   // a phone reporting it showed a notification (see push receipts)
   ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
@@ -554,7 +555,7 @@ app.post('/api/live/presence', (req, res) => {
 
 // Tell other open admin pages that something was saved, so they can refresh.
 // The newsletter sends its own, finer-grained 'nl' message instead.
-const LIVE_QUIET = /^\/(live\/|newsletter\/save$|upload|login$|logout$|client-log$|push\/|admin-status$)/;
+const LIVE_QUIET = /^\/(live\/|newsletter\/save$|upload|login$|logout$|client-log$|push\/|admin-status$|jobs\/apply$)/;
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET' || LIVE_QUIET.test(req.path)) return next();
   const from = liveClientId(req);
@@ -1367,6 +1368,108 @@ app.post('/api/triathlon/delete', (req, res) => {
   });
 });
 
+// ---- Job applications ----
+// Public form: contact details, referees, and a cover letter + CV upload.
+// The documents are personal, so they are kept in a private folder (never
+// under /uploads) and only an admin can download them.
+const JOBS_FILE = path.join(DATA_DIR, 'job-applications.json');
+const JOBS_DIR  = path.join(DATA_DIR, 'job-applications');
+try { fs.mkdirSync(JOBS_DIR, { recursive: true }); } catch (e) {}
+const JOB_DOC_EXT = /\.(pdf|docx?|odt|rtf|txt|pages|jpe?g|png|heic)$/i;
+const jobUpload = multer({
+  storage: multer.diskStorage({
+    destination: JOBS_DIR,
+    filename: (req, file, cb) => {
+      const ext = (path.extname(file.originalname).toLowerCase().match(/^\.[a-z0-9]{1,5}$/) || ['.bin'])[0];
+      cb(null, Date.now() + '-' + crypto.randomBytes(8).toString('hex') + ext);
+    }
+  }),
+  limits: { fileSize: 10 * 1024 * 1024, files: 2, fields: 40 },
+  fileFilter: (req, file, cb) => cb(null, JOB_DOC_EXT.test(file.originalname))
+}).fields([{ name: 'coverLetter', maxCount: 1 }, { name: 'cv', maxCount: 1 }]);
+
+function jobsReadAll(cb) {
+  fs.readFile(JOBS_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    cb(list);
+  });
+}
+function jobsUnlink(f) { if (f && f.file) fs.unlink(path.join(JOBS_DIR, path.basename(f.file)), () => {}); }
+
+app.post('/api/jobs/apply', (req, res) => {
+  jobUpload(req, res, (err) => {
+    const files = req.files || {};
+    const cover = files.coverLetter && files.coverLetter[0];
+    const cv    = files.cv && files.cv[0];
+    const fail = (msg) => {
+      [cover, cv].forEach(f => { if (f) fs.unlink(f.path, () => {}); });
+      res.status(400).json({ error: msg });
+    };
+    if (err) return fail(err.code === 'LIMIT_FILE_SIZE' ? 'Each file must be 10 MB or smaller.' : 'Could not upload your files — please try again.');
+    const b = req.body || {};
+    const str = (v, n) => String(v || '').trim().slice(0, n);
+    const app_ = {
+      id: 'job_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'),
+      ts: Date.now(),
+      first:    str(b.first, 100),
+      last:     str(b.last, 100),
+      email:    str(b.email, 200),
+      phone:    str(b.phone, 40),
+      address:  str(b.address, 500),
+      position: str(b.position, 200),
+      referees: [],
+    };
+    for (let i = 0; i < 3; i++) {
+      const r = { name: str(b['refName' + i], 120), role: str(b['refRole' + i], 160), phone: str(b['refPhone' + i], 40), email: str(b['refEmail' + i], 200) };
+      if (r.name || r.role || r.phone || r.email) app_.referees.push(r);
+    }
+    if (!app_.first || !app_.last) return fail('Please enter your first and last name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(app_.email)) return fail('Please enter a valid email address.');
+    if (!app_.phone) return fail('Please enter a phone number.');
+    if (!cover) return fail('Please attach your cover letter (PDF, Word, Pages or a photo).');
+    if (!cv) return fail('Please attach your CV (PDF, Word, Pages or a photo).');
+    if (!app_.referees.some(r => r.name && (r.phone || r.email))) return fail('Please give at least one referee with a phone number or email.');
+    const doc = f => ({ file: path.basename(f.path), name: str(f.originalname, 200), size: f.size });
+    app_.coverLetter = doc(cover);
+    app_.cv = doc(cv);
+    jobsReadAll((list) => {
+      list.push(app_);
+      fs.writeFile(JOBS_FILE, JSON.stringify(list), (werr) => {
+        if (werr) return fail('Could not save your application — please try again.');
+        res.json({ ok: true });
+      });
+    });
+  });
+});
+// Admin (session-gated by the /api middleware): list, download, delete.
+app.get('/api/jobs/applications', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  jobsReadAll((list) => res.json({ applications: list }));
+});
+app.get('/api/jobs/file/:id/:which', (req, res) => {
+  const which = req.params.which === 'cv' ? 'cv' : req.params.which === 'cover' ? 'coverLetter' : null;
+  if (!which) return res.status(404).end();
+  jobsReadAll((list) => {
+    const a = list.find(x => x.id === req.params.id);
+    const f = a && a[which];
+    if (!f) return res.status(404).end();
+    const fp = path.join(JOBS_DIR, path.basename(f.file));
+    if (!fs.existsSync(fp)) return res.status(404).end();
+    res.set('Cache-Control', 'private, no-store');
+    res.download(fp, f.name || path.basename(f.file));
+  });
+});
+app.post('/api/jobs/delete', (req, res) => {
+  const id = String((req.body || {}).id || '');
+  jobsReadAll((list) => {
+    const a = list.find(x => x.id === id);
+    if (!a) return res.json({ ok: true, deleted: 0 });
+    jobsUnlink(a.coverLetter); jobsUnlink(a.cv);
+    fs.writeFile(JOBS_FILE, JSON.stringify(list.filter(x => x.id !== id)), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+
 // ---- 2027 class list requests ----
 // Public submit; admin (session-gated by the /api middleware) reads/clears/deletes.
 const CLASSLIST_FILE = path.join(DATA_DIR, 'classlist-requests.json');
@@ -2038,6 +2141,9 @@ function serveSpaWithMarker(req, res, marker) {
        .send(html.replace('</head>', marker + '</head>'));
   });
 }
+// Shareable links to the Job Opportunities page and its application form.
+app.get('/jobs', (req, res) => serveSpaWithMarker(req, res, '<script>window.__autoPage="pg-jobs";</script>'));
+app.get('/jobs/apply', (req, res) => serveSpaWithMarker(req, res, '<script>window.__autoPage="pg-job-apply";</script>'));
 // Privacy policy (linked from the Google sign-in setup for the Health Profile).
 app.get('/privacy', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, must-revalidate');

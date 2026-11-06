@@ -290,7 +290,8 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
   width:calc(100% - 32px);cursor:pointer;
 }
 .sidebar-btn.classlist-reg,
-.sidebar-btn.triathlon-reg{
+.sidebar-btn.triathlon-reg,
+.sidebar-btn.jobs-reg{
   color:#fff;font-weight:400;font-size:16px;
   border:none;border-left:none;
   border-radius:8px;margin:0 16px 14px;
@@ -301,6 +302,9 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 #sidebar-survey-wrap{position:relative;}
 #sidebar-classlist-wrap{position:relative;}
 #sidebar-triathlon-wrap{position:relative;}
+#sidebar-jobs-wrap{position:relative;}
+/* Job Opportunities' Move up / Move down row (admin) sits under its tools row. */
+.sb-move-row{margin-top:-6px;}
 /* Admin-only Show/Hide switch under each special pill; a hidden pill is
    faded for the admin (visitors don't see it at all). */
 .sb-pill-admin{margin-top:-8px;margin-bottom:12px;}
@@ -370,6 +374,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.survey-reg{--bt:#7b74e8;--bb:#5b52d6;--bl:#4a41b8;--be:#382f92;}
 .sidebar-btn.classlist-reg{--bt:#e86aa0;--bb:#d14b85;--bl:#b33a6f;--be:#8c2b56;}
 .sidebar-btn.triathlon-reg{--bt:#3b9be8;--bb:#1f7fd1;--bl:#1a68ad;--be:#134f84;}
+.sidebar-btn.jobs-reg{--bt:#3a63c4;--bb:#2448a8;--bl:#1d3b8c;--be:#152b68;}
 .sidebar-btn.camps-page{--bt:#2bb3c9;--bb:#1c96ab;--bl:#167c8e;--be:#0f5e6c;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
@@ -377,7 +382,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
-.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.triathlon-reg,.sidebar-btn.camps-page,
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.triathlon-reg,.sidebar-btn.jobs-reg,.sidebar-btn.camps-page,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
 .sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -399,7 +404,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
 }
-.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.triathlon-reg:hover,.sidebar-btn.camps-page:hover,
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.triathlon-reg:hover,.sidebar-btn.jobs-reg:hover,.sidebar-btn.camps-page:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
 .sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -410,7 +415,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
              0 4px 0 var(--be),
              0 8px 16px rgba(0,0,0,0.4);
 }
-.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.triathlon-reg:active,.sidebar-btn.camps-page:active,
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.triathlon-reg:active,.sidebar-btn.jobs-reg:active,.sidebar-btn.camps-page:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
 .sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
@@ -593,6 +598,18 @@ body:not(.is-admin) .pd-booklet-box:not(.has-img){display:none;}
 body:not(.is-admin) #pd-topimg-box:not(.has-img){display:none;}
 body.is-admin #pd-topimg-box.has-img .img-remove-btn{display:flex;}
 #tri-img-section{margin-top:22px;}
+/* ---- Job Opportunities ---- */
+.jobs-banner{display:block;width:100%;max-width:720px;height:auto;margin:18px auto 6px;}
+.jobs-apply-btn{display:block;width:100%;max-width:320px;margin:10px auto 22px;font-size:18px;padding:14px 20px;}
+.jobs-link-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px;}
+.jobs-link-box input{flex:1;min-width:200px;font-size:13px;}
+.jobs-section-h{color:#1a2b4a;font-size:16px;font-weight:700;margin:22px 0 4px;}
+.jobs-hint{font-size:12px;color:#777;margin:2px 0 6px;}
+.jobs-ref{border:1px solid #e6e6e6;border-radius:10px;padding:4px 14px 12px;margin:10px 0;background:#fafbfc;}
+.jobs-ref-h{font-size:13px;font-weight:700;color:#1a2b4a;margin:8px 0 0;}
+.jobs-app{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:10px 14px;margin:8px 0;font-size:13px;line-height:1.6;}
+.jobs-app-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;}
+.jobs-app a.jobs-doc{display:inline-block;margin:4px 8px 0 0;background:#1a2b4a;color:#fff;border-radius:6px;padding:3px 10px;text-decoration:none;font-weight:700;font-size:12px;}
 body:not(.is-admin) #tri-img-box:not(.has-img){display:none;}
 body.is-admin #tri-img-box.has-img .img-remove-btn{display:flex;}
 .pd-booklet-upload-btn{
@@ -3758,6 +3775,91 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== JOB OPPORTUNITIES PAGE (shareable link: /jobs) ======== -->
+  <div id="pg-jobs" class="page">
+    <div class="pg-body" style="max-width:720px;margin:0 auto;">
+      <img class="jobs-banner" src="/jobs-banner.png" alt="Auroa School — Pride, Innovation, Respect, Initiative. Te Mana Akoranga — Educate to Empower" />
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Vacancies</h1>
+      </div>
+
+      <div id="jobs-admin" class="pd-admin">
+        <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Link to this page (admin)</h3>
+        <div class="jobs-link-box">
+          <input id="jobs-link" class="hb-input" type="text" readonly onclick="this.select()">
+          <button type="button" class="abar-btn" style="font-size:11px;padding:6px 12px;" onclick="jobsCopyLink()">Copy link</button>
+        </div>
+        <div style="font-size:12px;color:#666;margin-bottom:12px;">Paste this link anywhere (newsletter, Facebook, emails) to take people straight to this page — it works even while the page is hidden from the menu.</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Applications (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="jobsLoadApplications()">↻ Refresh</button>
+          <span id="jobs-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div id="jobs-applications"></div>
+      </div>
+
+      <button type="button" class="hb-submit-btn jobs-apply-btn" onclick="showPage('pg-job-apply')">Apply here</button>
+      <div class="editable" id="ec-jobs"><p>Current vacancies will be listed here.</p></div>
+    </div>
+  </div>
+
+  <!-- ======== JOB APPLICATION FORM (shareable link: /jobs/apply) ======== -->
+  <div id="pg-job-apply" class="page">
+    <div class="pg-body" style="max-width:720px;margin:0 auto;">
+      <img class="jobs-banner" src="/jobs-banner.png" alt="Auroa School" />
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="showPage('pg-jobs')">← Back</button>
+        <h1 class="pg-title">Apply</h1>
+      </div>
+      <div id="jobs-form-wrap">
+        <form id="jobs-form" onsubmit="event.preventDefault(); jobsSubmit();">
+          <div class="jobs-section-h">Your contact details</div>
+          <div class="abs-name-row">
+            <div class="abs-name-col">
+              <label class="hb-label" for="jobs-first">First name <span class="hb-required">*</span></label>
+              <input id="jobs-first" class="hb-input" type="text" required maxlength="100" autocomplete="given-name">
+            </div>
+            <div class="abs-name-col">
+              <label class="hb-label" for="jobs-last">Last name <span class="hb-required">*</span></label>
+              <input id="jobs-last" class="hb-input" type="text" required maxlength="100" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="abs-name-row">
+            <div class="abs-name-col">
+              <label class="hb-label" for="jobs-email">Email <span class="hb-required">*</span></label>
+              <input id="jobs-email" class="hb-input" type="email" required maxlength="200" autocomplete="email">
+            </div>
+            <div class="abs-name-col">
+              <label class="hb-label" for="jobs-phone">Phone <span class="hb-required">*</span></label>
+              <input id="jobs-phone" class="hb-input" type="tel" required maxlength="40" autocomplete="tel">
+            </div>
+          </div>
+          <label class="hb-label" for="jobs-address">Address</label>
+          <textarea id="jobs-address" class="hb-input" rows="2" maxlength="500" autocomplete="street-address"></textarea>
+          <label class="hb-label" for="jobs-position">Position you are applying for</label>
+          <input id="jobs-position" class="hb-input" type="text" maxlength="200" placeholder="e.g. Year 3–4 classroom teacher">
+
+          <div class="jobs-section-h">Documents</div>
+          <div class="jobs-hint">PDF, Word, Pages or a photo — up to 10 MB each.</div>
+          <label class="hb-label" for="jobs-cover">Cover letter <span class="hb-required">*</span></label>
+          <input id="jobs-cover" class="hb-input" type="file" required accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.pages,image/*">
+          <label class="hb-label" for="jobs-cv">CV <span class="hb-required">*</span></label>
+          <input id="jobs-cv" class="hb-input" type="file" required accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.pages,image/*">
+
+          <div class="jobs-section-h">Referees</div>
+          <div class="jobs-hint">Please give at least one referee, with a phone number or email for each.</div>
+          <div id="jobs-refs"></div>
+
+          <div class="abs-submit-row">
+            <button id="jobs-submit-btn" type="submit" class="hb-submit-btn">Send application</button>
+            <span id="jobs-status" class="hb-err"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ======== TRIATHLON ENTRIES PAGE ======== -->
   <div id="pg-triathlon" class="page">
     <div class="pg-header" id="ph-triathlon"></div>
@@ -5367,6 +5469,11 @@ function applyState(data) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-classlist'; })) {
         pageConfig.push({ id:'pg-classlist', label:'2027 Class List Requests', hidden:true });
       }
+      // Job Opportunities: starts HIDDEN (admin shows it with the 👁 Show
+      // switch under its pill once vacancies are written up).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-jobs'; })) {
+        pageConfig.push({ id:'pg-jobs', label:'Job Opportunities', hidden:true });
+      }
       // Triathlon entries: starts HIDDEN (admin publishes it with the 👁 Show
       // switch under its pill when entries open).
       if (!pageConfig.some(function(p){ return p.id === 'pg-triathlon'; })) {
@@ -5434,12 +5541,12 @@ function applyState(data) {
       if (carouselImages.length > 1) startCarousel();
 
       var pc = data.pageContent || {};
-      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps','homevideo','trips-y14','trips-y5','trips-y6','trips-y7','trips-y8'].forEach(function(k) {
+      ['edu2','aboutvideos','ne1','ne2','busA','busB','year78','year78b','year78c','events-0','events-1','classroom','apple','welcome','homeinfo','camps','homevideo','trips-y14','trips-y5','trips-y6','trips-y7','trips-y8','jobs'].forEach(function(k) {
         if (pc[k] && el('ec-' + k)) el('ec-' + k).innerHTML = pc[k];
       });
       // Auto-save editable boxes on edit (debounced)
       var neAutoSaveTimers = {};
-      ['ne1','ne2','year78b','year78c','homevideo'].forEach(function(k) {
+      ['ne1','ne2','year78b','year78c','homevideo','jobs'].forEach(function(k) {
         var box = el('ec-' + k);
         if (!box || box._neAutoBound) return;   // fetchState runs again on login / live refresh
         box._neAutoBound = true;
@@ -6764,6 +6871,123 @@ function svDownloadCsv() {
   setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+// ===================== JOB OPPORTUNITIES =====================
+function jobsCopyLink() {
+  var inp = el('jobs-link');
+  if (!inp) return;
+  var done = function() { flashSave('Link copied!'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(inp.value).then(done, function() { inp.select(); document.execCommand('copy'); done(); });
+  else { inp.select(); document.execCommand('copy'); done(); }
+}
+
+// Three referee blocks (name, role, phone, email); at least one is required.
+function jobsBuildRefs() {
+  var box = el('jobs-refs');
+  if (!box || box.children.length) return;
+  var html = '';
+  for (var i = 0; i < 3; i++) {
+    html += '<div class="jobs-ref"><div class="jobs-ref-h">Referee ' + (i + 1) + (i ? ' <span style="font-weight:400;color:#888;">(optional)</span>' : ' <span class="hb-required">*</span>') + '</div>' +
+      '<div class="abs-name-row"><div class="abs-name-col"><label class="hb-label" for="jobs-ref-name-' + i + '">Name</label>' +
+      '<input id="jobs-ref-name-' + i + '" class="hb-input" type="text" maxlength="120"></div>' +
+      '<div class="abs-name-col"><label class="hb-label" for="jobs-ref-role-' + i + '">Position / how they know you</label>' +
+      '<input id="jobs-ref-role-' + i + '" class="hb-input" type="text" maxlength="160" placeholder="e.g. Principal, Opunake School"></div></div>' +
+      '<div class="abs-name-row"><div class="abs-name-col"><label class="hb-label" for="jobs-ref-phone-' + i + '">Phone</label>' +
+      '<input id="jobs-ref-phone-' + i + '" class="hb-input" type="tel" maxlength="40"></div>' +
+      '<div class="abs-name-col"><label class="hb-label" for="jobs-ref-email-' + i + '">Email</label>' +
+      '<input id="jobs-ref-email-' + i + '" class="hb-input" type="email" maxlength="200"></div></div></div>';
+  }
+  box.innerHTML = html;
+}
+
+function jobsSubmit() {
+  var status = el('jobs-status');
+  var btn = el('jobs-submit-btn');
+  status.textContent = '';
+  var v = function(id) { return (el(id).value || '').trim(); };
+  var cover = el('jobs-cover').files[0], cv = el('jobs-cv').files[0];
+  if (!v('jobs-first') || !v('jobs-last')) { status.textContent = 'Please enter your first and last name.'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('jobs-email'))) { status.textContent = 'Please enter a valid email address.'; return; }
+  if (!v('jobs-phone')) { status.textContent = 'Please enter a phone number.'; return; }
+  if (!cover) { status.textContent = 'Please attach your cover letter.'; return; }
+  if (!cv) { status.textContent = 'Please attach your CV.'; return; }
+  var tooBig = [cover, cv].filter(function(f) { return f.size > 10 * 1024 * 1024; });
+  if (tooBig.length) { status.textContent = '“' + tooBig[0].name + '” is over 10 MB — please attach a smaller file.'; return; }
+  var fd = new FormData();
+  ['first', 'last', 'email', 'phone', 'address', 'position'].forEach(function(k) { fd.append(k, v('jobs-' + k)); });
+  var anyRef = false;
+  for (var i = 0; i < 3; i++) {
+    var name = v('jobs-ref-name-' + i), phone = v('jobs-ref-phone-' + i), email = v('jobs-ref-email-' + i);
+    if (name && (phone || email)) anyRef = true;
+    fd.append('refName' + i, name);
+    fd.append('refRole' + i, v('jobs-ref-role-' + i));
+    fd.append('refPhone' + i, phone);
+    fd.append('refEmail' + i, email);
+  }
+  if (!anyRef) { status.textContent = 'Please give at least one referee with a phone number or email.'; return; }
+  fd.append('coverLetter', cover);
+  fd.append('cv', cv);
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/jobs/apply', { method: 'POST', body: fd })
+    .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, body: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body || !res.body.ok) throw new Error((res.body && res.body.error) || 'rejected');
+      el('jobs-form-wrap').innerHTML =
+        '<div class="pd-thanks"><strong>Thank you, ' + lunchEsc(v('jobs-first')) + '!</strong><br>Your application has been sent to Auroa School. We will be in touch.</div>';
+      window.scrollTo(0, 0);
+    })
+    .catch(function(e) {
+      btn.disabled = false; btn.textContent = 'Send application';
+      status.textContent = (e && e.message && e.message !== 'rejected' && e.message !== 'Failed to fetch') ? e.message : 'Could not send your application — please try again.';
+    });
+}
+
+// ---- Admin: applications, newest first ----
+var _jobsLast = [];
+function jobsLoadApplications() {
+  var out = el('jobs-applications');
+  if (!out) return;
+  out.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>';
+  fetch('/api/jobs/applications')
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      _jobsLast = ((b && b.applications) || []).slice().sort(function(a, c) { return c.ts - a.ts; });
+      var cnt = el('jobs-admin-count');
+      if (cnt) cnt.textContent = _jobsLast.length + ' application' + (_jobsLast.length === 1 ? '' : 's');
+      jobsRenderApplications();
+    })
+    .catch(function() { out.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load applications.</span>'; });
+}
+function jobsRenderApplications() {
+  var out = el('jobs-applications');
+  if (!out) return;
+  if (!_jobsLast.length) { out.innerHTML = '<span style="font-size:13px;color:#888;">No applications yet.</span>'; return; }
+  out.innerHTML = _jobsLast.map(function(a) {
+    var refs = (a.referees || []).map(function(r) {
+      return '<li>' + lunchEsc(r.name || '(no name)') + (r.role ? ' — ' + lunchEsc(r.role) : '') +
+        (r.phone ? ' · ' + lunchEsc(r.phone) : '') + (r.email ? ' · <a href="mailto:' + lunchEsc(r.email) + '">' + lunchEsc(r.email) + '</a>' : '') + '</li>';
+    }).join('');
+    var id = encodeURIComponent(a.id);
+    return '<div class="jobs-app">' +
+      '<div class="jobs-app-h"><strong style="font-size:15px;color:#1a2b4a;">' + lunchEsc(a.first + ' ' + a.last) + '</strong>' +
+      '<span style="color:#888;">' + lunchEsc(new Date(a.ts).toLocaleString()) + '</span></div>' +
+      (a.position ? '<div><strong>Position:</strong> ' + lunchEsc(a.position) + '</div>' : '') +
+      '<div><a href="mailto:' + lunchEsc(a.email) + '">' + lunchEsc(a.email) + '</a> · <a href="tel:' + lunchEsc(a.phone) + '">' + lunchEsc(a.phone) + '</a></div>' +
+      (a.address ? '<div style="white-space:pre-wrap;">' + lunchEsc(a.address) + '</div>' : '') +
+      '<div><a class="jobs-doc" href="/api/jobs/file/' + id + '/cover">⬇ Cover letter</a><a class="jobs-doc" href="/api/jobs/file/' + id + '/cv">⬇ CV</a></div>' +
+      '<div style="margin-top:6px;"><strong>Referees</strong><ul style="margin:2px 0 0;padding-left:20px;">' + (refs || '<li>None given</li>') + '</ul></div>' +
+      '<div style="text-align:right;"><button type="button" onclick="jobsDelete(\'' + lunchEsc(a.id) + '\')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:700;cursor:pointer;padding:3px 10px;">Delete</button></div>' +
+      '</div>';
+  }).join('');
+}
+function jobsDelete(id) {
+  var a = _jobsLast.find(function(x) { return x.id === id; });
+  if (!confirm('Delete ' + (a ? a.first + ' ' + a.last + '’s' : 'this') + ' application, including the cover letter and CV? This cannot be undone.')) return;
+  fetch('/api/jobs/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+    .then(function(r) { return r.json(); })
+    .then(function(b) { if (b && b.ok) { flashSave('Application deleted.'); jobsLoadApplications(); } else flashSave('Could not delete.'); })
+    .catch(function() { flashSave('Could not delete.'); });
+}
+
 // ===================== TRIATHLON ENTRIES =====================
 var TRI_AGES = ['5', '6', '7', '8', '9', '10', '11', '12', '13'];
 function triBuildAges() {
@@ -7949,6 +8173,11 @@ function showPage(id) {
   if (id === 'pg-triathlon') {
     if (isAdmin && typeof triLoadResults === 'function') triLoadResults();
   }
+  if (id === 'pg-jobs') {
+    var jl = el('jobs-link'); if (jl) jl.value = location.origin + '/jobs';
+    if (isAdmin && typeof jobsLoadApplications === 'function') jobsLoadApplications();
+  }
+  if (id === 'pg-job-apply' && typeof jobsBuildRefs === 'function') jobsBuildRefs();
   // Toggle a per-page body class so admin-only header buttons can show/hide
   document.body.classList.forEach(function(c) { if (c.indexOf('on-') === 0) document.body.classList.remove(c); });
   document.body.classList.add('on-' + id);
@@ -8158,8 +8387,12 @@ function clearCalEditor() {
 function renderSidebarPages() {
   var wrap = el('sidebar-pages');
   // Pages with their own coloured pill under Enrol Here → sidebar element prefix.
-  var SPECIAL_PILLS = { 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
+  var SPECIAL_PILLS = { 'pg-jobs': 'sidebar-jobs', 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
   if (!wrap) return;
+  // The movable Job Opportunities pill may be sitting inside a list that's
+  // about to be rebuilt — park it at the top first; it's placed again below.
+  var jobsWrap = el('sidebar-jobs-wrap');
+  if (jobsWrap) el('home-sidebar').insertBefore(jobsWrap, el('sidebar-top'));
   wrap.innerHTML = '';
   var top = el('sidebar-top');
   if (top) top.innerHTML = '';
@@ -8278,6 +8511,8 @@ function renderSidebarPages() {
       function(){ sbDeleteFixed(id, p.label); });
   });
 
+  sbPlaceJobs();
+
   // Fixed buttons that live in the HTML rather than in this list.
   sbApplyFixed('enrol',   el('sidebar-enrol-wrap'),   el('enrol-btn'));
   sbApplyFixed('contact', el('sidebar-contact-wrap'), el('contact-btn'));
@@ -8312,7 +8547,48 @@ var sbBtnSettings = {};
 var SB_FIXED_LABELS = { enrol:'Enrol Here', contact:'Contact Us', home:'Home', stationery:'Order Stationery',
   lunch:'School Lunch Orders', newsletter:'School Newsletter', notifications:'School notifications',
   hall:'Hall Bookings', portal:'Register for Messages',
-  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey', 'pg-triathlon':'Triathlon' };
+  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey', 'pg-triathlon':'Triathlon', 'pg-jobs':'Job Opportunities' };
+
+// ---- Job Opportunities: a pill that can sit anywhere in the menu ----
+// Its spot is a count of menu buttons above it (sbBtnSettings['pg-jobs'].pos,
+// 0 = the very top). The "slots" are every other top-level menu button, in order.
+function sbMenuSlots() {
+  return Array.prototype.slice.call(document.querySelectorAll(
+    '#sidebar-top > .sb-page-wrap, #sidebar-enrol-wrap, #sidebar-triathlon-wrap, #sidebar-classlist-wrap, ' +
+    '#sidebar-petday-wrap, #sidebar-survey-wrap, #sidebar-contact-wrap, #sidebar-pages > .sb-page-wrap'));
+}
+function sbPlaceJobs() {
+  var jw = el('sidebar-jobs-wrap');
+  if (!jw) return;
+  var slots = sbMenuSlots();
+  var pos = Math.max(0, Math.min(slots.length, ((sbBtnSettings['pg-jobs'] || {}).pos) || 0));
+  if (pos < slots.length) slots[pos].parentNode.insertBefore(jw, slots[pos]);
+  else { var last = slots[slots.length - 1]; if (last) last.parentNode.insertBefore(jw, last.nextSibling); }
+  var row = el('sidebar-jobs-move');
+  if (!row) return;
+  row.innerHTML = '';
+  [['▲ Move up', -1], ['▼ Move down', 1]].forEach(function(t) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sb-page-tool';
+    b.textContent = t[0];
+    b.onclick = function(e) { e.stopPropagation(); sbMoveJobs(t[1]); };
+    row.appendChild(b);
+  });
+}
+// Move one VISIBLE button up or down (skips buttons hidden from this view).
+function sbMoveJobs(dir) {
+  var slots = sbMenuSlots();
+  var pos = Math.max(0, Math.min(slots.length, ((sbBtnSettings['pg-jobs'] || {}).pos) || 0));
+  function shown(i) { return slots[i] && slots[i].offsetParent !== null; }
+  if (dir < 0) {
+    do { pos--; } while (pos > 0 && !shown(pos));
+  } else {
+    do { pos++; } while (pos < slots.length && !shown(pos - 1));
+  }
+  pos = Math.max(0, Math.min(slots.length, pos));
+  sbSetFixed('pg-jobs', { pos: pos }, 'Moved.');
+}
 
 // Fill an admin row with the ✏ Rename / 🙈 Hide / 🗑 Delete buttons.
 function sbFillTools(row, hidden, onRename, onHide, onDelete) {
@@ -8494,6 +8770,7 @@ var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
   'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests', 'pg-triathlon': 'Triathlon',
+  'pg-jobs': 'Job Opportunities', 'pg-job-apply': 'Job Application',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips', 'pg-trip': 'School Trip',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
@@ -11942,6 +12219,13 @@ document.addEventListener('click', function(e) {
 <!-- ===== PERSISTENT SIDEBAR ===== -->
 <nav id="home-sidebar">
   <div id="home-sidebar-title">Quick Links</div>
+  <!-- Job Opportunities — starts at the top; admins can move it up/down the
+       list (position saved in sidebarBtnSettings, placed by renderSidebarPages). -->
+  <div id="sidebar-jobs-wrap" style="display:none;">
+    <button class="sidebar-btn jobs-reg" id="jobs-btn" onclick="bubbleGo(event,'pg-jobs')">Job Opportunities</button>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-jobs-tools"></div>
+    <div class="sb-page-admin sb-move-row" id="sidebar-jobs-move"></div>
+  </div>
   <!-- School notifications sits above Enrol Here (filled by renderSidebarPages). -->
   <div id="sidebar-top"></div>
   <div id="sidebar-enrol-wrap">
