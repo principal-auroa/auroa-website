@@ -7664,7 +7664,7 @@ function shpRenderForm() {
       if (q.otherKey) h += '<input class="hb-input sv-other-in" type="text" name="' + q.otherKey + '" maxlength="300" placeholder="Other — please state">';
     }
   });
-  h += '<div class="shp-q" id="shp-q-signature">Parent / caregiver signature <span class="hb-required">*</span></div>' +
+  h += '<div class="shp-q" id="shp-q-signature">Parent / caregiver signature <span style="font-weight:400;color:#888;">(optional)</span></div>' +
     '<div id="shp-sig-box" class="shp-sig-box" role="button" tabindex="0" onclick="shpOpenSignature()" onkeydown="if(event.key===\'Enter\')shpOpenSignature()"></div>' +
     '<div class="shp-sig-actions"><button type="button" id="shp-sig-clear" onclick="shpClearSignature()" hidden>Clear signature</button></div>';
   h += '<div class="abs-submit-row"><button id="shp-submit-btn" type="submit" class="hb-submit-btn">Submit health profile</button><span id="shp-status" class="hb-err"></span></div></div></form>';
@@ -7844,11 +7844,6 @@ function shpSubmit() {
     return;
   }
   var c = shpCollect();
-  if (!c.missing && !_shpSignature) {
-    status.textContent = 'Please sign the form — tap the signature box above the Submit button.';
-    el('shp-q-signature').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
   if (c.missing) {
     status.textContent = c.missing.type === 'agree' ? 'Please tick each agreement to continue.' : 'Please answer: ' + c.missing.label.slice(0, 60) + (c.missing.label.length > 60 ? '…' : '');
     var q = el('shp-q-' + c.missing.key) || el('shp-form');
@@ -7944,7 +7939,7 @@ function shpShowDetail(ts) {
   h += '<div><b>Parent / caregiver signature</b><br>' + (r.signed
     ? '<img class="shp-sig-img" src="/api/health-profile/signature/' + Number(r.ts) + '" alt="Signature">' +
       '<br><span style="font-size:12px;color:#555;">Signed ' + lunchEsc(new Date(r.ts).toLocaleString()) + (r.account && r.account.accountName ? ' by ' + lunchEsc(r.account.accountName) : '') + '</span>'
-    : '<span style="color:#999">Not signed (sent before signatures were required)</span>') + '</div>';
+    : '<span style="color:#999">Not signed</span>') + '</div>';
   h += '<button type="button" class="abar-btn" style="font-size:11px;padding:3px 12px;" onclick="el(\'shp-detail\').innerHTML=\'\'">Close</button></div>';
   box.innerHTML = h;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -1600,8 +1600,9 @@ function shpSave(req, res, b, account) {
   const a = (b.answers && typeof b.answers === 'object') ? b.answers : {};
   const year = String(b.year || '');
   if (!SHP_YEAR.test(year)) return res.status(400).json({ error: 'Bad year group' });
-  const sig = shpDecodeSignature(b.signature);
-  if (!sig) return res.status(400).json({ error: 'Please sign the form (the signature box at the bottom) — required.' });
+  // The signature is optional; one that was sent must still be a valid image.
+  const sig = b.signature ? shpDecodeSignature(b.signature) : null;
+  if (b.signature && !sig) return res.status(400).json({ error: 'Your signature could not be read — please clear it and sign again (or clear it and send without one).' });
   const answers = {};
   for (const [key, type, arg, required] of SHP_FIELDS) {
     const v = a[key];
@@ -1619,13 +1620,15 @@ function shpSave(req, res, b, account) {
   shpReadAll((list) => {
     let ts = Date.now();
     while (list.some(r => Number(r.ts) === ts)) ts++;   // ts names the signature file — keep it unique
-    try {
-      fs.mkdirSync(SHP_SIG_DIR, { recursive: true });
-      fs.writeFileSync(shpSigFile(ts), sig);
-    } catch (e) {
-      return res.status(500).json({ error: 'Could not save the signature — please try again.' });
+    if (sig) {
+      try {
+        fs.mkdirSync(SHP_SIG_DIR, { recursive: true });
+        fs.writeFileSync(shpSigFile(ts), sig);
+      } catch (e) {
+        return res.status(500).json({ error: 'Could not save the signature — please try again.' });
+      }
     }
-    list.push({ ts, year, account, answers, signed: true });
+    list.push({ ts, year, account, answers, signed: !!sig });
     if (list.length > 5000) list = list.slice(-5000);
     fs.writeFile(HEALTH_FILE, JSON.stringify(list), () => res.json({ ok: true }));
   });
