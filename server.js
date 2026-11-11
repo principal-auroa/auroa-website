@@ -3033,23 +3033,31 @@ app.get('/join-group/:id', (req, res) => {
 //   since     — when reporting began; a phone that hasn't opened the app since
 //               then (lastSeen is bumped on every open) can't report yet.
 const PUSH_RECEIPTS_FILE = path.join(DATA_DIR, 'push-receipts.json');
-let pushReceipts = [], pushReporters = {}, pushReportSince = 0;
+// pushReporterFirst — when each device FIRST reported. A phone only "missed" a
+// message if it could already report when that message went out; one that only
+// started reporting later couldn't have reported it.
+let pushReceipts = [], pushReporters = {}, pushReporterFirst = {}, pushReportSince = 0;
 try {
   const f = JSON.parse(fs.readFileSync(PUSH_RECEIPTS_FILE, 'utf8'));
   if (Array.isArray(f)) pushReceipts = f;   // first version was just the list of sends
-  else if (f) { pushReceipts = f.sends || []; pushReporters = f.reporters || {}; pushReportSince = f.since || 0; }
+  else if (f) { pushReceipts = f.sends || []; pushReporters = f.reporters || {}; pushReporterFirst = f.first || {}; pushReportSince = f.since || 0; }
 } catch (e) {}
 if (!pushReportSince) pushReportSince = pushReceipts.length ? pushReceipts[0].sentAt : Date.now();
-// Sends from before reporters were tracked: their acks show who can report.
+// Rebuild what the kept sends show: who has reported, first and last.
 pushReceipts.forEach(r => Object.keys(r.shown || {}).forEach(k => {
-  pushReporters[k] = Math.max(pushReporters[k] || 0, r.sentAt + r.shown[k]);
+  const at = r.sentAt + r.shown[k];
+  pushReporters[k] = Math.max(pushReporters[k] || 0, at);
+  pushReporterFirst[k] = Math.min(pushReporterFirst[k] || Infinity, at);
 }));
+// Reporters known only from sends that have since dropped off the list: their
+// first report was no later than their last one.
+Object.keys(pushReporters).forEach(k => { if (!pushReporterFirst[k]) pushReporterFirst[k] = pushReporters[k]; });
 let _pushReceiptsTimer = null;
 function pushReceiptsSave() {
   if (_pushReceiptsTimer) return;
   _pushReceiptsTimer = setTimeout(() => {
     _pushReceiptsTimer = null;
-    fs.writeFile(PUSH_RECEIPTS_FILE, JSON.stringify({ since: pushReportSince, reporters: pushReporters, sends: pushReceipts }), () => {});
+    fs.writeFile(PUSH_RECEIPTS_FILE, JSON.stringify({ since: pushReportSince, reporters: pushReporters, first: pushReporterFirst, sends: pushReceipts }), () => {});
   }, 2000);
 }
 // Short stable key for an endpoint (the endpoint itself stays out of the file).
@@ -3067,46 +3075,101 @@ app.post('/api/push/ack', (req, res) => {
     if (r.targets[k] && !(k in r.shown)) {
       r.shown[k] = Math.max(0, Date.now() - r.sentAt);
       pushReporters[k] = Date.now();
+      if (!pushReporterFirst[k]) pushReporterFirst[k] = Date.now();
       pushReceiptsSave();
     }
   }
   res.json({ ok: true });
 });
 
+// Which push service a subscription belongs to — tells the office whether the
+// phones not showing messages are mostly iPhones or mostly Android.
+function pushPlatform(endpoint) {
+  let host = '';
+  try { host = new URL(String(endpoint)).hostname; } catch (e) {}
+  if (/push\.apple\.com$/.test(host)) return 'iPhone/iPad';
+  if (/(fcm|android)\.googleapis\.com$/.test(host)) return 'Android/Chrome';
+  if (/mozilla\.com$/.test(host)) return 'Firefox';
+  if (/notify\.windows\.com$/.test(host)) return 'Windows/Edge';
+  return 'Other';
+}
+const PUSH_PENDING_MS = 15 * 60 * 1000;   // too soon after a send to call a phone "missed"
+
 // Admin: how recent sends actually landed — accepted, shown, how quickly, and
-// which named phones haven't shown it yet, split three ways:
-//   missed  — has shown other notifications, so it could have reported this one
-//   silent  — opened the app since reporting began but has never shown one
-//             (notifications blocked on that phone, or an old record for it)
-//   unknown — hasn't opened the app since reporting began, so can't report yet
+// the phones that haven't shown it, sorted into:
+//   old     — probably a leftover record: never reported, and another record
+//             with the same name does report (a reinstall or re-subscribe leaves
+//             the old one behind), or no longer subscribed at all
+//   pending — could report, but it's under 15 minutes since the send
+//   missed  — could report when this went out, and has shown other messages
+//   silent  — could report when this went out, but has never shown any
+//             (notifications blocked on that phone)
+//   unknown — couldn't report yet when this went out (hadn't opened the app
+//             since reporting began), so it may well have shown it
+// Each phone comes with its platform and how many days since it last opened
+// the app, so the office can see where the problem is.
 app.get('/api/push/receipts', (req, res) => {
   res.set('Cache-Control', 'no-store');
+  const now = Date.now();
+  const subs = load().pushSubscriptions || [];
+  const byKey = {}, reportingNames = {};
+  subs.forEach(s => {
+    const k = pushKey(s.endpoint);
+    byKey[k] = s;
+    const n = String(s.name || '').trim().toLowerCase();
+    if (n && pushReporters[k]) reportingNames[n] = (reportingNames[n] || []).concat(k);
+  });
   const list = pushReceipts.slice().reverse().map(r => {
     const keys = Object.keys(r.targets);
-    const accepted = keys.filter(k => r.targets[k].ok);
     const delays = Object.values(r.shown);
-    return {
+    const out = {
       id: r.id, title: r.title, sentAt: r.sentAt,
       targets: keys.length,
-      accepted: accepted.length,
+      accepted: keys.filter(k => r.targets[k].ok).length,
       shown: delays.length,
       fast: delays.filter(d => d <= 2 * 60 * 1000).length,
       late: delays.filter(d => d > 2 * 60 * 1000).length,
-      notShown: accepted.filter(k => !(k in r.shown)).map(k => r.targets[k].name || null),
-      missed: [], silent: [], unknown: []
+      pendingUntil: r.sentAt + PUSH_PENDING_MS > now ? r.sentAt + PUSH_PENDING_MS : 0,
+      old: [], pending: [], missed: [], silent: [], unknown: []
     };
-  }).map((out, i, all) => {
-    const r = pushReceipts[pushReceipts.length - 1 - i];
-    Object.keys(r.targets).forEach(k => {
+    keys.forEach(k => {
       const t = r.targets[k];
       if (!t.ok || (k in r.shown)) return;
-      if (pushReporters[k]) out.missed.push(t.name || null);
-      else if ((t.seen || 0) > pushReportSince) out.silent.push(t.name || null);
-      else out.unknown.push(t.name || null);
+      const s = byKey[k];
+      const seen = (s && s.lastSeen) || t.seen || 0;
+      const phone = {
+        name: (s && s.name) || t.name || null,
+        platform: s ? pushPlatform(s.endpoint) : null,
+        days: seen ? Math.floor((now - seen) / 86400000) : null,
+        gone: !s,
+        key: s ? k : null
+      };
+      const n = String(phone.name || '').trim().toLowerCase();
+      const twin = n && !pushReporters[k] && (reportingNames[n] || []).some(k2 => k2 !== k);
+      const couldReport = (pushReporterFirst[k] && pushReporterFirst[k] <= r.sentAt) || (t.seen || 0) > pushReportSince;
+      if (!s || twin) out.old.push(phone);
+      else if (!couldReport) out.unknown.push(phone);
+      else if (out.pendingUntil) out.pending.push(phone);
+      else if (pushReporters[k]) out.missed.push(phone);
+      else out.silent.push(phone);
     });
     return out;
   });
   res.json({ receipts: list });
+});
+
+// Admin: remove leftover subscription records (by the delivery check's keys).
+// Safe for a phone that is in fact still in use: the app re-registers itself
+// the next time it's opened.
+app.post('/api/push/subscribers/remove', (req, res) => {
+  const keys = new Set(((req.body || {}).keys || []).map(String).filter(k => /^[0-9a-f]{16}$/.test(k)));
+  if (!keys.size) return res.json({ ok: true, removed: 0 });
+  const data = load();
+  const before = (data.pushSubscriptions || []).length;
+  data.pushSubscriptions = (data.pushSubscriptions || []).filter(s => !keys.has(pushKey(s.endpoint)));
+  const removed = before - data.pushSubscriptions.length;
+  if (removed) save(data, { silent: true });
+  res.json({ ok: true, removed });
 });
 
 async function notifyAll({ title, body, url, source, groupId, image, images, repostNote, pushOut }) {

@@ -140,12 +140,13 @@ self.addEventListener('push', (event) => {
   // Show the notification. If anything about the rich options (image, icon,
   // badge) makes showNotification reject, fall back to a bare notification so a
   // banner ALWAYS appears — a delivered push must never be silently dropped.
-  const show = self.registration.showNotification(title, opts)
-    .catch(() => self.registration.showNotification(title, { body, data: { url } }))
-    .catch(() => {});
+  const shown = self.registration.showNotification(title, opts)
+    .catch(() => self.registration.showNotification(title, { body, data: { url } }));
+  const show = shown.catch(() => {});
 
-  // Tell the server this phone has shown it (the office's delivery check).
-  const ack = show.then(async () => {
+  // Tell the server this phone has shown it (the office's delivery check) —
+  // only if a notification really appeared, so a failure isn't counted as shown.
+  const ack = shown.then(async () => {
     if (!id) return;
     const sub = await self.registration.pushManager.getSubscription();
     if (!sub) return;

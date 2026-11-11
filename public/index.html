@@ -14132,6 +14132,9 @@ async function pmSubscribe() {
 
   var reg = await navigator.serviceWorker.ready;
   var existing = await reg.pushManager.getSubscription();
+  // Tell the server which record this replaces, or the old one is left behind
+  // (it never shows anything and clutters the delivery check).
+  var replacedEndpoint = (existing && existing.endpoint) || pmGetEndpoint();
   if (existing) try { await existing.unsubscribe(); } catch (_) {}
   var sub;
   try {
@@ -14147,7 +14150,8 @@ async function pmSubscribe() {
   var res = await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON(), email: email, name: name })
+    body: JSON.stringify({ subscription: sub.toJSON(), email: email, name: name,
+      oldEndpoint: replacedEndpoint && replacedEndpoint !== sub.endpoint ? replacedEndpoint : undefined })
   });
   if (!res.ok) { pmStatus('Server rejected the subscription.', 'err'); return; }
   pmSetSubscribed(true, sub.endpoint);
@@ -14620,34 +14624,66 @@ function pmToggleReceipts() {
     .then(function(b){
       var list = (b && b.receipts) || [];
       if (!list.length) { box.innerHTML = 'No messages sent since the delivery check was added. Send one and check back in a few minutes.'; return; }
-      var html = '<div style="color:#888;font-size:12px;margin-bottom:8px;">A phone counts as “shown” once the notification has appeared on it and the phone has reported back. Phones only start reporting after the app has been opened once since 4 November, so “can’t report yet” phones may well have received it.</div>';
-      // Names, sorted, duplicates as "Name ×2", unnamed counted.
-      function who(names) {
+      var html = '<div style="color:#888;font-size:12px;margin-bottom:8px;">A phone counts as “shown” once the notification has appeared on it and the phone has reported back. Phones only start reporting after the app has been opened once since 4 November, so “can’t report yet” phones may well have received it. Each list shows how many are iPhones and how many Android, and how many haven’t opened the app for over a month.</div>';
+      // Names, sorted, duplicates as "Name ×2", unnamed counted. Accepts plain
+      // names or phone objects ({name, platform, days}).
+      function who(list) {
         var counts = {}, unnamed = 0;
-        names.forEach(function(n) { if (n) counts[n] = (counts[n] || 0) + 1; else unnamed++; });
+        list.forEach(function(p) { var n = (p && typeof p === 'object') ? p.name : p; if (n) counts[n] = (counts[n] || 0) + 1; else unnamed++; });
         var parts = Object.keys(counts).sort(function(a, c){ return a.localeCompare(c); })
           .map(function(n) { return lunchEsc(n) + (counts[n] > 1 ? ' ×' + counts[n] : ''); });
         if (unnamed) parts.push('<span style="color:#888;">' + unnamed + ' unnamed</span>');
         return parts.join(', ');
       }
+      // "iPhone/iPad 12 · Android/Chrome 9 · 7 not opened for 30+ days"
+      function mix(list) {
+        var plat = {}, stale = 0;
+        list.forEach(function(p) {
+          if (!p || typeof p !== 'object') return;
+          if (p.platform) plat[p.platform] = (plat[p.platform] || 0) + 1;
+          if (p.days != null && p.days >= 30) stale++;
+        });
+        var bits = Object.keys(plat).sort(function(a, c){ return plat[c] - plat[a]; }).map(function(k){ return lunchEsc(k) + ' ' + plat[k]; });
+        if (stale) bits.push(stale + ' not opened the app for 30+ days');
+        return bits.length ? '<br><span style="color:#666;font-size:12px;padding-left:22px;">' + bits.join(' · ') + '</span>' : '';
+      }
+      function group(icon, color, label, items) {
+        if (!items || !items.length) return '';
+        return '<br><span style="color:' + color + ';">' + icon + ' ' + label.replace('{n}', items.length) + '</span> ' + who(items) + mix(items);
+      }
+      var oldKeys = {};
       list.forEach(function(r) {
         html += '<div style="border-top:1px solid #eee;padding:8px 0;">' +
           '<strong>' + lunchEsc(r.title) + '</strong> <span style="color:#888;">— ' + lunchEsc(new Date(r.sentAt).toLocaleString()) + '</span><br>' +
           '<span style="color:#16a34a;">✅ Shown on ' + r.shown + ' of ' + r.accepted + ' phone' + (r.accepted === 1 ? '' : 's') + '</span>' +
           ' <span style="color:#555;">(' + r.fast + ' within 2 minutes, ' + r.late + ' later)</span>' +
           (r.targets > r.accepted ? ' <span style="color:#c0392b;">· ' + (r.targets - r.accepted) + ' not accepted</span>' : '');
-        if (r.missed && (r.missed.length || r.silent.length || r.unknown.length)) {
-          if (r.missed.length) html += '<br><span style="color:#c0392b;">❌ Missed (' + r.missed.length + ') — these phones have shown other messages, so this one is genuinely missing or held back:</span> ' + who(r.missed);
-          if (r.silent.length) html += '<br><span style="color:#b45309;">🔕 Never shown any (' + r.silent.length + ') — opened the app since the update but no notification has ever appeared; notifications are probably blocked on that phone, or it’s an old record:</span> ' + who(r.silent);
-          if (r.unknown.length) html += '<br><span style="color:#888;">⏳ Can’t report yet (' + r.unknown.length + ') — haven’t opened the app since the update:</span> ' + who(r.unknown);
-        } else if (r.notShown.length) {
-          html += '<br><span style="color:#c0392b;">Not shown yet:</span> ' + who(r.notShown);
-        }
+        html += group('⌛', '#2563eb', 'Not shown yet ({n}) — sent less than 15 minutes ago, check back at ' + lunchEsc(new Date(r.pendingUntil || r.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + ':', r.pending);
+        html += group('❌', '#c0392b', 'Missed ({n}) — these phones were reporting when this went out and have shown other messages, so this one is genuinely missing or held back:', r.missed);
+        html += group('🔕', '#b45309', 'Never shown any ({n}) — could report when this went out, but no notification has ever appeared; notifications are probably blocked on that phone:', r.silent);
+        html += group('⏳', '#888', 'Can’t report yet ({n}) — hadn’t opened the app since the update when this went out, so they may well have shown it:', r.unknown);
+        html += group('🗂', '#888', 'Probably old records ({n}) — never reported, and the same name has another phone that does (left behind by a reinstall or turning notifications on again), or no longer subscribed:', r.old);
+        (r.old || []).forEach(function(p) { if (p.key) oldKeys[p.key] = 1; });
         html += '</div>';
       });
+      var nOld = Object.keys(oldKeys).length;
+      if (nOld) html += '<div style="border-top:1px solid #eee;padding:10px 0 2px;"><button type="button" class="abar-btn" style="font-size:12px;padding:4px 14px;" onclick="pmRemoveOldRecords(this)" data-keys="' + Object.keys(oldKeys).join(',') + '">Remove ' + nOld + ' old record' + (nOld === 1 ? '' : 's') + '</button>' +
+        '<div style="color:#888;font-size:12px;margin-top:4px;">Safe to do: if one of these phones is in fact still in use, it signs itself back up the next time the app is opened.</div></div>';
       box.innerHTML = html;
     })
     .catch(function(){ box.textContent = 'Couldn’t load the delivery check.'; });
+}
+function pmRemoveOldRecords(btn) {
+  var keys = (btn.getAttribute('data-keys') || '').split(',').filter(Boolean);
+  if (!keys.length || !confirm('Remove ' + keys.length + ' old notification record' + (keys.length === 1 ? '' : 's') + '?')) return;
+  btn.disabled = true; btn.textContent = 'Removing…';
+  fetch('/api/push/subscribers/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keys }) })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      alert('Removed ' + ((b && b.removed) || 0) + ' old record' + ((b && b.removed) === 1 ? '' : 's') + '.');
+      var box = el('pm-receipts'); if (box) { box.style.display = 'none'; pmToggleReceipts(); }
+    })
+    .catch(function() { btn.disabled = false; btn.textContent = 'Couldn’t remove — try again'; });
 }
 
 // Admin: toggle the list of subscribed devices by name (names only — the
