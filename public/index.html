@@ -291,7 +291,8 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 }
 .sidebar-btn.classlist-reg,
 .sidebar-btn.triathlon-reg,
-.sidebar-btn.jobs-reg{
+.sidebar-btn.jobs-reg,
+.sidebar-btn.concert-reg{
   color:#fff;font-weight:400;font-size:16px;
   border:none;border-left:none;
   border-radius:8px;margin:0 16px 14px;
@@ -303,6 +304,23 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 #sidebar-classlist-wrap{position:relative;}
 #sidebar-triathlon-wrap{position:relative;}
 #sidebar-jobs-wrap{position:relative;}
+#sidebar-concert-wrap{position:relative;}
+/* Concert Ticket Bookings page */
+.concert-book-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
+.concert-book-btn{border:none;border-radius:14px;color:#fff;font-family:inherit;font-size:20px;font-weight:700;line-height:1.25;padding:18px 12px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.15);transition:transform 0.12s,box-shadow 0.12s;}
+.concert-book-btn span{font-size:15px;font-weight:400;}
+.concert-book-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+.concert-book-btn:disabled{opacity:0.6;cursor:default;transform:none;}
+.concert-book-btn.concert-day,.concert-col-h.concert-day{background:#e08a1e;}
+.concert-book-btn.concert-eve,.concert-col-h.concert-eve{background:#2c3e8f;}
+.concert-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;}
+.concert-col{min-width:0;}
+.concert-col-h{color:#fff;font-weight:700;font-size:14px;border-radius:8px;padding:8px 12px;margin-bottom:8px;}
+.concert-col-h span{display:block;font-weight:400;font-size:12px;opacity:0.9;}
+.concert-bk{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;line-height:1.5;position:relative;}
+.concert-bk b{color:#1a2b4a;}
+.concert-bk .concert-del{position:absolute;top:6px;right:6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;padding:1px 7px;}
+@media (max-width:600px){.concert-cols,.concert-book-row{grid-template-columns:1fr;}}
 /* Job Opportunities' Move up / Move down row (admin) sits under its tools row. */
 .sb-move-row{margin-top:-6px;}
 /* Admin-only Show/Hide switch under each special pill; a hidden pill is
@@ -375,6 +393,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.classlist-reg{--bt:#e86aa0;--bb:#d14b85;--bl:#b33a6f;--be:#8c2b56;}
 .sidebar-btn.triathlon-reg{--bt:#3b9be8;--bb:#1f7fd1;--bl:#1a68ad;--be:#134f84;}
 .sidebar-btn.jobs-reg{--bt:#3a63c4;--bb:#2448a8;--bl:#1d3b8c;--be:#152b68;}
+.sidebar-btn.concert-reg{--bt:#d0405f;--bb:#b52a4a;--bl:#96213d;--be:#71182e;}
 .sidebar-btn.camps-page{--bt:#2bb3c9;--bb:#1c96ab;--bl:#167c8e;--be:#0f5e6c;}
 .sidebar-btn.group-blue{--bt:#5187b8;--bb:#3d74a8;--bl:#325f8a;--be:#264a6c;}
 .sidebar-btn.group-red{--bt:#c25a50;--bb:#ab4a41;--bl:#8f3c34;--be:#702e28;}
@@ -382,7 +401,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{--bt:#e2c268;--bb:#c69f33;--bl:#ab8827;--be:#83671d;}
 .sidebar-btn.sb-grey,
 .sidebar-btn[data-page="pg-absence"]{--bt:#dde2ea;--bb:#c3cad6;--bl:#aeb7c6;--be:#7f8ba0;}
-.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.triathlon-reg,.sidebar-btn.jobs-reg,.sidebar-btn.camps-page,
+.sidebar-btn.enrol,.sidebar-btn.contact,.sidebar-btn.stationery,.sidebar-btn.parent-portal,.sidebar-btn.petday-reg,.sidebar-btn.survey-reg,.sidebar-btn.classlist-reg,.sidebar-btn.triathlon-reg,.sidebar-btn.jobs-reg,.sidebar-btn.concert-reg,.sidebar-btn.camps-page,
 .sidebar-btn.sb-grey,.sidebar-btn[data-page="pg-absence"],
 .sidebar-btn.group-blue,.sidebar-btn.group-red,.sidebar-btn.group-green,.sidebar-btn.group-gold{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -404,7 +423,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
 .sidebar-btn.group-gold{
   color:#1a2b4a;text-shadow:0 1px 0 rgba(255,255,255,0.35);
 }
-.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.triathlon-reg:hover,.sidebar-btn.jobs-reg:hover,.sidebar-btn.camps-page:hover,
+.sidebar-btn.enrol:hover,.sidebar-btn.contact:hover,.sidebar-btn.stationery:hover,.sidebar-btn.parent-portal:hover,.sidebar-btn.petday-reg:hover,.sidebar-btn.survey-reg:hover,.sidebar-btn.classlist-reg:hover,.sidebar-btn.triathlon-reg:hover,.sidebar-btn.jobs-reg:hover,.sidebar-btn.concert-reg:hover,.sidebar-btn.camps-page:hover,
 .sidebar-btn.sb-grey:hover,.sidebar-btn[data-page="pg-absence"]:hover,
 .sidebar-btn.group-blue:hover,.sidebar-btn.group-red:hover,.sidebar-btn.group-green:hover,.sidebar-btn.group-gold:hover{
   background:linear-gradient(180deg,var(--bt),var(--bb) 55%,var(--bl));
@@ -415,7 +434,7 @@ body:not(.is-admin) .sidebar-btn.parent-portal{display:none;}
              0 4px 0 var(--be),
              0 8px 16px rgba(0,0,0,0.4);
 }
-.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.triathlon-reg:active,.sidebar-btn.jobs-reg:active,.sidebar-btn.camps-page:active,
+.sidebar-btn.enrol:active,.sidebar-btn.contact:active,.sidebar-btn.stationery:active,.sidebar-btn.parent-portal:active,.sidebar-btn.petday-reg:active,.sidebar-btn.survey-reg:active,.sidebar-btn.classlist-reg:active,.sidebar-btn.triathlon-reg:active,.sidebar-btn.jobs-reg:active,.sidebar-btn.concert-reg:active,.sidebar-btn.camps-page:active,
 .sidebar-btn.sb-grey:active,.sidebar-btn[data-page="pg-absence"]:active,
 .sidebar-btn.group-blue:active,.sidebar-btn.group-red:active,.sidebar-btn.group-green:active,.sidebar-btn.group-gold:active{
   filter:brightness(0.97);
@@ -3921,6 +3940,61 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     </div>
   </div>
 
+  <!-- ======== CONCERT TICKET BOOKINGS PAGE (shareable link: /concert) ======== -->
+  <div id="pg-concert" class="page">
+    <div class="pg-header" id="ph-concert"></div>
+    <div class="pg-body" style="max-width:900px;margin:0 auto;">
+      <div class="pg-title-row">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <h1 class="pg-title">Concert Ticket Bookings</h1>
+      </div>
+
+      <div id="concert-admin" class="pd-admin">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Bookings (admin)</h3>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="concertLoadResults()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="concertDownloadCsv()">⬇ Download</button>
+          <span id="concert-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div class="concert-cols">
+          <div class="concert-col"><div class="concert-col-h concert-day">Daytime — 12pm start<span id="concert-total-day"></span></div><div id="concert-list-day"></div></div>
+          <div class="concert-col"><div class="concert-col-h concert-eve">Evening — 7pm start<span id="concert-total-evening"></span></div><div id="concert-list-evening"></div></div>
+        </div>
+      </div>
+
+      <div style="max-width:720px;margin:0 auto;">
+        <div class="editable" id="ec-concert"><p>Book your tickets for the school concert below.</p></div>
+        <div id="concert-form-wrap">
+          <form id="concert-form" onsubmit="event.preventDefault();">
+            <div class="abs-name-row">
+              <div class="abs-name-col">
+                <label class="hb-label" for="concert-first">Your first name <span class="hb-required">*</span></label>
+                <input id="concert-first" class="hb-input" type="text" required maxlength="100" autocomplete="given-name">
+              </div>
+              <div class="abs-name-col">
+                <label class="hb-label" for="concert-last">Your last name <span class="hb-required">*</span></label>
+                <input id="concert-last" class="hb-input" type="text" required maxlength="100" autocomplete="family-name">
+              </div>
+            </div>
+            <label class="hb-label" for="concert-child">Your child's name <span class="hb-required">*</span></label>
+            <input id="concert-child" class="hb-input" type="text" required maxlength="200">
+            <label class="hb-label">Number of tickets <span class="hb-required">*</span></label>
+            <div class="pd-cats">
+              <label class="pd-cat"><input type="radio" name="concert-tickets" value="1"> 1 ticket</label>
+              <label class="pd-cat"><input type="radio" name="concert-tickets" value="2"> 2 tickets</label>
+            </div>
+            <label class="hb-label" style="margin-top:16px;display:block;">Choose your concert to book <span class="hb-required">*</span></label>
+            <div class="concert-book-row">
+              <button type="button" class="concert-book-btn concert-day" onclick="concertBook('day', this)">Daytime<br><span>12pm start</span></button>
+              <button type="button" class="concert-book-btn concert-eve" onclick="concertBook('evening', this)">Evening<br><span>7pm start</span></button>
+            </div>
+            <div id="concert-status" style="color:#c0392b;font-size:14px;margin-top:8px;"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ======== TRIATHLON ENTRIES PAGE ======== -->
   <div id="pg-triathlon" class="page">
     <div class="pg-header" id="ph-triathlon"></div>
@@ -5535,6 +5609,11 @@ function applyState(data) {
       if (!pageConfig.some(function(p){ return p.id === 'pg-jobs'; })) {
         pageConfig.push({ id:'pg-jobs', label:'Job Opportunities', hidden:true });
       }
+      // Concert Ticket Bookings: starts VISIBLE (admins can hide it with the
+      // switch under its pill once bookings close).
+      if (!pageConfig.some(function(p){ return p.id === 'pg-concert'; })) {
+        pageConfig.push({ id:'pg-concert', label:'Concert Ticket Bookings', hidden:false });
+      }
       // Triathlon entries: starts HIDDEN (admin publishes it with the 👁 Show
       // switch under its pill when entries open).
       if (!pageConfig.some(function(p){ return p.id === 'pg-triathlon'; })) {
@@ -6438,7 +6517,7 @@ function applyHeaderToAllPages() {
   if (!src || src === window.location.href) return;
   var hdrBox = el('hdr-box');
   var extraStyle = hdrBox ? hdrBox.getAttribute('style') || '' : '';
-  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','triathlon','trips','trip'].forEach(function(k) {
+  ['educate','sports','newentrant','buses','year78','apple','events','classroom','linkdetail','sport','event','staff','newsletter','lunch-orders','hall-bookings','messages','absence','survey','petday','classlist','triathlon','concert','trips','trip'].forEach(function(k) {
     var c = el('ph-' + k);
     if (c) {
       c.innerHTML = '<img loading="lazy" decoding="async" src="' + src + '" alt="Header" />';
@@ -7202,6 +7281,96 @@ function jobsDelete(id) {
     .then(function(r) { return r.json(); })
     .then(function(b) { if (b && b.ok) { flashSave('Application deleted.'); jobsLoadApplications(); } else flashSave('Could not delete.'); })
     .catch(function() { flashSave('Could not delete.'); });
+}
+
+// ===================== CONCERT TICKET BOOKINGS =====================
+var CONCERT_SESSIONS = { day: 'Daytime — 12pm start', evening: 'Evening — 7pm start' };
+function concertBook(session, btn) {
+  var st = el('concert-status');
+  st.textContent = '';
+  var v = function(id) { return (el(id).value || '').trim(); };
+  var t = document.querySelector('input[name="concert-tickets"]:checked');
+  if (!v('concert-first') || !v('concert-last')) { st.textContent = 'Please enter your first and last name.'; return; }
+  if (!v('concert-child')) { st.textContent = 'Please enter your child’s name.'; return; }
+  if (!t) { st.textContent = 'Please choose 1 or 2 tickets.'; return; }
+  var body = { first: v('concert-first'), last: v('concert-last'), child: v('concert-child'), tickets: Number(t.value), session: session };
+  var btns = document.querySelectorAll('.concert-book-btn');
+  btns.forEach(function(b) { b.disabled = true; });
+  fetch('/api/concert/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.b || !res.b.ok) throw new Error((res.b && res.b.error) || 'rejected');
+      el('concert-form-wrap').innerHTML =
+        '<div class="pd-thanks"><strong>Thank you, ' + lunchEsc(body.first) + '!</strong><br>' +
+        'You’ve booked <b>' + body.tickets + ' ticket' + (body.tickets === 1 ? '' : 's') + '</b> for the <b>' + lunchEsc(CONCERT_SESSIONS[session]) + '</b> concert' +
+        ' (' + lunchEsc(body.child) + ').<br><br>' +
+        '<button type="button" class="abar-btn" style="font-size:13px;padding:6px 16px;" onclick="location.reload()">Make another booking</button></div>';
+      window.scrollTo(0, 0);
+    })
+    .catch(function(e) {
+      btns.forEach(function(b) { b.disabled = false; });
+      st.textContent = (e && e.message && e.message !== 'rejected' && e.message !== 'Failed to fetch') ? e.message : 'Could not book — please try again.';
+    });
+}
+
+// ---- Admin: bookings in two columns, Daytime | Evening ----
+var _concertLast = [];
+function concertLoadResults() {
+  ['day', 'evening'].forEach(function(s) { var l = el('concert-list-' + s); if (l) l.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>'; });
+  fetch('/api/concert/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      _concertLast = ((b && b.bookings) || []).slice().sort(function(a, c) { return a.ts - c.ts; });
+      concertRenderResults();
+    })
+    .catch(function() { var l = el('concert-list-day'); if (l) l.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load bookings.</span>'; });
+}
+function concertRenderResults() {
+  var all = 0;
+  ['day', 'evening'].forEach(function(s) {
+    var list = _concertLast.filter(function(r) { return r.session === s; });
+    var tickets = list.reduce(function(n, r) { return n + (Number(r.tickets) || 0); }, 0);
+    all += tickets;
+    var tot = el('concert-total-' + s);
+    if (tot) tot.textContent = list.length + ' booking' + (list.length === 1 ? '' : 's') + ' · ' + tickets + ' ticket' + (tickets === 1 ? '' : 's');
+    var out = el('concert-list-' + s);
+    if (!out) return;
+    out.innerHTML = list.length ? list.map(function(r) {
+      return '<div class="concert-bk">' +
+        '<button type="button" class="concert-del" title="Delete this booking" onclick="concertDelete(\'' + lunchEsc(r.id) + '\')">✕</button>' +
+        '<b>' + lunchEsc(r.first + ' ' + r.last) + '</b><br>' +
+        'Child: ' + lunchEsc(r.child) + '<br>' +
+        'Tickets: <b>' + Number(r.tickets) + '</b><br>' +
+        '<span style="color:#888;font-size:12px;">Booked ' + lunchEsc(new Date(r.ts).toLocaleString()) + '</span></div>';
+    }).join('') : '<span style="font-size:13px;color:#888;">No bookings yet.</span>';
+  });
+  var cnt = el('concert-admin-count');
+  if (cnt) cnt.textContent = _concertLast.length + ' booking' + (_concertLast.length === 1 ? '' : 's') + ' · ' + all + ' ticket' + (all === 1 ? '' : 's') + ' in total';
+}
+function concertDelete(id) {
+  var r = _concertLast.find(function(x) { return x.id === id; });
+  if (!confirm('Delete ' + (r ? r.first + ' ' + r.last + '’s' : 'this') + ' booking?')) return;
+  fetch('/api/concert/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+    .then(function(r) { return r.json(); })
+    .then(function(b) { if (b && b.ok) { flashSave('Booking deleted.'); concertLoadResults(); } else flashSave('Could not delete.'); })
+    .catch(function() { flashSave('Could not delete.'); });
+}
+function concertDownloadCsv() {
+  var lines = [['Concert', 'First name', 'Last name', 'Child', 'Tickets', 'Booked'].map(svCsvCell).join(',')];
+  ['day', 'evening'].forEach(function(s) {
+    _concertLast.filter(function(r) { return r.session === s; }).forEach(function(r) {
+      lines.push([CONCERT_SESSIONS[s], r.first, r.last, r.child, r.tickets, new Date(r.ts).toLocaleString()].map(svCsvCell).join(','));
+    });
+  });
+  var d = new Date();
+  var fname = 'Concert bookings ' + String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + '.csv';
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 // ===================== TRIATHLON ENTRIES =====================
@@ -8381,6 +8550,9 @@ function showPage(id) {
   if (id === 'pg-classlist') {
     if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
+  if (id === 'pg-concert') {
+    if (isAdmin && typeof concertLoadResults === 'function') concertLoadResults();
+  }
   if (id === 'pg-triathlon') {
     if (isAdmin && typeof triLoadResults === 'function') triLoadResults();
   }
@@ -8598,12 +8770,14 @@ function clearCalEditor() {
 function renderSidebarPages() {
   var wrap = el('sidebar-pages');
   // Pages with their own coloured pill under Enrol Here → sidebar element prefix.
-  var SPECIAL_PILLS = { 'pg-jobs': 'sidebar-jobs', 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
+  var SPECIAL_PILLS = { 'pg-jobs': 'sidebar-jobs', 'pg-concert': 'sidebar-concert', 'pg-triathlon': 'sidebar-triathlon', 'pg-classlist': 'sidebar-classlist', 'pg-petday': 'sidebar-petday', 'pg-survey': 'sidebar-survey' };
   if (!wrap) return;
   // The movable Job Opportunities pill may be sitting inside a list that's
   // about to be rebuilt — park it at the top first; it's placed again below.
   var jobsWrap = el('sidebar-jobs-wrap');
   if (jobsWrap) el('home-sidebar').insertBefore(jobsWrap, el('sidebar-top'));
+  var concertWrap = el('sidebar-concert-wrap');
+  if (concertWrap) el('home-sidebar').insertBefore(concertWrap, el('sidebar-top'));
   wrap.innerHTML = '';
   var top = el('sidebar-top');
   if (top) top.innerHTML = '';
@@ -8758,7 +8932,7 @@ var sbBtnSettings = {};
 var SB_FIXED_LABELS = { enrol:'Enrol Here', contact:'Contact Us', home:'Home', stationery:'Order Stationery',
   lunch:'School Lunch Orders', newsletter:'School Newsletter', notifications:'School notifications',
   hall:'Hall Bookings', portal:'Register for Messages',
-  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey', 'pg-triathlon':'Triathlon', 'pg-jobs':'Job Opportunities' };
+  'pg-classlist':'2027 Class List Requests', 'pg-petday':'Lamb / Calf / Pet Day', 'pg-survey':'School Survey', 'pg-triathlon':'Triathlon', 'pg-jobs':'Job Opportunities', 'pg-concert':'Concert Ticket Bookings' };
 
 // ---- Job Opportunities: a pill that can sit anywhere in the menu ----
 // Its spot is a count of menu buttons above it (sbBtnSettings['pg-jobs'].pos,
@@ -8775,6 +8949,9 @@ function sbPlaceJobs() {
   var pos = Math.max(0, Math.min(slots.length, ((sbBtnSettings['pg-jobs'] || {}).pos) || 0));
   if (pos < slots.length) slots[pos].parentNode.insertBefore(jw, slots[pos]);
   else { var last = slots[slots.length - 1]; if (last) last.parentNode.insertBefore(jw, last.nextSibling); }
+  // Concert Ticket Bookings always sits straight under Job Opportunities.
+  var cw = el('sidebar-concert-wrap');
+  if (cw) jw.parentNode.insertBefore(cw, jw.nextSibling);
   var row = el('sidebar-jobs-move');
   if (!row) return;
   row.innerHTML = '';
@@ -8981,7 +9158,7 @@ var PAGE_LABELS = {
   'pg-home': 'Home', 'pg-educate': 'About Us', 'pg-sports': 'Sports & Events',
   'pg-sport': 'Sport Detail', 'pg-event': 'Event Detail',
   'pg-newentrant': 'New Entrant', 'pg-buses': 'Buses', 'pg-survey': 'School Survey', 'pg-petday': 'Lamb / Calf / Pet Day', 'pg-classlist': '2027 Class List Requests', 'pg-triathlon': 'Triathlon',
-  'pg-jobs': 'Job Opportunities', 'pg-job-apply': 'Job Application',
+  'pg-jobs': 'Job Opportunities', 'pg-job-apply': 'Job Application', 'pg-concert': 'Concert Ticket Bookings',
   'pg-year78': 'Year 7/8', 'pg-apple': 'Apple Distinguished School', 'pg-camps': 'Camps / Day Trips', 'pg-trips': 'School Trips', 'pg-trip': 'School Trip',
   'pg-events': 'Upcoming Events',
   'pg-classroom': 'Classroom Lists', 'pg-staff': 'Staff at Auroa',
@@ -12485,6 +12662,11 @@ document.addEventListener('click', function(e) {
     <button class="sidebar-btn jobs-reg" id="jobs-btn" onclick="bubbleGo(event,'pg-jobs')">Job Opportunities</button>
     <div class="sb-page-admin sb-pill-admin" id="sidebar-jobs-tools"></div>
     <div class="sb-page-admin sb-move-row" id="sidebar-jobs-move"></div>
+  </div>
+  <!-- Concert Ticket Bookings — always straight under Job Opportunities (placed by sbPlaceJobs). -->
+  <div id="sidebar-concert-wrap" style="display:none;">
+    <button class="sidebar-btn concert-reg" id="concert-btn" onclick="bubbleGo(event,'pg-concert')">Concert Ticket Bookings</button>
+    <div class="sb-page-admin sb-pill-admin" id="sidebar-concert-tools"></div>
   </div>
   <!-- School notifications sits above Enrol Here (filled by renderSidebarPages). -->
   <div id="sidebar-top"></div>

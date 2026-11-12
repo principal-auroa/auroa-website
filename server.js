@@ -456,6 +456,7 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
+  ['POST', /^\/concert\/book$/],
   ['POST', /^\/push\/ack$/],
   ['POST', /^\/jobs\/apply$/],   // job applications (cover letter + CV upload)
   ['POST', /^\/jobs\/(login|logout)$/], ['GET', /^\/jobs\/session$/],   // the applications login
@@ -1309,6 +1310,53 @@ app.post('/api/petday/delete', (req, res) => {
     if (idx === -1) return res.json({ ok: true, deleted: 0 });
     list.splice(idx, 1);
     fs.writeFile(PETDAY_FILE, JSON.stringify(list), () => res.json({ ok: true, deleted: 1 }));
+  });
+});
+
+// ---- Concert ticket bookings ----
+// Public booking (parent's name, child's name, 1 or 2 tickets, daytime or
+// evening concert); admin (session-gated by the /api middleware) lists/deletes.
+const CONCERT_FILE = path.join(DATA_DIR, 'concert-bookings.json');
+const CONCERT_SESSIONS = ['day', 'evening'];
+function concertReadAll(cb) {
+  fs.readFile(CONCERT_FILE, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    cb(list);
+  });
+}
+app.post('/api/concert/book', (req, res) => {
+  const b = req.body || {};
+  const str = (v, n) => String(v || '').trim().slice(0, n);
+  const bk = {
+    id: 'cb_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'),
+    ts: Date.now(),
+    first: str(b.first, 100), last: str(b.last, 100), child: str(b.child, 200),
+    tickets: Number(b.tickets), session: String(b.session || '')
+  };
+  if (!bk.first || !bk.last) return res.status(400).json({ error: 'Please enter your first and last name.' });
+  if (!bk.child) return res.status(400).json({ error: 'Please enter your child’s name.' });
+  if (bk.tickets !== 1 && bk.tickets !== 2) return res.status(400).json({ error: 'Please choose 1 or 2 tickets.' });
+  if (!CONCERT_SESSIONS.includes(bk.session)) return res.status(400).json({ error: 'Please choose the daytime or evening concert.' });
+  concertReadAll((list) => {
+    list.push(bk);
+    if (list.length > 5000) list = list.slice(-5000);
+    fs.writeFile(CONCERT_FILE, JSON.stringify(list), (err) => {
+      if (err) return res.status(500).json({ error: 'Could not save your booking — please try again.' });
+      res.json({ ok: true });
+    });
+  });
+});
+app.post('/api/concert/results', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  concertReadAll((list) => res.json({ bookings: list }));
+});
+app.post('/api/concert/delete', (req, res) => {
+  const id = String((req.body || {}).id || '');
+  concertReadAll((list) => {
+    const next = list.filter(r => r.id !== id);
+    if (next.length === list.length) return res.json({ ok: true, deleted: 0 });
+    fs.writeFile(CONCERT_FILE, JSON.stringify(next), () => res.json({ ok: true, deleted: 1 }));
   });
 });
 
@@ -2288,6 +2336,7 @@ function serveSpaWithMarker(req, res, marker) {
   });
 }
 // Shareable links to the Job Opportunities page and its application form.
+app.get('/concert', (req, res) => serveSpaWithMarker(req, res, '<script>window.__autoPage="pg-concert";</script>'));
 app.get('/jobs', (req, res) => serveSpaWithMarker(req, res, '<script>window.__autoPage="pg-jobs";</script>'));
 app.get('/jobs/apply', (req, res) => serveSpaWithMarker(req, res, '<script>window.__autoPage="pg-job-apply";</script>'));
 // Privacy policy (linked from the Google sign-in setup for the Health Profile).
