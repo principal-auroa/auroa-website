@@ -1404,6 +1404,8 @@ body.is-admin .sd-img-block:hover .sd-img-del,body.is-admin .sd-img-block:hover 
 .event-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px rgba(0,0,0,0.12);}
 .event-btn.popping{animation:btnPress 0.35s ease-out forwards;pointer-events:none;}
 .event-btn.is-current{background:#27ae60 !important;color:#fff !important;border-color:#1e8449 !important;}
+#home-current-events{padding:4px 0 0;}
+#home-current-events h2{font-size:22px;font-weight:700;color:#1a2b4a;margin:0 0 12px;}
 .sport-events-subhead{
   font-size:13px;font-weight:700;color:#c0642b;
   text-transform:uppercase;letter-spacing:0.06em;
@@ -1460,6 +1462,29 @@ body.is-admin .ev-img-cell:hover .ev-img-replace{display:block;}
 body.is-admin .ev-add-img-cell{display:flex;}
 
 /* ---- LAMB/CALF/PET DAY REGISTRATION PAGE ---- */
+/* Job applications: panel for admins or the applications login; pop-ups */
+.jobs-apps-panel{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+body.is-admin .jobs-apps-panel,body.jobs-viewer .jobs-apps-panel{display:block;}
+body.is-admin .jobs-viewer-login,body.jobs-viewer .jobs-viewer-login{display:none;}
+.jobs-viewer-login{margin:28px 0 8px;max-width:320px;}
+.jobs-linkbtn{background:none;border:none;color:#1a2b4a;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:13px;padding:0;}
+.jobs-del{display:none;}
+body.is-admin .jobs-del{display:inline-block;}
+.jobs-view{background:#1a2b4a;color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:5px 12px;margin:4px 6px 0 0;}
+.jobs-modal{position:fixed;inset:0;z-index:10000;background:rgba(10,18,32,0.6);display:flex;align-items:center;justify-content:center;padding:16px;}
+.jobs-modal-card{background:#fff;border-radius:14px;width:100%;max-width:900px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.3);}
+.jobs-modal-card.tall{height:100%;}
+.jobs-modal-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid #e6e6e6;}
+.jobs-modal-h strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a2b4a;font-size:14px;}
+.jobs-modal-h a,.jobs-modal-h button{font-size:12px;}
+.jobs-modal-body{flex:1;overflow:auto;background:#f3f4f6;}
+.jobs-modal-body iframe{display:block;width:100%;height:100%;border:0;background:#fff;}
+.jobs-modal-body img{display:block;max-width:100%;margin:0 auto;}
+.jobs-email-body{padding:14px 16px;background:#fff;font-size:14px;}
+.jobs-email-list{border:1px solid #e6e6e6;border-radius:8px;max-height:220px;overflow:auto;margin:6px 0 12px;}
+.jobs-email-list label{display:flex;gap:8px;align-items:flex-start;padding:7px 10px;border-bottom:1px solid #f0f0f0;cursor:pointer;}
+.jobs-email-list label:last-child{border-bottom:none;}
+.jobs-email-body textarea{width:100%;min-height:170px;box-sizing:border-box;font-family:inherit;font-size:14px;padding:10px;border:1px solid #ccc;border-radius:8px;}
 .pd-admin{display:none;background:#f9fafb;border:1px solid #e6e6e6;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
 body.is-admin .pd-admin{display:block;}
 .pd-cats{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px;}
@@ -3404,6 +3429,9 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
 
       <hr class="home-rule" />
 
+      <!-- Events marked "Current" (on Sports & Events). Hidden when there are none. -->
+      <div id="home-current-events" style="display:none;"></div>
+
       <!-- Welcome text -->
       <div id="home-welcome">
         <div class="editable" id="ec-welcome"><p>Welcome to Auroa School. We are a small, proud rural school in the heart of South Taranaki, committed to nurturing confident, curious learners in a safe and supportive environment.</p></div>
@@ -3668,7 +3696,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     <div class="pg-body">
       <div class="pg-title-row">
         <div class="pg-title-btns">
-          <button class="back-btn" onclick="backToSportsPage()">← Back to Sports &amp; Events</button>
+          <button class="back-btn" id="ev-back-btn" onclick="backToSportsPage()">← Back to Sports &amp; Events</button>
           <button id="ev-current-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;" onclick="evToggleCurrent()">Current</button>
           <button id="ev-share-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;background:#1a2b4a;" onclick="evCopyShareLink()">🔗 Copy link</button>
         </div>
@@ -3791,16 +3819,41 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <button type="button" class="abar-btn" style="font-size:11px;padding:6px 12px;" onclick="jobsCopyLink()">Copy link</button>
         </div>
         <div style="font-size:12px;color:#666;margin-bottom:12px;">Paste this link anywhere (newsletter, Facebook, emails) to take people straight to this page — it works even while the page is hidden from the menu.</div>
+        <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Applications login (admin)</h3>
+        <div style="font-size:12px;color:#666;margin:2px 0 6px;">A separate login for viewing applications (not the website). Username: <b>piri</b>. <span id="jobs-viewer-pw-state"></span></div>
+        <div class="jobs-link-box">
+          <input id="jobs-viewer-pw" class="hb-input" type="text" autocomplete="off" placeholder="New password (at least 6 characters)">
+          <button type="button" class="abar-btn" style="font-size:11px;padding:6px 12px;" onclick="jobsSetViewerPassword()">Set password</button>
+        </div>
+      </div>
+
+      <!-- Applications: admins, or the separate applications login (username piri) -->
+      <div id="jobs-apps-panel" class="jobs-apps-panel">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Applications (admin)</h3>
+          <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Applications</h3>
           <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="jobsLoadApplications()">↻ Refresh</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="jobsOpenEmail()">✉ Email</button>
           <span id="jobs-admin-count" style="font-size:12px;color:#555;"></span>
+          <button type="button" id="jobs-viewer-out" class="jobs-linkbtn" style="margin-left:auto;display:none;" onclick="jobsViewerLogout()">Sign out</button>
         </div>
         <div id="jobs-applications"></div>
       </div>
 
       <button type="button" class="hb-submit-btn jobs-apply-btn" onclick="showPage('pg-job-apply')">Apply here</button>
       <div class="editable" id="ec-jobs"><p>Current vacancies will be listed here.</p></div>
+
+      <!-- Staff sign-in to view applications (hidden once signed in) -->
+      <div id="jobs-viewer-login" class="jobs-viewer-login">
+        <button type="button" class="jobs-linkbtn" onclick="jobsToggleViewerLogin()">Staff: view applications</button>
+        <form id="jobs-viewer-form" style="display:none;" onsubmit="jobsViewerLogin(); return false;">
+          <label class="hb-label" for="jobs-viewer-user">Username</label>
+          <input id="jobs-viewer-user" class="hb-input" type="text" autocomplete="username" autocapitalize="none">
+          <label class="hb-label" for="jobs-viewer-pass">Password</label>
+          <input id="jobs-viewer-pass" class="hb-input" type="password" autocomplete="current-password">
+          <button type="submit" class="abar-btn" style="font-size:12px;padding:6px 16px;margin-top:8px;">Sign in</button>
+          <div id="jobs-viewer-status" style="font-size:13px;color:#c0392b;margin-top:6px;"></div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -6973,11 +7026,166 @@ function jobsRenderApplications() {
       (a.position ? '<div><strong>Position:</strong> ' + lunchEsc(a.position) + '</div>' : '') +
       '<div><a href="mailto:' + lunchEsc(a.email) + '">' + lunchEsc(a.email) + '</a> · <a href="tel:' + lunchEsc(a.phone) + '">' + lunchEsc(a.phone) + '</a></div>' +
       (a.address ? '<div style="white-space:pre-wrap;">' + lunchEsc(a.address) + '</div>' : '') +
-      '<div><a class="jobs-doc" href="/api/jobs/file/' + id + '/cover">⬇ Cover letter</a><a class="jobs-doc" href="/api/jobs/file/' + id + '/cv">⬇ CV</a></div>' +
+      '<div>' +
+        (a.coverLetter ? '<button type="button" class="jobs-view" onclick="jobsViewDoc(\'' + lunchEsc(a.id) + '\',\'cover\')">👁 View cover letter</button>' : '') +
+        (a.cv ? '<button type="button" class="jobs-view" onclick="jobsViewDoc(\'' + lunchEsc(a.id) + '\',\'cv\')">👁 View CV</button>' : '') +
+      '</div>' +
+      '<div style="font-size:12px;"><a class="jobs-doc" href="/api/jobs/file/' + id + '/cover">⬇ Cover letter</a><a class="jobs-doc" href="/api/jobs/file/' + id + '/cv">⬇ CV</a></div>' +
       '<div style="margin-top:6px;"><strong>Referees</strong><ul style="margin:2px 0 0;padding-left:20px;">' + (refs || '<li>None given</li>') + '</ul></div>' +
-      '<div style="text-align:right;"><button type="button" onclick="jobsDelete(\'' + lunchEsc(a.id) + '\')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:700;cursor:pointer;padding:3px 10px;">Delete</button></div>' +
+      ((a.emails && a.emails.length) ? '<div style="font-size:12px;color:#555;margin-top:4px;">✉ Emailed: ' + a.emails.map(function(m) {
+        return lunchEsc(new Date(m.ts).toLocaleDateString()) + ' — “' + lunchEsc(m.subject) + '”';
+      }).join('; ') + '</div>' : '') +
+      '<div style="text-align:right;"><button type="button" class="jobs-del" onclick="jobsDelete(\'' + lunchEsc(a.id) + '\')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-weight:700;cursor:pointer;padding:3px 10px;">Delete</button></div>' +
       '</div>';
   }).join('');
+}
+
+// ---- Applications login (username piri; password set by an admin) ----
+var _jobsViewer = false;
+function jobsCheckSession() {
+  return fetch('/api/jobs/session', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(s) {
+      _jobsViewer = !!(s && s.viewer);
+      document.body.classList.toggle('jobs-viewer', _jobsViewer);
+      var out = el('jobs-viewer-out'); if (out) out.style.display = _jobsViewer && !isAdmin ? '' : 'none';
+      var st = el('jobs-viewer-pw-state');
+      if (st) st.textContent = s && s.passwordSet ? 'A password is set — setting a new one signs out anyone using the old one.' : 'No password set yet, so nobody can use this login.';
+      if (isAdmin || _jobsViewer) jobsLoadApplications();
+    })
+    .catch(function() { if (isAdmin) jobsLoadApplications(); });
+}
+function jobsToggleViewerLogin() {
+  var f = el('jobs-viewer-form');
+  f.style.display = f.style.display === 'none' ? '' : 'none';
+  if (f.style.display === '') el('jobs-viewer-user').focus();
+}
+function jobsViewerLogin() {
+  var st = el('jobs-viewer-status');
+  st.textContent = '';
+  fetch('/api/jobs/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: el('jobs-viewer-user').value, password: el('jobs-viewer-pass').value }) })
+    .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok) { st.textContent = (res.b && res.b.error) || 'Could not sign in.'; return; }
+      el('jobs-viewer-pass').value = '';
+      el('jobs-viewer-form').style.display = 'none';
+      jobsCheckSession().then(function() { var p = el('jobs-apps-panel'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    })
+    .catch(function() { st.textContent = 'Could not sign in — please try again.'; });
+}
+function jobsViewerLogout() {
+  fetch('/api/jobs/logout', { method: 'POST' }).then(function() {
+    _jobsLast = [];
+    var out = el('jobs-applications'); if (out) out.innerHTML = '';
+    jobsCheckSession();
+  });
+}
+function jobsSetViewerPassword() {
+  var inp = el('jobs-viewer-pw');
+  var pw = (inp.value || '').trim();
+  if (pw.length < 6) { alert('Please use at least 6 characters.'); return; }
+  fetch('/api/jobs/viewer-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
+    .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok) { alert((res.b && res.b.error) || 'Could not save the password.'); return; }
+      inp.value = '';
+      flashSave('Password set — username piri.');
+      jobsCheckSession();
+    })
+    .catch(function() { alert('Could not save the password.'); });
+}
+
+// ---- Pop-ups: document viewer and the applicant email ----
+function jobsCloseModal() { var m = el('jobs-modal'); if (m) m.remove(); document.removeEventListener('keydown', jobsModalKey); }
+function jobsModalKey(e) { if (e.key === 'Escape') jobsCloseModal(); }
+function jobsOpenModal(html, tall) {
+  jobsCloseModal();
+  var m = document.createElement('div');
+  m.id = 'jobs-modal';
+  m.className = 'jobs-modal';
+  m.innerHTML = '<div class="jobs-modal-card' + (tall ? ' tall' : '') + '" role="dialog" aria-modal="true">' + html + '</div>';
+  m.addEventListener('click', function(e) { if (e.target === m) jobsCloseModal(); });
+  document.addEventListener('keydown', jobsModalKey);
+  document.body.appendChild(m);
+  return m;
+}
+function jobsViewDoc(appId, which) {
+  var a = _jobsLast.find(function(x) { return x.id === appId; });
+  var f = a && (which === 'cv' ? a.cv : a.coverLetter);
+  if (!f) return;
+  var base = '/api/jobs/file/' + encodeURIComponent(appId) + '/' + which;
+  var ext = ((f.file || f.name || '').match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
+  var title = (which === 'cv' ? 'CV' : 'Cover letter') + ' — ' + a.first + ' ' + a.last;
+  var body;
+  if (/^\.(jpe?g|png|heic)$/.test(ext)) body = '<img src="' + base + '?view=1" alt="' + lunchEsc(title) + '">';
+  else if (/^\.(pdf|txt|docx)$/.test(ext)) body = '<iframe src="' + base + '?view=1" title="' + lunchEsc(title) + '"' + (ext === '.pdf' ? '' : ' sandbox') + '></iframe>';
+  else body = '<div style="padding:40px 20px;text-align:center;background:#fff;height:100%;box-sizing:border-box;">This file type (' + lunchEsc(ext || 'unknown') + ') can’t be shown here.<br><br><a class="abar-btn" style="font-size:13px;padding:6px 16px;text-decoration:none;" href="' + base + '">⬇ Download it instead</a></div>';
+  jobsOpenModal(
+    '<div class="jobs-modal-h"><strong>' + lunchEsc(title) + '</strong>' +
+      '<a href="' + base + '?view=1" target="_blank" rel="noopener">Open in new tab</a>' +
+      '<a href="' + base + '">⬇ Download</a>' +
+      '<button type="button" class="abar-btn" style="padding:4px 12px;" onclick="jobsCloseModal()">✕ Close</button></div>' +
+    '<div class="jobs-modal-body">' + body + '</div>', true);
+}
+function jobsOpenEmail() {
+  if (!_jobsLast.length) { alert('There are no applications to email yet.'); return; }
+  var rows = _jobsLast.map(function(a) {
+    return '<label><input type="checkbox" class="jobs-em-pick" value="' + lunchEsc(a.id) + '">' +
+      '<span><b>' + lunchEsc(a.first + ' ' + a.last) + '</b>' + (a.position ? ' — ' + lunchEsc(a.position) : '') +
+      '<br><span style="font-size:12px;color:#666;">' + lunchEsc(a.email) + '</span></span></label>';
+  }).join('');
+  jobsOpenModal(
+    '<div class="jobs-modal-h"><strong>Email applicants</strong><button type="button" class="abar-btn" style="padding:4px 12px;" onclick="jobsCloseModal()">✕ Close</button></div>' +
+    '<div class="jobs-modal-body jobs-email-body">' +
+      '<div style="display:flex;gap:12px;align-items:center;"><b>Send to</b>' +
+        '<button type="button" class="jobs-linkbtn" onclick="jobsEmailPickAll(true)">Select all</button>' +
+        '<button type="button" class="jobs-linkbtn" onclick="jobsEmailPickAll(false)">Clear</button>' +
+        '<span id="jobs-em-count" style="color:#666;font-size:13px;margin-left:auto;">0 chosen</span></div>' +
+      '<div class="jobs-email-list" onchange="jobsEmailCount()">' + rows + '</div>' +
+      '<label class="hb-label" for="jobs-em-subject">Subject</label>' +
+      '<input id="jobs-em-subject" class="hb-input" type="text" maxlength="200" value="Your application — Auroa School">' +
+      '<label class="hb-label" for="jobs-em-message" style="margin-top:10px;display:block;">Message</label>' +
+      '<div style="font-size:13px;color:#555;margin-bottom:4px;">Each email starts <b>“Dear <i>first name</i>,”</b> on its own line, then your message. Every applicant gets their own email — nobody sees who else was sent it.</div>' +
+      '<textarea id="jobs-em-message" placeholder="Type your message (and sign it off)…"></textarea>' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">' +
+        '<button type="button" id="jobs-em-send" class="hb-submit-btn" style="margin:0;" onclick="jobsEmailSend()">Send emails</button>' +
+        '<span id="jobs-em-status" style="font-size:13px;"></span></div>' +
+    '</div>', false);
+}
+function jobsEmailPicked() {
+  return Array.prototype.slice.call(document.querySelectorAll('.jobs-em-pick:checked')).map(function(c) { return c.value; });
+}
+function jobsEmailCount() { var n = jobsEmailPicked().length; var c = el('jobs-em-count'); if (c) c.textContent = n + ' chosen'; }
+function jobsEmailPickAll(on) {
+  document.querySelectorAll('.jobs-em-pick').forEach(function(c) { c.checked = on; });
+  jobsEmailCount();
+}
+function jobsEmailSend() {
+  var ids = jobsEmailPicked();
+  var subject = el('jobs-em-subject').value.trim();
+  var message = el('jobs-em-message').value.trim();
+  var st = el('jobs-em-status'), btn = el('jobs-em-send');
+  st.style.color = '#c0392b';
+  if (!ids.length) { st.textContent = 'Tick at least one applicant.'; return; }
+  if (!subject) { st.textContent = 'Please type a subject.'; return; }
+  if (!message) { st.textContent = 'Please type a message.'; return; }
+  if (!confirm('Send ' + ids.length + ' separate email' + (ids.length === 1 ? '' : 's') + '?')) return;
+  btn.disabled = true; btn.textContent = 'Sending…'; st.textContent = '';
+  fetch('/api/jobs/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, subject: subject, message: message }) })
+    .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
+    .then(function(res) {
+      btn.disabled = false; btn.textContent = 'Send emails';
+      if (!res.ok) { st.textContent = (res.b && res.b.error) || 'Could not send.'; return; }
+      var results = (res.b && res.b.results) || [];
+      var good = results.filter(function(r) { return r.ok; }), bad = results.filter(function(r) { return !r.ok; });
+      st.style.color = bad.length ? '#c0392b' : '#16a34a';
+      st.innerHTML = '✅ Sent ' + good.length + ' of ' + results.length + '.' +
+        (bad.length ? ' Not sent: ' + bad.map(function(r) { return lunchEsc(r.name + ' (' + r.email + ')'); }).join(', ') : '');
+      if (!bad.length) { el('jobs-em-message').value = ''; jobsEmailPickAll(false); }
+      jobsLoadApplications();
+    })
+    .catch(function() { btn.disabled = false; btn.textContent = 'Send emails'; st.textContent = 'Could not send — please check before trying again, in case some went.'; });
 }
 function jobsDelete(id) {
   var a = _jobsLast.find(function(x) { return x.id === id; });
@@ -8170,7 +8378,7 @@ function showPage(id) {
   }
   if (id === 'pg-jobs') {
     var jl = el('jobs-link'); if (jl) jl.value = location.origin + '/jobs';
-    if (isAdmin && typeof jobsLoadApplications === 'function') jobsLoadApplications();
+    if (typeof jobsCheckSession === 'function') jobsCheckSession();
   }
   if (id === 'pg-job-apply' && typeof jobsBuildRefs === 'function') jobsBuildRefs();
   // Toggle a per-page body class so admin-only header buttons can show/hide
@@ -8959,7 +9167,8 @@ var sdAutoSaveTimer = null;
 var evAutoSaveTimer = null;
 
 function backToSportsPage() {
-  function go() { renderSportsPage(); showPage('pg-sports'); }
+  var home = _evBackHome && !!document.querySelector('#pg-event.active');
+  function go() { renderSportsPage(); showPage(home ? 'pg-home' : 'pg-sports'); }
   if (!isAdmin) { go(); return; }
   if (document.querySelector('#pg-sport.active') && currentSportId) {
     sdSave(go);
@@ -9327,6 +9536,40 @@ function renderSportsPage() {
 
     wrap.appendChild(sec);
   });
+  renderHomeCurrentEvents();
+}
+
+// Home page: events marked "Current", under a "Current and upcoming events"
+// heading above the welcome text. Nothing (no heading) when none are current.
+// Only events still listed under a term count, in the Sports page's order.
+function renderHomeCurrentEvents() {
+  var box = el('home-current-events');
+  if (!box) return;
+  var ids = [];
+  (sportTerms || []).forEach(function(t) {
+    (t.eventIds || []).forEach(function(eid) {
+      if (eventsData[eid] && eventsData[eid].current && ids.indexOf(eid) === -1) ids.push(eid);
+    });
+  });
+  box.innerHTML = '';
+  if (!ids.length) { box.style.display = 'none'; return; }
+  var h = document.createElement('h2');
+  h.textContent = 'Current and upcoming events';
+  box.appendChild(h);
+  var grid = document.createElement('div');
+  grid.className = 'event-btn-grid';
+  ids.forEach(function(eid) {
+    var btn = document.createElement('button');
+    btn.className = 'event-btn is-current';
+    btn.textContent = eventsData[eid].name;
+    btn.onclick = function() {
+      btn.classList.add('popping');
+      setTimeout(function() { btn.classList.remove('popping'); openEventDetail(eid, { fromHome: true }); }, 320);
+    };
+    grid.appendChild(btn);
+  });
+  box.appendChild(grid);
+  box.style.display = '';
 }
 
 function makeSportBtnWrap(termId, sportId) {
@@ -9980,10 +10223,14 @@ function eventMoveBtn(termId, eventId, dir) {
 }
 
 // ---- event detail page ----
-function openEventDetail(eventId) {
+var _evBackHome = false;   // opened from the home page's current events → Back goes Home
+function openEventDetail(eventId, opts) {
   currentEventId = eventId;
   var ev = eventsData[eventId];
   if (!ev) return;
+  _evBackHome = !!(opts && opts.fromHome);
+  var backBtn = el('ev-back-btn');
+  if (backBtn) backBtn.textContent = _evBackHome ? '← Back to Home' : '← Back to Sports & Events';
   el('ev-name').textContent = ev.name;
   if (!ev.textRows || ev.textRows.length === 0) ev.textRows = [''];
   renderEvTextRows(ev.textRows);

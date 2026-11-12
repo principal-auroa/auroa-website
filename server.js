@@ -457,7 +457,8 @@ const PUBLIC_API = [
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
   ['POST', /^\/push\/ack$/],
-  ['POST', /^\/jobs\/apply$/],   // job applications (cover letter + CV upload)   // a phone reporting it showed a notification (see push receipts)
+  ['POST', /^\/jobs\/apply$/],   // job applications (cover letter + CV upload)
+  ['POST', /^\/jobs\/(login|logout)$/], ['GET', /^\/jobs\/session$/],   // the applications login
   ['POST', /^\/health-profile\/submit$/], ['GET', /^\/health-profile\/config$/],
   ['POST', /^\/push\/(subscribe|unsubscribe|test)$/],
   ['POST', /^\/parent-groups\/[^/]+\/join$/],
@@ -471,6 +472,8 @@ app.use('/api', (req, res, next) => {
   const isPublic = PUBLIC_API.some(([m, re]) => m === req.method && re.test(req.path));
   if (isPublic) return next();
   if (isAdminReq(req)) return next();
+  // The applications login (username "piri") opens the job applications only.
+  if (JOBS_VIEWER_API.some(([m, re]) => m === req.method && re.test(req.path)) && isJobsViewerReq(req)) return next();
   return res.status(401).json({ error: 'Admin login required' });
 });
 
@@ -1447,6 +1450,13 @@ app.get('/api/jobs/applications', (req, res) => {
   res.set('Cache-Control', 'no-store');
   jobsReadAll((list) => res.json({ applications: list }));
 });
+// ?view=1 shows the document in the browser (the pop-up viewer) instead of
+// downloading it: PDFs, photos and plain text as they are, Word .docx turned
+// into a simple page. Anything else still downloads.
+const JOB_VIEW_TYPES = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png': 'image/png', '.heic': 'image/heic', '.txt': 'text/plain; charset=utf-8' };
+// A page built from the applicant's file runs nothing and loads nothing.
+const JOB_VIEW_SANDBOX = "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'";
 app.get('/api/jobs/file/:id/:which', (req, res) => {
   const which = req.params.which === 'cv' ? 'cv' : req.params.which === 'cover' ? 'coverLetter' : null;
   if (!which) return res.status(404).end();
@@ -1457,7 +1467,140 @@ app.get('/api/jobs/file/:id/:which', (req, res) => {
     const fp = path.join(JOBS_DIR, path.basename(f.file));
     if (!fs.existsSync(fp)) return res.status(404).end();
     res.set('Cache-Control', 'private, no-store');
+    res.set('X-Content-Type-Options', 'nosniff');
+    const ext = path.extname(f.file).toLowerCase();
+    if (req.query.view) {
+      if (JOB_VIEW_TYPES[ext]) {
+        if (ext === '.txt') res.set('Content-Security-Policy', JOB_VIEW_SANDBOX);
+        res.set('Content-Type', JOB_VIEW_TYPES[ext]);
+        res.set('Content-Disposition', 'inline');
+        return fs.createReadStream(fp).pipe(res);
+      }
+      if (ext === '.docx') {
+        let mammoth = null;
+        try { mammoth = require('mammoth'); } catch (e) {}
+        if (mammoth) {
+          return mammoth.convertToHtml({ path: fp }).then((out) => {
+            res.set('Content-Security-Policy', JOB_VIEW_SANDBOX);
+            res.type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+              '<style>body{font-family:Georgia,serif;font-size:16px;line-height:1.5;color:#222;max-width:760px;margin:0 auto;padding:28px 22px;background:#fff}' +
+              'img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px;vertical-align:top}</style>' +
+              (out.value || '<p><i>This document has no text to show.</i></p>'));
+          }).catch(() => res.download(fp, f.name || path.basename(f.file)));
+        }
+      }
+    }
     res.download(fp, f.name || path.basename(f.file));
+  });
+});
+
+// Email chosen applicants: one separate email to each (nobody sees anyone
+// else's address), starting "Dear <first name>," followed by the typed message.
+app.post('/api/jobs/email', (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  const subject = String(b.subject || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
+  const message = String(b.message || '').replace(/\r\n/g, '\n').trim().slice(0, 20000);
+  if (!ids.length) return res.status(400).json({ error: 'Choose at least one applicant.' });
+  if (!subject) return res.status(400).json({ error: 'Please type a subject.' });
+  if (!message) return res.status(400).json({ error: 'Please type a message.' });
+  const transport = getMailTransport();
+  if (!transport) return res.status(503).json({ error: 'Email isn’t set up on the server yet (the SMTP settings are missing in Railway).' });
+  jobsReadAll(async (list) => {
+    const chosen = list.filter(a => ids.includes(a.id));
+    const results = [];
+    for (const a of chosen) {
+      const first = String(a.first || '').trim() || 'applicant';
+      const r = { id: a.id, name: (a.first + ' ' + a.last).trim(), email: a.email, ok: false };
+      try {
+        await transport.sendMail({
+          from: envClean('SMTP_FROM') || envClean('SMTP_USER'),
+          to: a.email,
+          subject,
+          text: 'Dear ' + first + ',\n\n' + message
+        });
+        r.ok = true;
+      } catch (e) {
+        r.error = (e && e.message) || 'send failed';
+        console.warn('[jobs] email to applicant failed:', r.error);
+      }
+      results.push(r);
+    }
+    // Note on each application when it was emailed (shown in the list).
+    jobsReadAll((fresh) => {
+      const now = Date.now();
+      results.forEach(r => {
+        const a = fresh.find(x => x.id === r.id);
+        if (a && r.ok) a.emails = (a.emails || []).concat({ ts: now, subject }).slice(-20);
+      });
+      fs.writeFile(JOBS_FILE, JSON.stringify(fresh), () => res.json({ ok: true, results }));
+    });
+  });
+});
+
+// ---- Applications login ----
+// A separate login just for the job applications: username "piri" and a
+// password an admin sets on the Job Opportunities page. It can view the
+// applications, their documents and send applicant emails — nothing else
+// (no site editing, no deleting). Changing the password signs everyone out.
+const JOBS_VIEWER_USER = 'piri';
+const JOBS_VIEWER_FILE = path.join(DATA_DIR, 'jobs-viewer.json');
+const JOBS_VIEWER_API = [
+  ['GET', /^\/jobs\/applications$/], ['GET', /^\/jobs\/file\/[^/]+\/(cv|cover)$/], ['POST', /^\/jobs\/email$/],
+];
+const JOBS_VIEWER_HOURS = 12;
+function jobsViewerRead() {
+  try { return JSON.parse(fs.readFileSync(JOBS_VIEWER_FILE, 'utf8')) || {}; } catch (e) { return {}; }
+}
+function jobsViewerSig(exp, hash) {
+  return crypto.createHmac('sha256', sessionSecret()).update('jobs.' + exp + '.' + hash).digest('hex');
+}
+function isJobsViewerReq(req) {
+  const tok = parseCookies(req).auroa_jobs || '';
+  const v = jobsViewerRead();
+  const i = tok.indexOf('.');
+  if (!v.hash || i < 0) return false;
+  const exp = tok.slice(0, i), sig = tok.slice(i + 1);
+  if (!/^\d+$/.test(exp) || Number(exp) < Date.now()) return false;
+  const want = jobsViewerSig(exp, v.hash);
+  try { return sig.length === want.length && crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(want, 'hex')); }
+  catch (e) { return false; }
+}
+app.get('/api/jobs/session', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ viewer: isJobsViewerReq(req), admin: isAdminReq(req), passwordSet: !!jobsViewerRead().hash });
+});
+app.post('/api/jobs/login', (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  if (loginBlocked(ip)) return res.status(429).json({ error: 'Too many attempts — please wait a few minutes.' });
+  const user = String((req.body || {}).username || '').trim().toLowerCase();
+  const pw = String((req.body || {}).password || '');
+  const v = jobsViewerRead();
+  if (!v.hash) return res.status(403).json({ error: 'This login hasn’t been set up yet — an admin needs to set its password.' });
+  let ok = false;
+  try {
+    const got = crypto.scryptSync(pw, v.salt, 32);
+    ok = crypto.timingSafeEqual(got, Buffer.from(v.hash, 'hex')) && user === JOBS_VIEWER_USER;
+  } catch (e) { ok = false; }
+  if (!ok) { loginFail(ip); return res.status(403).json({ error: 'Wrong username or password.' }); }
+  const exp = Date.now() + JOBS_VIEWER_HOURS * 60 * 60 * 1000;
+  res.set('Set-Cookie', 'auroa_jobs=' + exp + '.' + jobsViewerSig(exp, v.hash) +
+    '; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=' + (JOBS_VIEWER_HOURS * 60 * 60));
+  res.json({ ok: true });
+});
+app.post('/api/jobs/logout', (req, res) => {
+  res.set('Set-Cookie', 'auroa_jobs=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  res.json({ ok: true });
+});
+// Admin only (not in PUBLIC_API or JOBS_VIEWER_API).
+app.post('/api/jobs/viewer-password', (req, res) => {
+  const pw = String((req.body || {}).password || '');
+  if (pw.length < 6) return res.status(400).json({ error: 'Please use at least 6 characters.' });
+  const salt = crypto.randomBytes(16).toString('hex');
+  const rec = { salt, hash: crypto.scryptSync(pw, salt, 32).toString('hex'), setAt: Date.now() };
+  fs.writeFile(JOBS_VIEWER_FILE, JSON.stringify(rec), (err) => {
+    if (err) return res.status(500).json({ error: 'Could not save the password.' });
+    res.json({ ok: true });
   });
 });
 app.post('/api/jobs/delete', (req, res) => {
