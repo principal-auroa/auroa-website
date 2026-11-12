@@ -1406,6 +1406,14 @@ body.is-admin .sd-img-block:hover .sd-img-del,body.is-admin .sd-img-block:hover 
 .event-btn.is-current{background:#27ae60 !important;color:#fff !important;border-color:#1e8449 !important;}
 #home-current-events{padding:4px 0 0;}
 #home-current-events h2{font-size:22px;font-weight:700;color:#1a2b4a;margin:0 0 12px;}
+/* Home current items: events blue, sports orange, each with a glow pulsing behind it */
+.home-cur-btn{color:#fff !important;}
+.home-cur-event{background:#2563eb !important;border-color:#1d4ed8 !important;animation:hcPulseBlue 2s ease-out infinite;}
+.home-cur-sport{background:#ea7a1f !important;border-color:#c2410c !important;animation:hcPulseOrange 2s ease-out infinite;}
+.home-cur-btn.popping{animation:btnPress 0.35s ease-out forwards;}
+@keyframes hcPulseBlue{0%{box-shadow:0 0 0 0 rgba(37,99,235,0.6);}70%{box-shadow:0 0 0 14px rgba(37,99,235,0);}100%{box-shadow:0 0 0 0 rgba(37,99,235,0);}}
+@keyframes hcPulseOrange{0%{box-shadow:0 0 0 0 rgba(234,122,31,0.6);}70%{box-shadow:0 0 0 14px rgba(234,122,31,0);}100%{box-shadow:0 0 0 0 rgba(234,122,31,0);}}
+@media (prefers-reduced-motion: reduce){.home-cur-event,.home-cur-sport{animation:none;}}
 .sport-events-subhead{
   font-size:13px;font-weight:700;color:#c0642b;
   text-transform:uppercase;letter-spacing:0.06em;
@@ -3676,7 +3684,7 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     <div class="pg-body">
       <div class="pg-title-row">
         <div class="pg-title-btns">
-          <button class="back-btn" onclick="backToSportsPage()">← Back to Sports</button>
+          <button class="back-btn" id="sd-back-btn" onclick="backToSportsPage()">← Back to Sports</button>
           <button id="sd-current-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;" onclick="sdToggleCurrent()">Current</button>
           <button id="sd-share-btn" class="abar-btn" style="display:none;font-size:12px;padding:5px 14px;background:#1a2b4a;" onclick="sdCopyShareLink()">🔗 Copy link</button>
         </div>
@@ -9167,7 +9175,8 @@ var sdAutoSaveTimer = null;
 var evAutoSaveTimer = null;
 
 function backToSportsPage() {
-  var home = _evBackHome && !!document.querySelector('#pg-event.active');
+  var home = (_evBackHome && !!document.querySelector('#pg-event.active')) ||
+             (_sdBackHome && !!document.querySelector('#pg-sport.active'));
   function go() { renderSportsPage(); showPage(home ? 'pg-home' : 'pg-sports'); }
   if (!isAdmin) { go(); return; }
   if (document.querySelector('#pg-sport.active') && currentSportId) {
@@ -9539,32 +9548,37 @@ function renderSportsPage() {
   renderHomeCurrentEvents();
 }
 
-// Home page: events marked "Current", under a "Current and upcoming events"
-// heading above the welcome text. Nothing (no heading) when none are current.
-// Only events still listed under a term count, in the Sports page's order.
+// Home page: sports and events marked "Current", under a "Current and upcoming
+// events" heading above the welcome text. Nothing (no heading) when none are
+// current. Only ones still listed under a term count, in the Sports page's order.
 function renderHomeCurrentEvents() {
   var box = el('home-current-events');
   if (!box) return;
-  var ids = [];
+  var items = [], seen = {};
   (sportTerms || []).forEach(function(t) {
+    (t.sportIds || []).forEach(function(sid) {
+      var s = sportsData[sid];
+      if (s && s.current && !seen['s' + sid]) { seen['s' + sid] = 1; items.push({ kind: 'sport', name: s.name, open: function() { openSportDetail(sid, { fromHome: true }); } }); }
+    });
     (t.eventIds || []).forEach(function(eid) {
-      if (eventsData[eid] && eventsData[eid].current && ids.indexOf(eid) === -1) ids.push(eid);
+      var e = eventsData[eid];
+      if (e && e.current && !seen['e' + eid]) { seen['e' + eid] = 1; items.push({ kind: 'event', name: e.name, open: function() { openEventDetail(eid, { fromHome: true }); } }); }
     });
   });
   box.innerHTML = '';
-  if (!ids.length) { box.style.display = 'none'; return; }
+  if (!items.length) { box.style.display = 'none'; return; }
   var h = document.createElement('h2');
   h.textContent = 'Current and upcoming events';
   box.appendChild(h);
   var grid = document.createElement('div');
   grid.className = 'event-btn-grid';
-  ids.forEach(function(eid) {
+  items.forEach(function(it) {
     var btn = document.createElement('button');
-    btn.className = 'event-btn is-current';
-    btn.textContent = eventsData[eid].name;
+    btn.className = 'event-btn home-cur-btn home-cur-' + it.kind;
+    btn.textContent = it.name || '';
     btn.onclick = function() {
       btn.classList.add('popping');
-      setTimeout(function() { btn.classList.remove('popping'); openEventDetail(eid, { fromHome: true }); }, 320);
+      setTimeout(function() { btn.classList.remove('popping'); it.open(); }, 320);
     };
     grid.appendChild(btn);
   });
@@ -9665,10 +9679,13 @@ function sdGroupsOf(sport) {
   return sport.groups;
 }
 
-function openSportDetail(sportId) {
+function openSportDetail(sportId, opts) {
   currentSportId = sportId;
   var sport = sportsData[sportId];
   if (!sport) return;
+  _sdBackHome = !!(opts && opts.fromHome);
+  var sdBack = el('sd-back-btn');
+  if (sdBack) sdBack.textContent = _sdBackHome ? '← Back to Home' : '← Back to Sports';
   el('sd-name').textContent = sport.name;
   renderSdGroups(sport);
   if (isAdmin) {
@@ -10224,6 +10241,7 @@ function eventMoveBtn(termId, eventId, dir) {
 
 // ---- event detail page ----
 var _evBackHome = false;   // opened from the home page's current events → Back goes Home
+var _sdBackHome = false;   // same, for a sport
 function openEventDetail(eventId, opts) {
   currentEventId = eventId;
   var ev = eventsData[eventId];
