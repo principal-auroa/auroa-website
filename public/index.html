@@ -311,6 +311,22 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 .concert-book-btn span{font-size:15px;font-weight:400;}
 .concert-book-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.18);}
 .concert-book-btn:disabled{opacity:0.6;cursor:default;transform:none;}
+.concert-book-btn .concert-left{display:block;font-size:13px;font-weight:700;background:rgba(255,255,255,0.22);border-radius:999px;padding:3px 10px;margin:0 auto 8px;width:max-content;max-width:100%;}
+.concert-book-btn.sold-out,.concert-book-btn.sold-out:disabled{background:#9ca3af;opacity:1;box-shadow:none;cursor:not-allowed;}
+.concert-totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 4px;}
+.concert-tot{border-radius:12px;color:#fff;padding:12px 14px;font-size:14px;line-height:1.35;}
+.concert-tot b{display:block;font-size:28px;line-height:1.1;}
+.concert-tot span{font-size:12px;opacity:0.92;}
+.concert-tot.concert-day{background:#e08a1e;}.concert-tot.concert-eve{background:#2c3e8f;}
+#concert-admin .concert-bk{padding-left:38px;}
+.concert-bk.ticked{background:#ecfdf5;border-color:#86efac;}
+.concert-bk .concert-tick{position:absolute;left:11px;top:10px;width:18px;height:18px;margin:0;cursor:pointer;accent-color:#16a34a;}
+.concert-qty{display:inline-flex;align-items:center;gap:6px;vertical-align:middle;}
+.concert-qty button{width:24px;height:24px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#1a2b4a;font-weight:700;font-size:15px;line-height:1;cursor:pointer;padding:0;}
+.concert-qty button:disabled{opacity:0.4;cursor:default;}
+.concert-qty b{min-width:18px;text-align:center;}
+.concert-archives{margin-top:14px;font-size:13px;}
+.concert-archives a{color:#1a2b4a;font-weight:600;}
 .concert-book-btn.concert-day,.concert-col-h.concert-day{background:#e08a1e;}
 .concert-book-btn.concert-eve,.concert-col-h.concert-eve{background:#2c3e8f;}
 .concert-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;}
@@ -320,7 +336,7 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 .concert-bk{background:#fff;border:1px solid #e6e6e6;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;line-height:1.5;position:relative;}
 .concert-bk b{color:#1a2b4a;}
 .concert-bk .concert-del{position:absolute;top:6px;right:6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;padding:1px 7px;}
-@media (max-width:600px){.concert-cols,.concert-book-row{grid-template-columns:1fr;}}
+@media (max-width:600px){.concert-cols,.concert-book-row{grid-template-columns:1fr;}.concert-tot b{font-size:22px;}}
 /* Job Opportunities' Move up / Move down row (admin) sits under its tools row. */
 .sb-move-row{margin-top:-6px;}
 /* Admin-only Show/Hide switch under each special pill; a hidden pill is
@@ -3363,6 +3379,18 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     margin:6px 8px 4px;padding:0;
   }
 }
+/* Messages page on phones: use the full screen width (the shared .pg-body is
+   65% wide, which squeezed the message cards into a narrow strip), and put
+   Back / Send test / Unsubscribe in a row ABOVE the title instead of pinned
+   on top of it. */
+@media (max-width:768px){
+  #pg-messages .pg-body.pm-body{width:auto;max-width:none;margin:0;padding:10px 12px 40px;}
+  #pg-messages .pg-title-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  #pg-messages .pg-title-row > .back-btn,
+  #pg-messages .pg-title-row .pg-title-btns{position:static;max-width:none;}
+  #pg-messages .pg-title-row .pg-title-btns{margin-left:auto;justify-content:flex-end;}
+  #pg-messages .pg-title{flex-basis:100%;order:3;}
+}
 </style>
 <!-- PDF export library for the About Us "Download as PDF" button -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
@@ -3954,12 +3982,24 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Bookings (admin)</h3>
           <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;" onclick="concertLoadResults()">↻ Refresh</button>
           <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#1a2b4a;" onclick="concertDownloadCsv()">⬇ Download</button>
+          <button type="button" class="abar-btn" style="font-size:11px;padding:4px 12px;background:#b91c1c;" onclick="concertReset()">⟲ Reset bookings</button>
+          <label style="font-size:12px;color:#555;">Order by
+            <select id="concert-sort" onchange="concertSetSort(this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #cbd5e1;margin-left:4px;">
+              <option value="time">Booking time</option>
+              <option value="last">Last name</option>
+              <option value="tickets">Number of tickets</option>
+            </select></label>
           <span id="concert-admin-count" style="font-size:12px;color:#555;"></span>
+        </div>
+        <div class="concert-totals">
+          <div class="concert-tot concert-day">Daytime — 12pm<b id="concert-tot-day">0 tickets</b><span id="concert-tot-day-sub"></span></div>
+          <div class="concert-tot concert-eve">Evening — 7pm<b id="concert-tot-evening">0 tickets</b><span id="concert-tot-evening-sub"></span></div>
         </div>
         <div class="concert-cols">
           <div class="concert-col"><div class="concert-col-h concert-day">Daytime — 12pm start<span id="concert-total-day"></span></div><div id="concert-list-day"></div></div>
           <div class="concert-col"><div class="concert-col-h concert-eve">Evening — 7pm start<span id="concert-total-evening"></span></div><div id="concert-list-evening"></div></div>
         </div>
+        <div class="concert-archives" id="concert-archives"></div>
       </div>
 
       <div style="max-width:720px;margin:0 auto;">
@@ -3985,8 +4025,8 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
             </div>
             <label class="hb-label" style="margin-top:16px;display:block;">Choose your concert to book <span class="hb-required">*</span></label>
             <div class="concert-book-row">
-              <button type="button" class="concert-book-btn concert-day" onclick="concertBook('day', this)">Daytime<br><span>12pm start</span></button>
-              <button type="button" class="concert-book-btn concert-eve" onclick="concertBook('evening', this)">Evening<br><span>7pm start</span></button>
+              <button type="button" class="concert-book-btn concert-day" id="concert-btn-day" onclick="concertBook('day', this)"><span class="concert-left" id="concert-left-day"></span>Daytime<br><span>12pm start</span></button>
+              <button type="button" class="concert-book-btn concert-eve" id="concert-btn-evening" onclick="concertBook('evening', this)"><span class="concert-left" id="concert-left-evening"></span>Evening<br><span>7pm start</span></button>
             </div>
             <div id="concert-status" style="color:#c0392b;font-size:14px;margin-top:8px;"></div>
           </form>
@@ -7285,6 +7325,26 @@ function jobsDelete(id) {
 
 // ===================== CONCERT TICKET BOOKINGS =====================
 var CONCERT_SESSIONS = { day: 'Daytime — 12pm start', evening: 'Evening — 7pm start' };
+var _concertRemaining = null;
+function concertShowRemaining(rem) {
+  if (rem) _concertRemaining = rem;
+  ['day', 'evening'].forEach(function(s) {
+    var b = el('concert-btn-' + s), lab = el('concert-left-' + s);
+    if (!b || !lab) return;
+    if (!_concertRemaining) { lab.style.display = 'none'; return; }
+    var n = Math.max(0, Number(_concertRemaining[s]) || 0);
+    lab.style.display = '';
+    lab.textContent = n > 0 ? n + ' ticket' + (n === 1 ? '' : 's') + ' remaining' : 'Sold out — 0 remaining';
+    b.classList.toggle('sold-out', n <= 0);
+    b.disabled = n <= 0;
+  });
+}
+function concertLoadAvailability() {
+  fetch('/api/concert/availability', { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(b) { if (b && b.remaining) concertShowRemaining(b.remaining); })
+    .catch(function() {});
+}
 function concertBook(session, btn) {
   var st = el('concert-status');
   st.textContent = '';
@@ -7294,11 +7354,17 @@ function concertBook(session, btn) {
   if (!v('concert-child')) { st.textContent = 'Please enter your child’s name.'; return; }
   if (!t) { st.textContent = 'Please choose 1 or 2 tickets.'; return; }
   var body = { first: v('concert-first'), last: v('concert-last'), child: v('concert-child'), tickets: Number(t.value), session: session };
+  if (_concertRemaining && body.tickets > (Number(_concertRemaining[session]) || 0)) {
+    var left = Number(_concertRemaining[session]) || 0;
+    st.textContent = left <= 0 ? 'Sorry, the ' + CONCERT_SESSIONS[session] + ' concert is sold out.' : 'Sorry, only ' + left + ' ticket' + (left === 1 ? ' is' : 's are') + ' left for the ' + CONCERT_SESSIONS[session] + ' concert.';
+    return;
+  }
   var btns = document.querySelectorAll('.concert-book-btn');
   btns.forEach(function(b) { b.disabled = true; });
   fetch('/api/concert/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     .then(function(r) { return r.json().then(function(b) { return { ok: r.ok, b: b }; }); })
     .then(function(res) {
+      if (res.b && res.b.remaining) _concertRemaining = res.b.remaining;
       if (!res.ok || !res.b || !res.b.ok) throw new Error((res.b && res.b.error) || 'rejected');
       el('concert-form-wrap').innerHTML =
         '<div class="pd-thanks"><strong>Thank you, ' + lunchEsc(body.first) + '!</strong><br>' +
@@ -7309,18 +7375,52 @@ function concertBook(session, btn) {
     })
     .catch(function(e) {
       btns.forEach(function(b) { b.disabled = false; });
+      concertShowRemaining();
       st.textContent = (e && e.message && e.message !== 'rejected' && e.message !== 'Failed to fetch') ? e.message : 'Could not book — please try again.';
     });
 }
 
 // ---- Admin: bookings in two columns, Daytime | Evening ----
 var _concertLast = [];
+var _concertCap = 230;
+var _concertSort = 'time';
+try { var _cs = localStorage.getItem('concertSort'); if (_cs === 'last' || _cs === 'tickets') _concertSort = _cs; } catch (e) {}
+function concertSetSort(v) {
+  _concertSort = v;
+  try { localStorage.setItem('concertSort', v); } catch (e) {}
+  concertRenderResults();
+}
+// One show's bookings, in the chosen order. Bookings under the same parent
+// name are always kept together; groups are ordered by earliest booking,
+// last name (then first name), or total tickets (most first).
+function concertOrdered(session) {
+  var key = function(r) { return (String(r.first || '') + ' ' + String(r.last || '')).toLowerCase().replace(/\s+/g, ' ').trim(); };
+  var groups = {}, order = [];
+  _concertLast.filter(function(r) { return r.session === session; }).forEach(function(r) {
+    var k = key(r);
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(r);
+  });
+  var gs = order.map(function(k) {
+    var rows = groups[k].slice().sort(function(a, c) { return a.ts - c.ts; });
+    return { rows: rows, ts: rows[0].ts, first: String(rows[0].first || '').toLowerCase(), last: String(rows[0].last || '').toLowerCase(),
+             tickets: rows.reduce(function(n, r) { return n + (Number(r.tickets) || 0); }, 0) };
+  });
+  gs.sort(function(a, c) {
+    if (_concertSort === 'last') return a.last.localeCompare(c.last) || a.first.localeCompare(c.first) || a.ts - c.ts;
+    if (_concertSort === 'tickets') return c.tickets - a.tickets || a.last.localeCompare(c.last) || a.first.localeCompare(c.first);
+    return a.ts - c.ts;
+  });
+  return gs.reduce(function(out, g) { return out.concat(g.rows); }, []);
+}
 function concertLoadResults() {
+  concertLoadArchives();
   ['day', 'evening'].forEach(function(s) { var l = el('concert-list-' + s); if (l) l.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>'; });
   fetch('/api/concert/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
     .then(function(r) { return r.json(); })
     .then(function(b) {
       _concertLast = ((b && b.bookings) || []).slice().sort(function(a, c) { return a.ts - c.ts; });
+      if (b && b.cap) _concertCap = b.cap;
       concertRenderResults();
     })
     .catch(function() { var l = el('concert-list-day'); if (l) l.innerHTML = '<span style="font-size:13px;color:#c0392b;">Could not load bookings.</span>'; });
@@ -7328,38 +7428,100 @@ function concertLoadResults() {
 function concertRenderResults() {
   var all = 0;
   ['day', 'evening'].forEach(function(s) {
-    var list = _concertLast.filter(function(r) { return r.session === s; });
+    var list = concertOrdered(s);
+    var sel = el('concert-sort'); if (sel && sel.value !== _concertSort) sel.value = _concertSort;
     var tickets = list.reduce(function(n, r) { return n + (Number(r.tickets) || 0); }, 0);
     all += tickets;
     var tot = el('concert-total-' + s);
     if (tot) tot.textContent = list.length + ' booking' + (list.length === 1 ? '' : 's') + ' · ' + tickets + ' ticket' + (tickets === 1 ? '' : 's');
+    var big = el('concert-tot-' + s), sub = el('concert-tot-' + s + '-sub');
+    var left = Math.max(0, _concertCap - tickets);
+    var ticked = list.filter(function(r) { return r.ticked; }).length;
+    if (big) big.textContent = tickets + ' ticket' + (tickets === 1 ? '' : 's');
+    if (sub) sub.textContent = left + ' of ' + _concertCap + ' remaining · ' + list.length + ' booking' + (list.length === 1 ? '' : 's') + ' · ' + ticked + ' ticked';
     var out = el('concert-list-' + s);
     if (!out) return;
     out.innerHTML = list.length ? list.map(function(r) {
-      return '<div class="concert-bk">' +
-        '<button type="button" class="concert-del" title="Delete this booking" onclick="concertDelete(\'' + lunchEsc(r.id) + '\')">✕</button>' +
+      var id = lunchEsc(r.id), n = Number(r.tickets) || 0;
+      return '<div class="concert-bk' + (r.ticked ? ' ticked' : '') + '">' +
+        '<input type="checkbox" class="concert-tick" title="Tick off this booking"' + (r.ticked ? ' checked' : '') + ' onchange="concertTick(\'' + id + '\', this)">' +
+        '<button type="button" class="concert-del" title="Delete this booking" onclick="concertDelete(\'' + id + '\')">✕</button>' +
         '<b>' + lunchEsc(r.first + ' ' + r.last) + '</b><br>' +
         'Child: ' + lunchEsc(r.child) + '<br>' +
-        'Tickets: <b>' + Number(r.tickets) + '</b><br>' +
+        'Tickets: <span class="concert-qty"><button type="button" title="One fewer ticket"' + (n <= 1 ? ' disabled' : '') + ' onclick="concertSetTickets(\'' + id + '\', ' + (n - 1) + ')">−</button><b>' + n + '</b>' +
+        '<button type="button" title="One more ticket"' + (n >= 50 ? ' disabled' : '') + ' onclick="concertSetTickets(\'' + id + '\', ' + (n + 1) + ')">+</button></span><br>' +
         '<span style="color:#888;font-size:12px;">Booked ' + lunchEsc(new Date(r.ts).toLocaleString()) + '</span></div>';
     }).join('') : '<span style="font-size:13px;color:#888;">No bookings yet.</span>';
   });
   var cnt = el('concert-admin-count');
   if (cnt) cnt.textContent = _concertLast.length + ' booking' + (_concertLast.length === 1 ? '' : 's') + ' · ' + all + ' ticket' + (all === 1 ? '' : 's') + ' in total';
 }
+function concertTick(id, box) {
+  var r = _concertLast.find(function(x) { return x.id === id; });
+  var want = !!box.checked;
+  box.disabled = true;
+  fetch('/api/concert/tick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, ticked: want }) })
+    .then(function(res) { return res.json().then(function(b) { return { ok: res.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.b || !res.b.ok) throw new Error((res.b && res.b.error) || 'Could not save.');
+      if (r) r.ticked = want;
+      concertRenderResults();
+    })
+    .catch(function(e) { box.checked = !want; box.disabled = false; flashSave((e && e.message) || 'Could not save.'); });
+}
+function concertSetTickets(id, n) {
+  if (n < 1 || n > 50) return;
+  var r = _concertLast.find(function(x) { return x.id === id; });
+  fetch('/api/concert/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, tickets: n }) })
+    .then(function(res) { return res.json().then(function(b) { return { ok: res.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.b || !res.b.ok) throw new Error((res.b && res.b.error) || 'Could not save.');
+      if (r) r.tickets = n;
+      concertRenderResults();
+      concertLoadAvailability();
+    })
+    .catch(function(e) { flashSave((e && e.message) || 'Could not save.'); });
+}
+function concertReset() {
+  if (!_concertLast.length) { flashSave('There are no bookings to reset.'); return; }
+  if (!confirm('Reset all concert bookings?\n\nA page listing everyone who booked, and the daytime and evening totals, will be saved first — you can open it under “Saved records”. The bookings list will then be cleared and all ' + _concertCap + ' tickets for each show become available again.')) return;
+  fetch('/api/concert/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(res) { return res.json().then(function(b) { return { ok: res.ok, b: b }; }); })
+    .then(function(res) {
+      if (!res.ok || !res.b || !res.b.ok) throw new Error((res.b && res.b.error) || 'Could not reset.');
+      flashSave('Bookings reset — record saved.');
+      concertLoadResults();
+      concertLoadAvailability();
+    })
+    .catch(function(e) { flashSave((e && e.message) || 'Could not reset.'); });
+}
+function concertLoadArchives() {
+  var box = el('concert-archives');
+  if (!box) return;
+  fetch('/api/concert/archives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(r) { return r.json(); })
+    .then(function(b) {
+      var arch = (b && b.archives) || [];
+      box.innerHTML = arch.length ? '<b style="color:#1a2b4a;">Saved records (from resets)</b><ul style="margin:6px 0 0;padding-left:18px;">' + arch.map(function(a) {
+        return '<li><a href="/api/concert/archive/' + encodeURIComponent(a.id) + '" target="_blank" rel="noopener">' + lunchEsc(new Date(a.ts).toLocaleString()) + '</a>' +
+          ' — Daytime ' + Number(a.day) + ' · Evening ' + Number(a.evening) + ' tickets (' + Number(a.bookings) + ' booking' + (a.bookings === 1 ? '' : 's') + ')</li>';
+      }).join('') + '</ul>' : '';
+    })
+    .catch(function() {});
+}
 function concertDelete(id) {
   var r = _concertLast.find(function(x) { return x.id === id; });
   if (!confirm('Delete ' + (r ? r.first + ' ' + r.last + '’s' : 'this') + ' booking?')) return;
   fetch('/api/concert/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
     .then(function(r) { return r.json(); })
-    .then(function(b) { if (b && b.ok) { flashSave('Booking deleted.'); concertLoadResults(); } else flashSave('Could not delete.'); })
+    .then(function(b) { if (b && b.ok) { flashSave('Booking deleted.'); concertLoadResults(); concertLoadAvailability(); } else flashSave('Could not delete.'); })
     .catch(function() { flashSave('Could not delete.'); });
 }
 function concertDownloadCsv() {
-  var lines = [['Concert', 'First name', 'Last name', 'Child', 'Tickets', 'Booked'].map(svCsvCell).join(',')];
+  var lines = [['Concert', 'First name', 'Last name', 'Child', 'Tickets', 'Ticked', 'Booked'].map(svCsvCell).join(',')];
   ['day', 'evening'].forEach(function(s) {
-    _concertLast.filter(function(r) { return r.session === s; }).forEach(function(r) {
-      lines.push([CONCERT_SESSIONS[s], r.first, r.last, r.child, r.tickets, new Date(r.ts).toLocaleString()].map(svCsvCell).join(','));
+    concertOrdered(s).forEach(function(r) {
+      lines.push([CONCERT_SESSIONS[s], r.first, r.last, r.child, r.tickets, r.ticked ? 'Yes' : '', new Date(r.ts).toLocaleString()].map(svCsvCell).join(','));
     });
   });
   var d = new Date();
@@ -8551,6 +8713,7 @@ function showPage(id) {
     if (isAdmin && typeof clLoadResults === 'function') clLoadResults();
   }
   if (id === 'pg-concert') {
+    if (typeof concertLoadAvailability === 'function') concertLoadAvailability();
     if (isAdmin && typeof concertLoadResults === 'function') concertLoadResults();
   }
   if (id === 'pg-triathlon') {

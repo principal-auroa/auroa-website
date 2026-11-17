@@ -456,7 +456,7 @@ const PUBLIC_API = [
   ['POST', /^\/lunch-order$/], ['POST', /^\/absence$/], ['POST', /^\/client-log$/],
   ['POST', /^\/survey\/submit$/], ['POST', /^\/hall-bookings$/],
   ['POST', /^\/petday\/submit$/], ['POST', /^\/classlist\/submit$/], ['POST', /^\/triathlon\/submit$/],
-  ['POST', /^\/concert\/book$/],
+  ['POST', /^\/concert\/book$/], ['GET', /^\/concert\/availability$/],
   ['POST', /^\/push\/ack$/],
   ['POST', /^\/jobs\/apply$/],   // job applications (cover letter + CV upload)
   ['POST', /^\/jobs\/(login|logout)$/], ['GET', /^\/jobs\/session$/],   // the applications login
@@ -1315,9 +1315,16 @@ app.post('/api/petday/delete', (req, res) => {
 
 // ---- Concert ticket bookings ----
 // Public booking (parent's name, child's name, 1 or 2 tickets, daytime or
-// evening concert); admin (session-gated by the /api middleware) lists/deletes.
+// evening concert), capped at CONCERT_CAP tickets per show. Admin
+// (session-gated by the /api middleware) lists, ticks off, changes ticket
+// counts, deletes, and resets — a reset first saves an HTML record of every
+// booking and the totals, which stays viewable from the admin section.
 const CONCERT_FILE = path.join(DATA_DIR, 'concert-bookings.json');
+const CONCERT_ARCHIVE_DIR = path.join(DATA_DIR, 'concert-archives');
+const CONCERT_ARCHIVE_INDEX = path.join(DATA_DIR, 'concert-archives.json');
 const CONCERT_SESSIONS = ['day', 'evening'];
+const CONCERT_LABELS = { day: 'Daytime — 12pm start', evening: 'Evening — 7pm start' };
+const CONCERT_CAP = 230;
 function concertReadAll(cb) {
   fs.readFile(CONCERT_FILE, 'utf8', (err, txt) => {
     let list = [];
@@ -1325,6 +1332,34 @@ function concertReadAll(cb) {
     cb(list);
   });
 }
+// All changes to the bookings file run one at a time, so two parents booking
+// the last tickets at the same moment can't both get them.
+let _concertQueue = Promise.resolve();
+function concertMutate(fn) {
+  const run = () => new Promise((resolve) => {
+    concertReadAll((list) => {
+      const out = fn(list) || {};
+      const finish = () => { resolve(); if (out.done) out.done(); };
+      if (!out.list) return finish();
+      fs.writeFile(CONCERT_FILE, JSON.stringify(out.list), (err) => { if (out.saved) out.saved(err); resolve(); });
+    });
+  });
+  _concertQueue = _concertQueue.then(run, run);
+  return _concertQueue;
+}
+function concertTotals(list) {
+  const t = { day: 0, evening: 0 };
+  list.forEach(r => { if (t[r.session] != null) t[r.session] += Number(r.tickets) || 0; });
+  return t;
+}
+function concertRemaining(list) {
+  const t = concertTotals(list);
+  return { day: Math.max(0, CONCERT_CAP - t.day), evening: Math.max(0, CONCERT_CAP - t.evening) };
+}
+app.get('/api/concert/availability', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  concertReadAll((list) => res.json({ cap: CONCERT_CAP, remaining: concertRemaining(list) }));
+});
 app.post('/api/concert/book', (req, res) => {
   const b = req.body || {};
   const str = (v, n) => String(v || '').trim().slice(0, n);
@@ -1338,26 +1373,136 @@ app.post('/api/concert/book', (req, res) => {
   if (!bk.child) return res.status(400).json({ error: 'Please enter your child’s name.' });
   if (bk.tickets !== 1 && bk.tickets !== 2) return res.status(400).json({ error: 'Please choose 1 or 2 tickets.' });
   if (!CONCERT_SESSIONS.includes(bk.session)) return res.status(400).json({ error: 'Please choose the daytime or evening concert.' });
-  concertReadAll((list) => {
+  concertMutate((list) => {
+    const left = concertRemaining(list)[bk.session];
+    if (bk.tickets > left) {
+      const msg = left <= 0
+        ? 'Sorry, the ' + CONCERT_LABELS[bk.session] + ' concert is sold out.'
+        : 'Sorry, only ' + left + ' ticket' + (left === 1 ? ' is' : 's are') + ' left for the ' + CONCERT_LABELS[bk.session] + ' concert.';
+      return { done: () => res.status(409).json({ error: msg, remaining: concertRemaining(list) }) };
+    }
     list.push(bk);
     if (list.length > 5000) list = list.slice(-5000);
-    fs.writeFile(CONCERT_FILE, JSON.stringify(list), (err) => {
-      if (err) return res.status(500).json({ error: 'Could not save your booking — please try again.' });
-      res.json({ ok: true });
-    });
+    return {
+      list,
+      saved: (err) => {
+        if (err) return res.status(500).json({ error: 'Could not save your booking — please try again.' });
+        res.json({ ok: true, remaining: concertRemaining(list) });
+      }
+    };
   });
 });
 app.post('/api/concert/results', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  concertReadAll((list) => res.json({ bookings: list }));
+  concertReadAll((list) => res.json({ bookings: list, cap: CONCERT_CAP }));
 });
 app.post('/api/concert/delete', (req, res) => {
   const id = String((req.body || {}).id || '');
-  concertReadAll((list) => {
+  concertMutate((list) => {
     const next = list.filter(r => r.id !== id);
-    if (next.length === list.length) return res.json({ ok: true, deleted: 0 });
-    fs.writeFile(CONCERT_FILE, JSON.stringify(next), () => res.json({ ok: true, deleted: 1 }));
+    if (next.length === list.length) return { done: () => res.json({ ok: true, deleted: 0 }) };
+    return { list: next, saved: () => res.json({ ok: true, deleted: 1 }) };
   });
+});
+// Tick a booking off (e.g. paid / tickets handed out).
+app.post('/api/concert/tick', (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || '');
+  concertMutate((list) => {
+    const r = list.find(x => x.id === id);
+    if (!r) return { done: () => res.status(404).json({ error: 'Booking not found.' }) };
+    r.ticked = !!b.ticked;
+    return { list, saved: (err) => err ? res.status(500).json({ error: 'Could not save.' }) : res.json({ ok: true }) };
+  });
+});
+// Change how many tickets a booking has. Admins may go past the cap.
+app.post('/api/concert/tickets', (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || '');
+  const n = Number(b.tickets);
+  if (!Number.isInteger(n) || n < 1 || n > 50) return res.status(400).json({ error: 'Tickets must be between 1 and 50.' });
+  concertMutate((list) => {
+    const r = list.find(x => x.id === id);
+    if (!r) return { done: () => res.status(404).json({ error: 'Booking not found.' }) };
+    r.tickets = n;
+    return { list, saved: (err) => err ? res.status(500).json({ error: 'Could not save.' }) : res.json({ ok: true }) };
+  });
+});
+function concertArchiveHtml(list, savedAt) {
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const when = (ts) => new Date(ts).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland', dateStyle: 'medium', timeStyle: 'short' });
+  const totals = concertTotals(list);
+  const section = (s) => {
+    const rows = list.filter(r => r.session === s).sort((a, c) => String(a.last || '').localeCompare(String(c.last || ''), 'en', { sensitivity: 'base' }) || String(a.first || '').localeCompare(String(c.first || ''), 'en', { sensitivity: 'base' }) || a.ts - c.ts);
+    const body = rows.length ? rows.map((r, i) =>
+      '<tr><td>' + (i + 1) + '</td><td>' + esc(r.first + ' ' + r.last) + '</td><td>' + esc(r.child) + '</td><td class="n">' + (Number(r.tickets) || 0) +
+      '</td><td class="c">' + (r.ticked ? '✓' : '') + '</td><td>' + esc(when(r.ts)) + '</td></tr>').join('')
+      : '<tr><td colspan="6" class="none">No bookings.</td></tr>';
+    return '<h2 class="' + s + '">' + esc(CONCERT_LABELS[s]) + ' — ' + totals[s] + ' ticket' + (totals[s] === 1 ? '' : 's') + ' (' + rows.length + ' booking' + (rows.length === 1 ? '' : 's') + ')</h2>' +
+      '<table><thead><tr><th>#</th><th>Name</th><th>Child</th><th>Tickets</th><th>Ticked</th><th>Booked</th></tr></thead><tbody>' + body + '</tbody></table>';
+  };
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Concert bookings — saved ' + esc(when(savedAt)) + '</title><style>' +
+    'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1a2b4a;background:#fff;margin:0;padding:20px 16px 40px;max-width:900px;margin:0 auto;}' +
+    'h1{font-size:22px;margin:0 0 4px;}p.sub{color:#666;margin:0 0 16px;font-size:14px;}' +
+    '.tot{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;}.tot div{flex:1 1 200px;border-radius:10px;color:#fff;padding:12px 14px;font-size:15px;}' +
+    '.tot b{display:block;font-size:26px;}.tot .day,h2.day{background:#e08a1e;}.tot .evening,h2.evening{background:#2c3e8f;}' +
+    'h2{color:#fff;font-size:16px;border-radius:8px;padding:8px 12px;margin:24px 0 8px;}' +
+    'table{width:100%;border-collapse:collapse;font-size:14px;}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #e6e6e6;vertical-align:top;}' +
+    'th{background:#f3f4f6;font-size:12px;text-transform:uppercase;letter-spacing:.03em;}td.n,td.c{text-align:center;}td.none{color:#888;}' +
+    '@media print{body{padding:0;}h2,.tot div{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}' +
+    '</style></head><body>' +
+    '<h1>Concert ticket bookings</h1><p class="sub">Saved ' + esc(when(savedAt)) + ' when the bookings were reset · ' + list.length + ' booking' + (list.length === 1 ? '' : 's') + ' in total</p>' +
+    '<div class="tot"><div class="day">Daytime — 12pm start<b>' + totals.day + ' ticket' + (totals.day === 1 ? '' : 's') + '</b></div>' +
+    '<div class="evening">Evening — 7pm start<b>' + totals.evening + ' ticket' + (totals.evening === 1 ? '' : 's') + '</b></div></div>' +
+    section('day') + section('evening') + '</body></html>';
+}
+function concertReadArchives(cb) {
+  fs.readFile(CONCERT_ARCHIVE_INDEX, 'utf8', (err, txt) => {
+    let list = [];
+    if (!err && txt) { try { list = JSON.parse(txt) || []; } catch (e) {} }
+    cb(list);
+  });
+}
+// Reset: save an HTML record of every booking + totals, then clear the bookings.
+app.post('/api/concert/reset', (req, res) => {
+  concertMutate((list) => {
+    const savedAt = Date.now();
+    const id = 'ca_' + savedAt + '_' + crypto.randomBytes(3).toString('hex');
+    const totals = concertTotals(list);
+    return {
+      done: () => {
+        fs.mkdir(CONCERT_ARCHIVE_DIR, { recursive: true }, (mkErr) => {
+          if (mkErr) return res.status(500).json({ error: 'Could not save the record — nothing was reset.' });
+          fs.writeFile(path.join(CONCERT_ARCHIVE_DIR, id + '.html'), concertArchiveHtml(list, savedAt), (wErr) => {
+            if (wErr) return res.status(500).json({ error: 'Could not save the record — nothing was reset.' });
+            concertReadArchives((arch) => {
+              arch.unshift({ id, ts: savedAt, bookings: list.length, day: totals.day, evening: totals.evening });
+              fs.writeFile(CONCERT_ARCHIVE_INDEX, JSON.stringify(arch), () => {
+                // Clear only the bookings that went into the record; any made meanwhile stay.
+                const saved = new Set(list.map(r => r.id));
+                concertMutate((now) => ({
+                  list: now.filter(r => !saved.has(r.id)),
+                  saved: (err) => err ? res.status(500).json({ error: 'Record saved, but the bookings could not be cleared.' })
+                                      : res.json({ ok: true, archive: { id, ts: savedAt } })
+                }));
+              });
+            });
+          });
+        });
+      }
+    };
+  });
+});
+app.post('/api/concert/archives', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  concertReadArchives((arch) => res.json({ archives: arch }));
+});
+app.get('/api/concert/archive/:id', (req, res) => {
+  const id = String(req.params.id || '');
+  if (!/^ca_\d+_[0-9a-f]+$/.test(id)) return res.status(404).send('Not found');
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(CONCERT_ARCHIVE_DIR, id + '.html'), (err) => { if (err && !res.headersSent) res.status(404).send('Not found'); });
 });
 
 // ---- Triathlon entries ----
