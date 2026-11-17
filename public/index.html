@@ -1443,12 +1443,20 @@ body.is-admin .sd-img-block:hover .sd-img-del,body.is-admin .sd-img-block:hover 
 #home-current-events h2{font-size:22px;font-weight:700;color:#1a2b4a;margin:0 0 12px;}
 /* Home current items: events blue, sports orange, each with a glow pulsing behind it */
 .home-cur-btn{color:#fff !important;}
-.home-cur-event{background:#2563eb !important;border-color:#1d4ed8 !important;animation:hcPulseBlue 2s ease-out infinite;}
-.home-cur-sport{background:#ea7a1f !important;border-color:#c2410c !important;animation:hcPulseOrange 2s ease-out infinite;}
+.home-cur-event{background:#2563eb !important;border-color:#1d4ed8 !important;--hc1:26,43,74;--hc2:234,122,31;}
+.home-cur-sport{background:#ea7a1f !important;border-color:#c2410c !important;--hc1:234,122,31;--hc2:26,43,74;}
+/* Each button gets one of four pulse patterns (by position) and its own start delay, so they never pulse in step.
+   Every pattern mixes an orange and a navy pulse (events lead with navy, sports with orange). */
+.home-cur-btn.hc-pat-0{animation:hcRipple 3.2s ease-out infinite;}
+.home-cur-btn.hc-pat-1{animation:hcHeartbeat 1.9s ease-in-out infinite;}
+.home-cur-btn.hc-pat-2{animation:hcBreathe 4s ease-in-out infinite;}
+.home-cur-btn.hc-pat-3{animation:hcFlash 2.6s ease-out infinite;}
 .home-cur-btn.popping{animation:btnPress 0.35s ease-out forwards;}
-@keyframes hcPulseBlue{0%{box-shadow:0 0 0 0 rgba(37,99,235,0.6);}70%{box-shadow:0 0 0 14px rgba(37,99,235,0);}100%{box-shadow:0 0 0 0 rgba(37,99,235,0);}}
-@keyframes hcPulseOrange{0%{box-shadow:0 0 0 0 rgba(234,122,31,0.6);}70%{box-shadow:0 0 0 14px rgba(234,122,31,0);}100%{box-shadow:0 0 0 0 rgba(234,122,31,0);}}
-@media (prefers-reduced-motion: reduce){.home-cur-event,.home-cur-sport{animation:none;}}
+@keyframes hcRipple{0%{box-shadow:0 0 0 0 rgba(var(--hc1),0.65);}35%{box-shadow:0 0 0 14px rgba(var(--hc1),0);}50%{box-shadow:0 0 0 0 rgba(var(--hc2),0.65);}85%{box-shadow:0 0 0 14px rgba(var(--hc2),0);}100%{box-shadow:0 0 0 0 rgba(var(--hc2),0);}}
+@keyframes hcHeartbeat{0%,45%,100%{box-shadow:0 0 0 0 rgba(var(--hc1),0);}10%{box-shadow:0 0 0 9px rgba(var(--hc1),0.6);}20%{box-shadow:0 0 0 2px rgba(var(--hc2),0.15);}30%{box-shadow:0 0 0 11px rgba(var(--hc2),0.6);}}
+@keyframes hcBreathe{0%,100%{box-shadow:0 0 4px 0 rgba(var(--hc1),0.25);}25%{box-shadow:0 0 22px 8px rgba(var(--hc1),0.65);}50%{box-shadow:0 0 4px 0 rgba(var(--hc2),0.25);}75%{box-shadow:0 0 22px 8px rgba(var(--hc2),0.65);}}
+@keyframes hcFlash{0%{box-shadow:0 0 0 0 rgba(var(--hc1),0.8),0 0 0 0 rgba(var(--hc2),0.55);}40%{box-shadow:0 0 0 7px rgba(var(--hc1),0),0 0 0 18px rgba(var(--hc2),0);}100%{box-shadow:0 0 0 0 rgba(var(--hc1),0),0 0 0 0 rgba(var(--hc2),0);}}
+@media (prefers-reduced-motion: reduce){.home-cur-btn{animation:none !important;}}
 .sport-events-subhead{
   font-size:13px;font-weight:700;color:#c0642b;
   text-transform:uppercase;letter-spacing:0.06em;
@@ -9912,11 +9920,13 @@ function renderHomeCurrentEvents() {
   box.appendChild(h);
   var grid = document.createElement('div');
   grid.className = 'event-btn-grid';
-  items.forEach(function(it) {
+  items.forEach(function(it, i) {
     var btn = document.createElement('button');
-    btn.className = 'event-btn home-cur-btn home-cur-' + it.kind;
+    btn.className = 'event-btn home-cur-btn home-cur-' + it.kind + ' hc-pat-' + (i % 4);
+    btn.style.animationDelay = (-((i * 0.73) % 2.5)).toFixed(2) + 's';
     btn.textContent = it.name || '';
     btn.onclick = function() {
+      btn.style.animationDelay = '0s';
       btn.classList.add('popping');
       setTimeout(function() { btn.classList.remove('popping'); it.open(); }, 320);
     };
