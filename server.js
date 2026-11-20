@@ -1505,6 +1505,38 @@ app.get('/api/concert/archive/:id', (req, res) => {
   res.sendFile(path.join(CONCERT_ARCHIVE_DIR, id + '.html'), (err) => { if (err && !res.headersSent) res.status(404).send('Not found'); });
 });
 
+// ---- Concert: student list with siblings (admin only) ----
+// Admin uploads a CSV of students; each student can have up to three siblings
+// attached (or be marked "no siblings"). Stored as { students:[{id,first,last}],
+// sibs:{ id: [s1,s2,s3] } } where s1 may be 'none'.
+const CONCERT_STUDENTS_FILE = path.join(DATA_DIR, 'concert-students.json');
+app.post('/api/concert/students', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  fs.readFile(CONCERT_STUDENTS_FILE, 'utf8', (err, txt) => {
+    let d = { students: [], sibs: {} };
+    if (!err && txt) { try { d = JSON.parse(txt) || d; } catch (e) {} }
+    res.json(d);
+  });
+});
+app.post('/api/concert/students/save', (req, res) => {
+  const b = req.body || {};
+  const str = (v, n) => String(v || '').trim().slice(0, n);
+  const students = (Array.isArray(b.students) ? b.students : []).slice(0, 3000)
+    .map(s => ({ id: str(s && s.id, 40), first: str(s && s.first, 100), last: str(s && s.last, 100) }))
+    .filter(s => s.id && (s.first || s.last));
+  const ids = new Set(students.map(s => s.id));
+  const sibs = {};
+  Object.keys(b.sibs || {}).forEach(k => {
+    if (!ids.has(k) || !Array.isArray(b.sibs[k])) return;
+    const row = b.sibs[k].slice(0, 3).map((v, i) => { v = str(v, 40); return (v === 'none' && i === 0) || ids.has(v) ? v : ''; });
+    if (row.some(Boolean)) sibs[k] = row;
+  });
+  fs.writeFile(CONCERT_STUDENTS_FILE, JSON.stringify({ students, sibs, ts: Date.now() }), (err) => {
+    if (err) return res.status(500).json({ error: 'Could not save the student list.' });
+    res.json({ ok: true });
+  });
+});
+
 // ---- Triathlon entries ----
 // Public submit; admin (session-gated by the /api middleware) reads/clears.
 const TRIATHLON_FILE = path.join(DATA_DIR, 'triathlon-entries.json');

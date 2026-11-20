@@ -327,6 +327,14 @@ body.is-admin #undo-btn.has-history{display:inline-flex;}
 .concert-qty b{min-width:18px;text-align:center;}
 .concert-archives{margin-top:14px;font-size:13px;}
 .concert-archives a{color:#1a2b4a;font-weight:600;}
+.concert-sib{margin-top:20px;border-top:1px solid #e6e6e6;padding-top:14px;}
+.concert-sib-row{display:grid;grid-template-columns:minmax(140px,1.2fr) repeat(3,minmax(0,1fr));gap:8px;align-items:center;padding:6px 8px;border:1px solid #e6e6e6;border-radius:8px;background:#fff;margin-bottom:5px;}
+.concert-sib-row.need{background:#fee2e2;border-color:#fca5a5;}
+.concert-sib-row.need .concert-sib-name{color:#b91c1c;}
+.concert-sib-name{font-weight:700;color:#1a2b4a;font-size:14px;min-width:0;overflow-wrap:anywhere;}
+.concert-sib-row select{width:100%;min-width:0;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;font-family:inherit;}
+.concert-sib-row select:disabled{background:#f3f4f6;color:#9ca3af;}
+@media (max-width:600px){.concert-sib-row{grid-template-columns:1fr;}}
 .concert-book-btn.concert-day,.concert-col-h.concert-day{background:#e08a1e;}
 .concert-book-btn.concert-eve,.concert-col-h.concert-eve{background:#2c3e8f;}
 .concert-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;}
@@ -3387,17 +3395,27 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
     margin:6px 8px 4px;padding:0;
   }
 }
-/* Messages page on phones: use the full screen width (the shared .pg-body is
-   65% wide, which squeezed the message cards into a narrow strip), and put
-   Back / Send test / Unsubscribe in a row ABOVE the title instead of pinned
-   on top of it. */
+/* Phones: every page uses the full screen width (the shared .pg-body is 65%
+   wide on desktop, and some pages set their own max-width inline, which
+   squeezed content into a narrow strip), and Back / other title buttons sit
+   in a row ABOVE the title instead of pinned on top of it. */
 @media (max-width:768px){
-  #pg-messages .pg-body.pm-body{width:auto;max-width:none;margin:0;padding:10px 12px 40px;}
-  #pg-messages .pg-title-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
-  #pg-messages .pg-title-row > .back-btn,
-  #pg-messages .pg-title-row .pg-title-btns{position:static;max-width:none;}
-  #pg-messages .pg-title-row .pg-title-btns{margin-left:auto;justify-content:flex-end;}
-  #pg-messages .pg-title{flex-basis:100%;order:3;}
+  .page .pg-body{width:auto !important;max-width:none !important;margin:0 !important;padding:10px 12px 40px !important;box-sizing:border-box;}
+  .pg-title-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .pg-title-row > .back-btn,
+  .pg-title-row .pg-title-btns{position:static;max-width:none;}
+  .pg-title-row .pg-title-btns{margin-left:auto;justify-content:flex-end;}
+  .pg-title-row .pg-title-btns:has(> .back-btn){margin-left:0;justify-content:flex-start;}
+  .pg-title{flex-basis:100%;order:3;}
+  /* Bus tables: the admin-dragged column split and side margins are set inline; on phones stack the two images full width. */
+  .bus-wrap{margin-left:0 !important;margin-right:0 !important;width:auto !important;}
+  .bus-grid{grid-template-columns:1fr !important;}
+  /* ...and show each timetable picture whole at full width (the admin pan/zoom is set for the desktop box size). */
+  .bus-wrap,.bus-grid{min-height:0 !important;}
+  .bus-grid .hit-img-cell{aspect-ratio:auto;min-height:0;border-bottom:1.5px solid #ddd;}
+  .bus-grid .hit-img-cell:last-child{border-bottom:none;}
+  .bus-grid .hit-img-cell img{position:static !important;transform:none !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;max-width:100% !important;display:block;}
+  .bus-grid .hit-img-cell:has(img[style*="display:none"]) .hit-placeholder{min-height:120px;}
 }
 </style>
 <!-- PDF export library for the About Us "Download as PDF" button -->
@@ -4008,6 +4026,15 @@ body.is-admin .nl-hidden-toggle.has-hidden{display:inline-block;}
           <div class="concert-col"><div class="concert-col-h concert-eve">Evening — 7pm start<span id="concert-total-evening"></span></div><div id="concert-list-evening"></div></div>
         </div>
         <div class="concert-archives" id="concert-archives"></div>
+        <div class="concert-sib">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <h3 style="color:#1a2b4a;font-size:15px;font-weight:700;margin:0;">Students &amp; siblings</h3>
+            <label class="abar-btn" style="font-size:11px;padding:4px 12px;cursor:pointer;">⬆ Upload CSV<input type="file" accept=".csv,text/csv" style="display:none;" onchange="concertSibUpload(this)"></label>
+            <span id="concert-sib-count" style="font-size:12px;color:#555;"></span>
+          </div>
+          <p style="font-size:12px;color:#666;margin:6px 0 10px;">Upload a CSV with the students’ first and last names. Choose up to three siblings for each student — a chosen sibling leaves the list. Names in red still need a sibling or “No siblings”.</p>
+          <div id="concert-sib-list"></div>
+        </div>
       </div>
 
       <div style="max-width:720px;margin:0 auto;">
@@ -7423,6 +7450,7 @@ function concertOrdered(session) {
 }
 function concertLoadResults() {
   concertLoadArchives();
+  concertSibLoad();
   ['day', 'evening'].forEach(function(s) { var l = el('concert-list-' + s); if (l) l.innerHTML = '<span style="font-size:13px;color:#888;">Loading…</span>'; });
   fetch('/api/concert/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
     .then(function(r) { return r.json(); })
@@ -7463,6 +7491,150 @@ function concertRenderResults() {
   });
   var cnt = el('concert-admin-count');
   if (cnt) cnt.textContent = _concertLast.length + ' booking' + (_concertLast.length === 1 ? '' : 's') + ' · ' + all + ' ticket' + (all === 1 ? '' : 's') + ' in total';
+}
+// ---- Admin: students & siblings (from an uploaded CSV) ----
+var _cSib = { students: [], sibs: {} }, _cSibTimer = null;
+function concertSibLoad() {
+  fetch('/api/concert/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { _cSib = { students: (d && d.students) || [], sibs: (d && d.sibs) || {} }; concertSibRender(); })
+    .catch(function() {});
+}
+function concertSibSave() {
+  clearTimeout(_cSibTimer);
+  _cSibTimer = setTimeout(function() {
+    fetch('/api/concert/students/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_cSib) })
+      .then(function(r) { return r.json(); })
+      .then(function(b) { if (!b || !b.ok) flashSave((b && b.error) || 'Could not save.'); })
+      .catch(function() { flashSave('Could not save the student list.'); });
+  }, 300);
+}
+// Split CSV text into rows of cells (handles quoted cells, commas and newlines in quotes).
+function concertCsvRows(txt) {
+  var rows = [], row = [], cell = '', q = false;
+  txt = String(txt || '').replace(/^\uFEFF/, '');
+  for (var i = 0; i < txt.length; i++) {
+    var c = txt[i];
+    if (q) {
+      if (c === '"') { if (txt[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ',' || c === ';' || c === '\t') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && txt[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.map(function(r) { return r.map(function(x) { return x.trim(); }); }).filter(function(r) { return r.some(Boolean); });
+}
+// Pull first + last names out of the CSV rows, finding the columns by their headings.
+function concertCsvNames(rows) {
+  if (!rows.length) return [];
+  var h = rows[0].map(function(x) { return x.toLowerCase(); });
+  var find = function(re, not) { for (var i = 0; i < h.length; i++) if (re.test(h[i]) && !(not && not.test(h[i]))) return i; return -1; };
+  var fi = find(/first|given|fore|preferred/, /parent|caregiver|guardian|contact|mother|father/);
+  var li = find(/last|surname|family/, /parent|caregiver|guardian|contact|mother|father/);
+  var ni = find(/^(student|child|pupil)?\s*(full\s*)?name$|^student$/);
+  var body = rows.slice(1), out = [];
+  if (fi < 0 && li < 0 && ni < 0) { body = rows; fi = 0; li = rows[0].length > 1 ? 1 : -1; }
+  body.forEach(function(r) {
+    var first = '', last = '';
+    if (fi >= 0 || li >= 0) { first = fi >= 0 ? (r[fi] || '') : ''; last = li >= 0 ? (r[li] || '') : ''; }
+    if (!first && !last && ni >= 0) {
+      var n = (r[ni] || '').trim();
+      if (n.indexOf(',') > 0) { last = n.split(',')[0].trim(); first = n.split(',').slice(1).join(',').trim(); }
+      else { var p = n.split(/\s+/); last = p.length > 1 ? p.pop() : ''; first = p.join(' '); }
+    }
+    if (!first && !last) return;
+    if (li < 0 && ni < 0 && first.indexOf(' ') > 0) { var q = first.split(/\s+/); last = q.pop(); first = q.join(' '); }
+    out.push({ first: first, last: last });
+  });
+  var seen = {};
+  return out.filter(function(s) { var k = (s.first + '|' + s.last).toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; });
+}
+function concertSibUpload(input) {
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  var rd = new FileReader();
+  rd.onload = function() {
+    var names = concertCsvNames(concertCsvRows(rd.result));
+    if (!names.length) { alert('No student names were found in that file. It needs columns for first and last names (e.g. “First name” and “Last name”).'); return; }
+    if (_cSib.students.length && !confirm('Replace the current list of ' + _cSib.students.length + ' students (and their siblings) with the ' + names.length + ' students in this file?')) return;
+    var stamp = Date.now().toString(36);
+    _cSib = { students: names.map(function(n, i) { return { id: 'st_' + stamp + '_' + i, first: n.first, last: n.last }; }), sibs: {} };
+    concertSibRender();
+    concertSibSave();
+    flashSave(names.length + ' students loaded.');
+  };
+  rd.readAsText(file);
+}
+function concertSibName(st) { return st ? ((st.first || '') + ' ' + (st.last || '')).trim() : ''; }
+function concertSibById(id) { return _cSib.students.find(function(x) { return x.id === id; }); }
+function concertSibCmp(a, c) {
+  return String(a.last || '').localeCompare(String(c.last || ''), 'en', { sensitivity: 'base' }) || String(a.first || '').localeCompare(String(c.first || ''), 'en', { sensitivity: 'base' });
+}
+// Students still in the list on the left: not chosen as anyone's sibling.
+function concertSibLeft() {
+  var used = {};
+  Object.keys(_cSib.sibs).forEach(function(k) { (_cSib.sibs[k] || []).forEach(function(v) { if (v && v !== 'none') used[v] = 1; }); });
+  return _cSib.students.filter(function(st) { return !used[st.id]; }).sort(concertSibCmp);
+}
+function concertSibRender() {
+  var box = el('concert-sib-list'), cnt = el('concert-sib-count');
+  if (!box) return;
+  if (!_cSib.students.length) { box.innerHTML = '<span style="font-size:13px;color:#888;">No student list uploaded yet.</span>'; if (cnt) cnt.textContent = ''; return; }
+  var left = concertSibLeft(), need = 0;
+  box.innerHTML = left.map(function(st) {
+    var row = _cSib.sibs[st.id] || ['', '', ''];
+    var hasSib = row.some(function(v) { return v && v !== 'none'; });
+    var isNone = row[0] === 'none';
+    var red = !hasSib && !isNone;
+    if (red) need++;
+    var sel = [0, 1, 2].map(function(i) {
+      var v = row[i] || '';
+      var cur = v === 'none' ? '<option value="none" selected>No siblings</option>' : (v ? '<option value="' + lunchEsc(v) + '" selected>' + lunchEsc(concertSibName(concertSibById(v))) + '</option>' : '');
+      return '<select data-sid="' + lunchEsc(st.id) + '" data-i="' + i + '"' + (i > 0 && isNone ? ' disabled' : '') +
+        ' onfocus="concertSibFill(this)" onmousedown="concertSibFill(this)" ontouchstart="concertSibFill(this)" onchange="concertSibPick(this)">' +
+        '<option value="">— Sibling ' + (i + 1) + ' —</option>' + cur + '</select>';
+    }).join('');
+    return '<div class="concert-sib-row' + (red ? ' need' : '') + '"><div class="concert-sib-name">' + lunchEsc(concertSibName(st)) + '</div>' + sel + '</div>';
+  }).join('');
+  if (cnt) cnt.textContent = _cSib.students.length + ' students · ' + left.length + ' in the list · ' + need + ' still in red';
+}
+// Fill a drop-down with its options only when it is opened (keeps long lists fast).
+function concertSibFill(sel) {
+  if (sel.dataset.filled) return;
+  sel.dataset.filled = '1';
+  var sid = sel.dataset.sid, i = Number(sel.dataset.i), v = sel.value;
+  var html = '<option value="">— Sibling ' + (i + 1) + ' —</option>';
+  if (i === 0) html += '<option value="none"' + (v === 'none' ? ' selected' : '') + '>No siblings</option>';
+  if (v && v !== 'none') html += '<option value="' + lunchEsc(v) + '" selected>' + lunchEsc(concertSibName(concertSibById(v))) + '</option>';
+  concertSibLeft().forEach(function(st) { if (st.id !== sid) html += '<option value="' + lunchEsc(st.id) + '">' + lunchEsc(concertSibName(st)) + '</option>'; });
+  sel.innerHTML = html;
+}
+function concertSibPick(sel) {
+  var sid = sel.dataset.sid, i = Number(sel.dataset.i), v = sel.value;
+  var row = (_cSib.sibs[sid] || ['', '', '']).slice();
+  if (v && v !== 'none') {
+    // The chosen student leaves the list; any siblings they already had move across with them.
+    var theirs = (_cSib.sibs[v] || []).filter(function(x) { return x && x !== 'none'; });
+    var free = row.filter(function(x, j) { return j !== i && (!x || x === 'none'); }).length;
+    if (theirs.length > free) {
+      alert(concertSibName(concertSibById(v)) + ' already has ' + theirs.length + ' sibling' + (theirs.length === 1 ? '' : 's') + ' attached, and there is not enough room to move them across. Clear some first.');
+      concertSibRender();
+      return;
+    }
+    row[i] = v;
+    if (row[0] === 'none') row[0] = '';
+    theirs.forEach(function(x) { for (var j = 0; j < 3; j++) if (!row[j] || row[j] === 'none') { row[j] = x; break; } });
+    delete _cSib.sibs[v];
+  } else {
+    row[i] = v;
+    if (v === 'none') { row[1] = ''; row[2] = ''; }
+  }
+  if (row.some(Boolean)) _cSib.sibs[sid] = row; else delete _cSib.sibs[sid];
+  concertSibRender();
+  concertSibSave();
 }
 function concertTick(id, box) {
   var r = _concertLast.find(function(x) { return x.id === id; });
